@@ -1,0 +1,36 @@
+import { Role } from '../types';
+
+export type Permission = 'none' | 'view' | 'full';
+
+export const ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> = {
+  ADMIN_GENERAL: {
+    dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
+    operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
+    history: 'full', contacts: 'full', reports: 'full', labels: 'full',
+    'warehouse-map': 'full', users: 'full', 'operation-history': 'full',
+  },
+  CEO: {
+    dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
+    operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
+    history: 'view', contacts: 'full', reports: 'full', labels: 'view',
+    'warehouse-map': 'view', users: 'view', 'operation-history': 'none',
+  },
+  ADMINISTRADOR: {
+    dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
+    operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
+    history: 'view', contacts: 'full', reports: 'full', labels: 'view',
+    'warehouse-map': 'view', users: 'view', 'operation-history': 'none',
+  },
+  JEFE_ALMACEN: {
+    dashboard: 'view', analysis: 'view', inventory: 'full', locations: 'full',
+    operations: 'full', adjustments: 'full', 'purchase-orders': 'none',
+    history: 'full', contacts: 'view', reports: 'view', labels: 'none',
+    'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
+  },
+};
+
+export const canView = (role: Role, tab: string): boolean =>
+  (ROLE_PERMISSIONS[role]?.[tab] ?? 'none') !== 'none';
+
+export const canEdit = (role: Role, tab: string): boolean =>
+  (ROLE_PERMISSIONS[role]?.[tab] ?? 'none') === 'full';
