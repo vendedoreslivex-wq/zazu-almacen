@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode } from 'lucide-react';
+import { QRModal } from '../components/QRModal';
 import { Location } from '../types';
 import { cn } from '../lib/utils';
 
 export const Locations: React.FC = () => {
-  const { locations, stockLevels, products, addLocation, updateLocation, deleteLocation, deleteStockLevel } = useAppContext();
+  const { locations, stockLevels, products, addLocation, updateLocation, deleteLocation, deleteStockLevel, activeBrand } = useAppContext();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
   
@@ -25,6 +26,7 @@ export const Locations: React.FC = () => {
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [qrLocation, setQrLocation] = useState<Location | null>(null);
 
   const toggleLocationExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -239,13 +241,20 @@ export const Locations: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setQrLocation(loc); }}
+                    className="p-1.5 border border-[#141414] text-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"
+                    title="VER QR"
+                  >
+                    <QrCode size={12} />
+                  </button>
+                  <button
                     onClick={(e) => { e.stopPropagation(); handleEditClick(loc); }}
                     className="p-1.5 border border-[#141414] text-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"
                   >
                     <Edit2 size={12} />
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteClick(loc.id, e); }}
                     className="p-1.5 border border-red-700 text-red-700 hover:bg-red-700 hover:text-red-50 transition-colors"
                   >
@@ -450,6 +459,12 @@ export const Locations: React.FC = () => {
         </div>
       )}
 
+      {qrLocation && (
+        <QRModal
+          item={{ kind: 'location', id: qrLocation.id, name: qrLocation.name, type: qrLocation.type, brand: activeBrand }}
+          onClose={() => setQrLocation(null)}
+        />
+      )}
     </div>
   );
 };

@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment, AdjustmentReason } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import type { Session } from '@supabase/supabase-js';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment } from '../types';
+import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
 
 interface AppContextType {
+  loading: boolean;
   activeBrand: Brand;
   setActiveBrand: (brand: Brand) => void;
   products: Product[];
@@ -16,7 +19,7 @@ interface AppContextType {
   users: UserWithPassword[];
   purchaseOrders: PurchaseOrder[];
   adjustments: InventoryAdjustment[];
-  addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }) => void;
+  addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }) => Promise<void>;
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
@@ -28,13 +31,15 @@ interface AppContextType {
   updateContact: (contact: Contact) => void;
   deleteContact: (id: string) => void;
   setCurrentUser: (user: User) => void;
-  addUser: (user: Omit<UserWithPassword, 'id'>) => void;
+  addUser: (user: Omit<UserWithPassword, 'id'>) => Promise<void>;
   updateUser: (user: UserWithPassword) => void;
   deleteUser: (id: string) => void;
   addPurchaseOrder: (po: Omit<PurchaseOrder, 'id' | 'date'>) => void;
   updatePurchaseOrder: (po: PurchaseOrder) => void;
   deletePurchaseOrder: (id: string) => void;
   addAdjustment: (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => void;
+  rolePermissions: Record<Role, Record<string, Permission>>;
+  updateRolePermission: (role: Role, module: string, permission: Permission) => Promise<void>;
 }
 
 const defaultProductsOvershark: Product[] = [
@@ -854,262 +859,312 @@ const defaultTransactions: Transaction[] = [];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// --- DB mappers ---
+const dbToProduct = (r: any): Product => ({ id: r.id, code: r.code, name: r.name, color: r.color ?? undefined, size: r.size ?? undefined, category: r.category, lowStockThreshold: r.low_stock_threshold ?? undefined, costPrice: r.cost_price ?? undefined, sellPrice: r.sell_price ?? undefined });
+const dbToLocation = (r: any): Location => ({ id: r.id, name: r.name, type: r.type });
+const dbToStock = (r: any): StockLevel => ({ id: r.id, productId: r.product_id, locationId: r.location_id, quantity: r.quantity });
+const dbToTx = (r: any): Transaction => ({ id: r.id, date: r.date, type: r.type, productId: r.product_id, quantity: r.quantity, fromLocationId: r.from_location_id ?? undefined, toLocationId: r.to_location_id ?? undefined, reference: r.reference, user: r.user_name, status: r.status, signature: r.signature ?? undefined, contactId: r.contact_id ?? undefined, serialNumber: r.serial_number ?? undefined });
+const dbToContact = (r: any): Contact => ({ id: r.id, type: r.type, name: r.name, document: r.document, phone: r.phone ?? undefined, email: r.email ?? undefined });
+const dbToUser = (r: any): UserWithPassword => ({ id: r.id, username: r.username, role: r.role as Role, password: '', email: r.email ?? undefined, emailPersonal: r.email_personal ?? undefined, active: r.active });
+const dbToPO = (r: any): PurchaseOrder => ({ id: r.id, date: r.date, supplierId: r.supplier_id, status: r.status, reference: r.reference, notes: r.notes ?? undefined, locationId: r.location_id ?? undefined, items: (r.purchase_order_items ?? []).map((i: any): PurchaseOrderItem => ({ productId: i.product_id, quantity: i.quantity, unitCost: i.unit_cost, receivedQuantity: i.received_quantity })) });
+const dbToAdj = (r: any): InventoryAdjustment => ({ id: r.id, date: r.date, productId: r.product_id, locationId: r.location_id, previousQuantity: r.previous_quantity, newQuantity: r.new_quantity, reason: r.reason, notes: r.notes ?? undefined, user: r.user_name });
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
   const [activeBrand, setActiveBrand] = useState<Brand>('OVERSHARK');
   const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stockLevels, setStockLevels] = useState<StockLevel[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [currentUser, setCurrentUser] = useState<User>({ id: 'u1', username: 'VALENTINO', role: 'ADMIN_GENERAL' });
-  const [users, setUsers] = useState<UserWithPassword[]>([
-    { id: 'u1', username: 'VALENTINO', role: 'ADMIN_GENERAL', password: 'admin123', email: 'valentino@org-zazu.com', active: true },
-    { id: 'u2', username: 'WILLIAMS', role: 'CEO', password: 'ceo123', email: 'williams@org-zazu.com', active: true },
-    { id: 'u3', username: 'RUBEN', role: 'ADMINISTRADOR', password: 'admin456', email: 'ruben@org-zazu.com', active: true },
-    { id: 'u4', username: 'BENJAMIN', role: 'JEFE_ALMACEN', password: 'almacen123', email: 'benjamin@org-zazu.com', active: true },
-  ]);
+  const [currentUser, setCurrentUser] = useState<User>({ id: '', username: '', role: 'JEFE_ALMACEN' });
+  const [users, setUsers] = useState<UserWithPassword[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<Record<Role, Record<string, Permission>>>(DEFAULT_ROLE_PERMISSIONS);
 
-  const [dataBrand, setDataBrand] = useState<Brand>('OVERSHARK');
+  const loadProfile = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (data) setCurrentUser({ id: data.id, username: data.username, role: data.role as Role });
+  };
 
-  // We only want to load data from localStorage whenever the active brand changes.
-  // We use a prefix for localStorage keys to separate the databases.
-  useEffect(() => {
-    const prefix = activeBrand.toLowerCase();
-    
-    // We migrated from "overshark_products_v3" as the generic one, so if activeBrand is OVERSHARK
-    // we should use the existing data to prevent loss.
-    const keyPrefix = activeBrand === 'OVERSHARK' ? 'overshark' : `module_${prefix}_v1`;
-    
-    const seedKey = `${keyPrefix}_seed_v`;
-    const storedSeed = localStorage.getItem(seedKey);
-    const needsReset =
-      (activeBrand === 'BRAVOS' && storedSeed !== BRAVOS_SEED_V) ||
-      (activeBrand === 'BOX_PRIME' && storedSeed !== BOX_PRIME_SEED_V);
+  const loadBrandData = useCallback(async (brand: Brand) => {
+    setLoading(true);
+    try {
+      const [p, l, s, t, c, po, adj, u] = await Promise.all([
+        supabase.from('products').select('*').eq('brand', brand),
+        supabase.from('locations').select('*').eq('brand', brand),
+        supabase.from('stock_levels').select('*').eq('brand', brand),
+        supabase.from('transactions').select('*').eq('brand', brand).order('date', { ascending: false }),
+        supabase.from('contacts').select('*').eq('brand', brand),
+        supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', brand).order('date', { ascending: false }),
+        supabase.from('inventory_adjustments').select('*').eq('brand', brand).order('date', { ascending: false }),
+        supabase.from('profiles').select('*'),
+      ]);
+      const loadedProducts = (p.data || []).map(dbToProduct);
+      setProducts(loadedProducts);
+      setLocations((l.data || []).map(dbToLocation));
+      setStockLevels((s.data || []).map(dbToStock));
+      setTransactions((t.data || []).map(dbToTx));
+      setContacts((c.data || []).map(dbToContact));
+      setPurchaseOrders((po.data || []).map(dbToPO));
+      setAdjustments((adj.data || []).map(dbToAdj));
+      setUsers((u.data || []).map(dbToUser));
 
-    const loadedProducts = localStorage.getItem(`${keyPrefix}_products_v3`);
-    if (!needsReset && loadedProducts) {
-      let parsedProducts = JSON.parse(loadedProducts);
-      if (activeBrand === 'OVERSHARK') {
-        const bravosIds = ['p20', 'p21', 'p22', 'p23'];
-        parsedProducts = parsedProducts.filter((p: Product) => !bravosIds.includes(p.id));
-      }
-      setProducts(parsedProducts);
-    } else {
-      if (activeBrand === 'OVERSHARK') {
-        setProducts(defaultProductsOvershark);
-      } else if (activeBrand === 'BRAVOS') {
-        setProducts(defaultProductsBravos);
-        localStorage.setItem(seedKey, BRAVOS_SEED_V);
-      } else {
-        setProducts(defaultProductsBoxPrime);
-        localStorage.setItem(seedKey, BOX_PRIME_SEED_V);
-      }
-    }
-
-    const loadedLocations = localStorage.getItem(`${keyPrefix}_locations_v3`);
-    if (loadedLocations) setLocations(JSON.parse(loadedLocations)); else setLocations(defaultLocations);
-
-    const loadedStock = localStorage.getItem(`${keyPrefix}_stock_v3`);
-    if (loadedStock) setStockLevels(JSON.parse(loadedStock)); else setStockLevels(defaultStock);
-
-    const loadedTx = localStorage.getItem(`${keyPrefix}_tx_v3`);
-    if (loadedTx) setTransactions(JSON.parse(loadedTx)); else setTransactions(defaultTransactions);
-    
-    const loadedContacts = localStorage.getItem(`${keyPrefix}_contacts_v1`);
-    if (loadedContacts) setContacts(JSON.parse(loadedContacts)); else setContacts([]);
-    
-    setDataBrand(activeBrand);
-  }, [activeBrand]);
-
-  // Sync to local storage whenever state changes
-  useEffect(() => {
-    // Only attempt to save if the data actually belongs to the brand we are saving to
-    if (dataBrand === activeBrand && (products.length || locations.length)) {
-      const keyPrefix = activeBrand === 'OVERSHARK' ? 'overshark' : `module_${activeBrand.toLowerCase()}_v1`;
-      localStorage.setItem(`${keyPrefix}_products_v3`, JSON.stringify(products));
-      localStorage.setItem(`${keyPrefix}_locations_v3`, JSON.stringify(locations));
-      localStorage.setItem(`${keyPrefix}_stock_v3`, JSON.stringify(stockLevels));
-      localStorage.setItem(`${keyPrefix}_tx_v3`, JSON.stringify(transactions));
-      localStorage.setItem(`${keyPrefix}_contacts_v1`, JSON.stringify(contacts));
-    }
-  }, [products, locations, stockLevels, transactions, contacts, activeBrand, dataBrand]);
-
-  const addTransaction = (txInputs: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }) => {
-    const { forceNewEntry, ...restTxInputs } = txInputs;
-    const newTx: Transaction = {
-      ...restTxInputs,
-      id: uuidv4(),
-      date: new Date().toISOString(),
-      status: 'COMPLETED'
-    };
-
-    let newStock = [...stockLevels];
-
-    if (newTx.type === 'RECEPTION') {
-      if (!newTx.toLocationId) throw new Error("Ubicación de destino no especificada");
-      const existing = newStock.find(s => s.productId === newTx.productId && s.locationId === newTx.toLocationId);
-      if (existing && !forceNewEntry) {
-        existing.quantity += newTx.quantity;
-      } else {
-        newStock.push({ id: uuidv4(), productId: newTx.productId, locationId: newTx.toLocationId, quantity: newTx.quantity });
-      }
-    } else if (newTx.type === 'DISPATCH') {
-      if (!newTx.fromLocationId) throw new Error("Ubicación de origen no especificada");
-      
-      const availableStocks = newStock.filter(s => s.productId === newTx.productId && s.locationId === newTx.fromLocationId);
-      const totalAvailable = availableStocks.reduce((sum, s) => sum + s.quantity, 0);
-      
-      if (totalAvailable < newTx.quantity) {
-        throw new Error("Stock insuficiente para el despacho");
-      }
-      
-      let remaining = newTx.quantity;
-      for (const stock of availableStocks) {
-        if (remaining <= 0) break;
-        if (stock.quantity >= remaining) {
-          stock.quantity -= remaining;
-          remaining = 0;
-        } else {
-          remaining -= stock.quantity;
-          stock.quantity = 0;
+      if (loadedProducts.length === 0) {
+        const seedProds = brand === 'OVERSHARK' ? defaultProductsOvershark : brand === 'BRAVOS' ? defaultProductsBravos : defaultProductsBoxPrime;
+        const BATCH = 200;
+        for (let i = 0; i < seedProds.length; i += BATCH) {
+          const batch = seedProds.slice(i, i + BATCH).map(prod => ({
+            id: prod.id, brand, code: prod.code, name: prod.name,
+            color: prod.color || null, size: prod.size || null, category: prod.category,
+            low_stock_threshold: prod.lowStockThreshold || null,
+            cost_price: prod.costPrice || null, sell_price: prod.sellPrice || null,
+          }));
+          await supabase.from('products').upsert(batch, { onConflict: 'id' });
         }
-      }
-    } else if (newTx.type === 'TRANSFER') {
-      if (!newTx.fromLocationId || !newTx.toLocationId) throw new Error("Ubicaciones origen o destino faltantes");
-      
-      const availableStocks = newStock.filter(s => s.productId === newTx.productId && s.locationId === newTx.fromLocationId);
-      const totalAvailable = availableStocks.reduce((sum, s) => sum + s.quantity, 0);
-      
-      if (totalAvailable < newTx.quantity) {
-        throw new Error("Stock insuficiente en la ubicación de origen");
-      }
-      
-      let remaining = newTx.quantity;
-      for (const stock of availableStocks) {
-        if (remaining <= 0) break;
-        if (stock.quantity >= remaining) {
-          stock.quantity -= remaining;
-          remaining = 0;
-        } else {
-          remaining -= stock.quantity;
-          stock.quantity = 0;
+        const { count: locCount } = await supabase.from('locations').select('*', { count: 'exact', head: true }).eq('brand', brand);
+        if (!locCount) {
+          await supabase.from('locations').insert(defaultLocations.map(loc => ({ id: loc.id, brand, name: loc.name, type: loc.type })));
         }
+        const [p2, l2] = await Promise.all([
+          supabase.from('products').select('*').eq('brand', brand),
+          supabase.from('locations').select('*').eq('brand', brand),
+        ]);
+        setProducts((p2.data || []).map(dbToProduct));
+        setLocations((l2.data || []).map(dbToLocation));
       }
-      
-      const destStock = newStock.find(s => s.productId === newTx.productId && s.locationId === newTx.toLocationId);
-      if (destStock && !forceNewEntry) {
-        destStock.quantity += newTx.quantity;
-      } else {
-        newStock.push({ id: uuidv4(), productId: newTx.productId, locationId: newTx.toLocationId, quantity: newTx.quantity });
-      }
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    setStockLevels(newStock.filter(s => s.quantity > 0)); // Clean up empty stock records
-    setTransactions([newTx, ...transactions]);
+  // Auth listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      if (s?.user) loadProfile(s.user.id);
+      else setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (s?.user) loadProfile(s.user.id);
+      else { setCurrentUser({ id: '', username: '', role: 'JEFE_ALMACEN' }); setLoading(false); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load data on brand/session change — use stable user ID to avoid re-fetching on token refresh
+  const sessionUserId = session?.user?.id;
+  useEffect(() => {
+    if (!sessionUserId) return;
+    loadBrandData(activeBrand);
+  }, [activeBrand, sessionUserId, loadBrandData]);
+
+  // Load custom role permissions once on login (not brand-dependent)
+  useEffect(() => {
+    if (!sessionUserId) return;
+    supabase.from('role_permissions').select('*').then(({ data }) => {
+      if (!data || data.length === 0) return;
+      setRolePermissions(prev => {
+        const next: Record<Role, Record<string, Permission>> = {
+          ADMIN_GENERAL: { ...prev.ADMIN_GENERAL },
+          CEO: { ...prev.CEO },
+          ADMINISTRADOR: { ...prev.ADMINISTRADOR },
+          JEFE_ALMACEN: { ...prev.JEFE_ALMACEN },
+        };
+        for (const row of data) {
+          if (next[row.role as Role]) next[row.role as Role][row.module] = row.permission as Permission;
+        }
+        return next;
+      });
+    });
+  }, [sessionUserId]);
+
+  const updateRolePermission = async (role: Role, module: string, permission: Permission): Promise<void> => {
+    setRolePermissions(prev => ({
+      ...prev,
+      [role]: { ...prev[role], [module]: permission },
+    }));
+    await supabase.from('role_permissions').upsert({ role, module, permission }, { onConflict: 'role,module' });
+  };
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!session) return;
+    const channel = supabase.channel(`brand_${activeBrand}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_levels', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('stock_levels').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setStockLevels(data.map(dbToStock)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setTransactions(data.map(dbToTx)); }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeBrand, session]);
+
+  // --- CRUD ---
+
+  const addTransaction = async (txInputs: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }): Promise<void> => {
+    const { forceNewEntry, ...tx } = txInputs;
+    const { error } = await supabase.rpc('execute_transaction', {
+      p_brand: activeBrand, p_type: tx.type, p_product_id: tx.productId,
+      p_quantity: tx.quantity, p_from_location_id: tx.fromLocationId || null,
+      p_to_location_id: tx.toLocationId || null, p_reference: tx.reference,
+      p_user_name: tx.user, p_contact_id: tx.contactId || null,
+      p_signature: tx.signature || null, p_serial_number: tx.serialNumber || null,
+      p_force_new_entry: forceNewEntry ?? false,
+    });
+    if (error) throw new Error(error.message);
+    const [s, t] = await Promise.all([
+      supabase.from('stock_levels').select('*').eq('brand', activeBrand),
+      supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
+    ]);
+    if (s.data) setStockLevels(s.data.map(dbToStock));
+    if (t.data) setTransactions(t.data.map(dbToTx));
   };
 
   const addProduct = (p: Omit<Product, 'id'>) => {
-    setProducts([...products, { ...p, id: uuidv4() }]);
-  }
+    const tempId = crypto.randomUUID();
+    setProducts(prev => [...prev, { ...p, id: tempId }]);
+    supabase.from('products').insert([{ brand: activeBrand, code: p.code, name: p.name, color: p.color || null, size: p.size || null, category: p.category, low_stock_threshold: p.lowStockThreshold || null, cost_price: p.costPrice || null, sell_price: p.sellPrice || null }]).select().single()
+      .then(({ data, error }) => {
+        if (error) { setProducts(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (data) setProducts(prev => prev.map(x => x.id === tempId ? dbToProduct(data) : x));
+      });
+  };
 
-  const updateProduct = (updatedProduct: Product) => {
-    setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-  }
+  const updateProduct = (updated: Product) => {
+    setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+    supabase.from('products').update({ code: updated.code, name: updated.name, color: updated.color || null, size: updated.size || null, category: updated.category, low_stock_threshold: updated.lowStockThreshold || null, cost_price: updated.costPrice || null, sell_price: updated.sellPrice || null }).eq('id', updated.id)
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
   const deleteProduct = (id: string) => {
-    // Also consider removing stock levels for this product?
-    // Wait, requirement doesn't specify rules, but I'll let it delete.
-    setProducts(products.filter(p => p.id !== id));
-  }
+    setProducts(prev => prev.filter(p => p.id !== id));
+    supabase.from('products').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
   const addLocation = (l: Omit<Location, 'id'>) => {
-    setLocations([...locations, { ...l, id: uuidv4() }]);
-  }
+    const tempId = crypto.randomUUID();
+    setLocations(prev => [...prev, { ...l, id: tempId }]);
+    supabase.from('locations').insert([{ brand: activeBrand, name: l.name, type: l.type }]).select().single()
+      .then(({ data, error }) => {
+        if (error) { setLocations(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (data) setLocations(prev => prev.map(x => x.id === tempId ? dbToLocation(data) : x));
+      });
+  };
 
-  const updateLocation = (updatedLocation: Location) => {
-    setLocations(locations.map(l => l.id === updatedLocation.id ? updatedLocation : l));
-  }
+  const updateLocation = (updated: Location) => {
+    setLocations(prev => prev.map(l => l.id === updated.id ? updated : l));
+    supabase.from('locations').update({ name: updated.name, type: updated.type }).eq('id', updated.id)
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
   const deleteLocation = (id: string) => {
-    // Only allow delete if no stock there
     const hasStock = stockLevels.some(s => s.locationId === id && s.quantity > 0);
-    if (hasStock) throw new Error("No se puede eliminar una ubicación con stock");
-    setLocations(locations.filter(l => l.id !== id));
-  }
+    if (hasStock) throw new Error('No se puede eliminar una ubicación con stock');
+    setLocations(prev => prev.filter(l => l.id !== id));
+    supabase.from('locations').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
   const deleteStockLevel = (productId: string, locationId: string) => {
-    setStockLevels(stockLevels.filter(s => !(s.productId === productId && s.locationId === locationId)));
-  }
+    setStockLevels(prev => prev.filter(s => !(s.productId === productId && s.locationId === locationId)));
+    supabase.from('stock_levels').delete().eq('product_id', productId).eq('location_id', locationId).eq('brand', activeBrand);
+  };
 
   const addContact = (contact: Omit<Contact, 'id'>) => {
-    setContacts([...contacts, { ...contact, id: uuidv4() }]);
-  }
+    const tempId = crypto.randomUUID();
+    setContacts(prev => [...prev, { ...contact, id: tempId }]);
+    supabase.from('contacts').insert([{ brand: activeBrand, type: contact.type, name: contact.name, document: contact.document, phone: contact.phone || null, email: contact.email || null }]).select().single()
+      .then(({ data, error }) => {
+        if (error) { setContacts(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (data) setContacts(prev => prev.map(x => x.id === tempId ? dbToContact(data) : x));
+      });
+  };
 
-  const updateContact = (updatedContact: Contact) => {
-    setContacts(contacts.map(c => c.id === updatedContact.id ? updatedContact : c));
-  }
+  const updateContact = (updated: Contact) => {
+    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
+    supabase.from('contacts').update({ type: updated.type, name: updated.name, document: updated.document, phone: updated.phone || null, email: updated.email || null }).eq('id', updated.id)
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
   const deleteContact = (id: string) => {
-    setContacts(contacts.filter(c => c.id !== id));
-  }
+    setContacts(prev => prev.filter(c => c.id !== id));
+    supabase.from('contacts').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
 
-  const addUser = (u: Omit<UserWithPassword, 'id'>) => {
-    setUsers([...users, { ...u, id: uuidv4() }]);
+  const addUser = async (u: Omit<UserWithPassword, 'id'>): Promise<void> => {
+    if (!u.email) throw new Error('El email es obligatorio para crear usuarios');
+    const { data, error } = await supabase.auth.signUp({ email: u.email, password: u.password, options: { data: { username: u.username, role: u.role } } });
+    if (error) throw error;
+    if (data.user) {
+      await supabase.from('profiles').update({ username: u.username, role: u.role, active: u.active }).eq('id', data.user.id);
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+      if (prof) setUsers(prev => [...prev.filter(x => x.id !== prof.id), dbToUser(prof)]);
+    }
   };
 
   const updateUser = (updated: UserWithPassword) => {
-    setUsers(users.map(u => u.id === updated.id ? updated : u));
+    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    supabase.from('profiles').update({ username: updated.username, role: updated.role, active: updated.active }).eq('id', updated.id)
+      .then(({ error }) => { if (error) supabase.from('profiles').select('*').then(({ data }) => { if (data) setUsers(data.map(dbToUser)); }); });
   };
 
   const deleteUser = (id: string) => {
-    setUsers(users.filter(u => u.id !== id));
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u));
+    supabase.from('profiles').update({ active: false }).eq('id', id);
   };
 
   const addPurchaseOrder = (po: Omit<PurchaseOrder, 'id' | 'date'>) => {
-    setPurchaseOrders([{ ...po, id: uuidv4(), date: new Date().toISOString() }, ...purchaseOrders]);
+    const tempId = crypto.randomUUID();
+    const date = new Date().toISOString();
+    setPurchaseOrders(prev => [{ ...po, id: tempId, date }, ...prev]);
+    supabase.from('purchase_orders').insert([{ brand: activeBrand, supplier_id: po.supplierId || null, status: po.status, reference: po.reference, notes: po.notes || null, location_id: po.locationId || null }]).select().single()
+      .then(async ({ data, error }) => {
+        if (error || !data) { setPurchaseOrders(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (po.items.length > 0) {
+          await supabase.from('purchase_order_items').insert(po.items.map(i => ({ purchase_order_id: data.id, product_id: i.productId, quantity: i.quantity, unit_cost: i.unitCost, received_quantity: i.receivedQuantity })));
+        }
+        setPurchaseOrders(prev => prev.map(x => x.id === tempId ? { ...po, id: data.id, date: data.date } : x));
+      });
   };
 
   const updatePurchaseOrder = (updated: PurchaseOrder) => {
-    setPurchaseOrders(purchaseOrders.map(po => po.id === updated.id ? updated : po));
+    setPurchaseOrders(prev => prev.map(po => po.id === updated.id ? updated : po));
+    supabase.from('purchase_orders').update({ status: updated.status, reference: updated.reference, notes: updated.notes || null, location_id: updated.locationId || null }).eq('id', updated.id)
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
   const deletePurchaseOrder = (id: string) => {
-    setPurchaseOrders(purchaseOrders.filter(po => po.id !== id));
+    setPurchaseOrders(prev => prev.filter(po => po.id !== id));
+    supabase.from('purchase_orders').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
   const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => {
-    const newAdj: InventoryAdjustment = { ...adj, id: uuidv4(), date: new Date().toISOString() };
-    setAdjustments([newAdj, ...adjustments]);
+    const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: new Date().toISOString() };
+    setAdjustments(prev => [tempAdj, ...prev]);
     setStockLevels(prev => {
       const existing = prev.find(s => s.productId === adj.productId && s.locationId === adj.locationId);
-      if (existing) {
-        return prev.map(s =>
-          s.productId === adj.productId && s.locationId === adj.locationId
-            ? { ...s, quantity: adj.newQuantity }
-            : s
-        ).filter(s => s.quantity > 0);
-      }
-      if (adj.newQuantity > 0) {
-        return [...prev, { id: uuidv4(), productId: adj.productId, locationId: adj.locationId, quantity: adj.newQuantity }];
-      }
+      if (existing) return prev.map(s => s.productId === adj.productId && s.locationId === adj.locationId ? { ...s, quantity: adj.newQuantity } : s).filter(s => s.quantity > 0);
+      if (adj.newQuantity > 0) return [...prev, { id: crypto.randomUUID(), productId: adj.productId, locationId: adj.locationId, quantity: adj.newQuantity }];
       return prev;
     });
+    supabase.rpc('execute_adjustment', { p_brand: activeBrand, p_product_id: adj.productId, p_location_id: adj.locationId, p_previous_quantity: adj.previousQuantity, p_new_quantity: adj.newQuantity, p_reason: adj.reason, p_notes: adj.notes || null, p_user_name: adj.user })
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
   return (
     <AppContext.Provider value={{
-      activeBrand, setActiveBrand,
+      loading, activeBrand, setActiveBrand,
       products, locations, transactions, stockLevels,
-      contacts, currentUser,
-      users, purchaseOrders, adjustments,
+      contacts, currentUser, users, purchaseOrders, adjustments,
       addTransaction, addProduct, updateProduct, deleteProduct,
       addLocation, updateLocation, deleteLocation, deleteStockLevel,
       addContact, updateContact, deleteContact, setCurrentUser,
       addUser, updateUser, deleteUser,
       addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
       addAdjustment,
+      rolePermissions, updateRolePermission,
     }}>
       {children}
     </AppContext.Provider>

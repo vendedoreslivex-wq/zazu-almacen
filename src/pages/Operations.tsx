@@ -5,6 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X } from 'l
 import { cn } from '../lib/utils';
 import SignatureCanvas from 'react-signature-canvas';
 import { TransactionType } from '../types';
+import { sendOperationEmail, OperationType } from '../lib/emailService';
 
 export const Operations: React.FC = () => {
   const [activeOpt, setActiveOpt] = useState<TransactionType>('RECEPTION');
@@ -59,8 +60,8 @@ const OptButton = ({icon, label, active, onClick, colorClass}) => (
 )
 
 const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
-  const { products, locations, addTransaction, stockLevels, activeBrand, contacts } = useAppContext();
-  
+  const { products, locations, addTransaction, stockLevels, activeBrand, contacts, currentUser, users } = useAppContext();
+
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [fromLocation, setFromLocation] = useState('');
@@ -68,7 +69,6 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
   const [reference, setReference] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [contactId, setContactId] = useState('');
-  const [user, setUser] = useState('OPERATOR_01');
   const [signature, setSignature] = useState<string | null>(null);
   const signatureRef = React.useRef<SignatureCanvas>(null);
   
@@ -137,7 +137,7 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
           quantity: Number(quantity),
           toLocationId: toLocation,
           reference,
-          user,
+          user: currentUser.username,
           contactId,
           signature: sigData,
           serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber : undefined
@@ -154,16 +154,16 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
       fromLocationId: type === 'RECEPTION' ? undefined : fromLocation,
       toLocationId: type === 'DISPATCH' ? undefined : toLocation,
       reference,
-      user,
+      user: currentUser.username,
       contactId,
       signature: sigData,
       serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber : undefined
     });
   };
 
-  const executeTransaction = (tx: any) => {
+  const executeTransaction = async (tx: any) => {
     try {
-      addTransaction(tx);
+      await addTransaction(tx);
 
       // Reset
       setProductId('');
@@ -174,12 +174,44 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
       setToLocation('');
       setContactId('');
       setErrors({});
-      if (signatureRef.current) {
-        signatureRef.current.clear();
+      if (signatureRef.current) signatureRef.current.clear();
+
+      setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA! ENVIANDO COMPROBANTE...' });
+      setTimeout(() => setFeedback(null), 6000);
+
+      // Fire email non-blocking
+      const userRecord = users.find(u => u.id === currentUser.id);
+      const recipientEmail = userRecord?.emailPersonal || userRecord?.email;
+      if (recipientEmail) {
+        const product = products.find(p => p.id === tx.productId);
+        const fromLoc = locations.find(l => l.id === tx.fromLocationId);
+        const toLoc = locations.find(l => l.id === tx.toLocationId);
+        const contact = contacts.find(c => c.id === tx.contactId);
+
+        sendOperationEmail({
+          toEmail: recipientEmail,
+          toName: currentUser.username,
+          brand: activeBrand,
+          operationType: tx.type as OperationType,
+          reference: tx.reference,
+          date: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+          operator: currentUser.username,
+          productName: product?.name ?? tx.productId,
+          productCode: product?.code ?? '',
+          quantity: tx.quantity,
+          fromLocation: fromLoc?.name,
+          toLocation: toLoc?.name,
+          contact: contact?.name,
+          serialNumber: tx.serialNumber,
+          signature: tx.signature,
+        }).then(() => {
+          setFeedback({ type: 'success', message: `¡OPERACIÓN REGISTRADA! COMPROBANTE ENVIADO A ${recipientEmail}` });
+        }).catch(() => {
+          setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA! (SIN EMAIL — REVISA CONFIGURACIÓN)' });
+        });
+      } else {
+        setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA CORRECTAMENTE!' });
       }
-      setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA CORRECTAMENTE!' });
-      
-      setTimeout(() => setFeedback(null), 4000);
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'ERROR AL REGISTRAR' });
     }

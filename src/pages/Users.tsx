@@ -3,7 +3,7 @@ import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Plus, Trash2, Edit2, ShieldCheck, TrendingUp, Settings, Warehouse } from 'lucide-react';
 import { UserWithPassword, Role } from '../types';
-import { canEdit, ROLE_PERMISSIONS, Permission } from '../lib/permissions';
+import { canEdit, Permission } from '../lib/permissions';
 
 const ROLE_LABELS: Record<Role, string> = {
   ADMIN_GENERAL: 'Admin General',
@@ -58,7 +58,7 @@ const MODULE_LABELS: Record<string, string> = {
 const emptyForm = { username: '', password: '', email: '', role: 'JEFE_ALMACEN' as Role, active: true };
 
 export const Users: React.FC = () => {
-  const { users, addUser, updateUser, deleteUser, currentUser } = useAppContext();
+  const { users, addUser, updateUser, deleteUser, currentUser, rolePermissions, updateRolePermission } = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserWithPassword | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -149,7 +149,10 @@ export const Users: React.FC = () => {
 
       {/* Permissions matrix */}
       <div className="border border-[#141414] bg-white/30 p-5">
-        <h3 className="font-mono font-bold text-xs uppercase tracking-widest mb-4 text-[#141414]">MATRIZ DE PERMISOS</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-mono font-bold text-xs uppercase tracking-widest text-[#141414]">MATRIZ DE PERMISOS</h3>
+          {isAdmin && <span className="font-mono text-[9px] opacity-50 uppercase tracking-wide">Haz clic en una celda para cambiar el permiso</span>}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[10px] font-mono border-collapse">
             <thead>
@@ -170,10 +173,24 @@ export const Users: React.FC = () => {
                 <tr key={mod} className="border-b border-[#141414]/15 hover:bg-white/40">
                   <td className="py-2 pr-6 font-semibold uppercase tracking-wide">{MODULE_LABELS[mod]}</td>
                   {roles.map(r => {
-                    const perm = ROLE_PERMISSIONS[r]?.[mod] ?? 'none';
+                    const perm: Permission = (rolePermissions[r]?.[mod] ?? 'none') as Permission;
+                    const isEditable = isAdmin && r !== 'ADMIN_GENERAL';
+                    const cycle: Permission[] = ['none', 'view', 'full'];
+                    const handleClick = () => {
+                      if (!isEditable) return;
+                      const next = cycle[(cycle.indexOf(perm) + 1) % cycle.length];
+                      updateRolePermission(r, mod, next);
+                    };
                     return (
-                      <td key={r} className={`text-center py-2 px-3 text-base ${PERM_COLOR[perm]}`}>
-                        {PERM_ICON[perm]}
+                      <td key={r} className="text-center py-2 px-3">
+                        <button
+                          onClick={handleClick}
+                          disabled={!isEditable}
+                          title={isEditable ? `Cambiar a: ${cycle[(cycle.indexOf(perm) + 1) % cycle.length]}` : undefined}
+                          className={`text-base transition-all ${PERM_COLOR[perm]} ${isEditable ? 'cursor-pointer hover:scale-125 hover:opacity-80 active:scale-110' : 'cursor-default'}`}
+                        >
+                          {PERM_ICON[perm]}
+                        </button>
                       </td>
                     );
                   })}

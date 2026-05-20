@@ -2,7 +2,7 @@ import { Role } from '../types';
 
 export type Permission = 'none' | 'view' | 'full';
 
-export const ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> = {
+export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> = {
   ADMIN_GENERAL: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
     operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
@@ -29,8 +29,10 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> = {
   },
 };
 
-export const canView = (role: Role, tab: string): boolean =>
-  (ROLE_PERMISSIONS[role]?.[tab] ?? 'none') !== 'none';
+export const ROLE_PERMISSIONS = DEFAULT_ROLE_PERMISSIONS;
 
-export const canEdit = (role: Role, tab: string): boolean =>
-  (ROLE_PERMISSIONS[role]?.[tab] ?? 'none') === 'full';
+export const canView = (role: Role, tab: string, perms?: Record<Role, Record<string, Permission>>): boolean =>
+  ((perms ?? DEFAULT_ROLE_PERMISSIONS)[role]?.[tab] ?? 'none') !== 'none';
+
+export const canEdit = (role: Role, tab: string, perms?: Record<Role, Record<string, Permission>>): boolean =>
+  ((perms ?? DEFAULT_ROLE_PERMISSIONS)[role]?.[tab] ?? 'none') === 'full';

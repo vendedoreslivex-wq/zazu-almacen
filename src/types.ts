@@ -63,6 +63,7 @@ export type Contact = {
 export type UserWithPassword = User & {
   password: string;
   email?: string;
+  emailPersonal?: string;
   active: boolean;
 };
 

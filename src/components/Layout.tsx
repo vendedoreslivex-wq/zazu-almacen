@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, X } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../store/AppContext';
@@ -47,13 +48,13 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { activeBrand, setActiveBrand, currentUser, setCurrentUser, users } = useAppContext();
+  const { activeBrand, setActiveBrand, currentUser, rolePermissions } = useAppContext();
 
   useEffect(() => {
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, []);
 
-  const visibleNav = navItems.filter(item => canView(currentUser.role, item.id));
+  const visibleNav = navItems.filter(item => canView(currentUser.role, item.id, rolePermissions));
 
   const handleNavClick = (id: string) => {
     setActiveTab(id);
@@ -173,22 +174,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
             <span className="hidden sm:inline text-[10px] font-mono bg-[#141414] text-[#E4E3E0] px-2 py-0.5 border border-[#141414] whitespace-nowrap shrink-0">/ {navItems.find(n => n.id === activeTab)?.label}</span>
           </div>
-          <div className="flex items-center gap-2 md:gap-4 text-[11px] font-bold shrink-0">
-            <div className="flex flex-col items-end gap-1">
-              <label className="font-mono text-[9px] opacity-60 font-bold uppercase tracking-widest hidden sm:block">USUARIO ACTIVO</label>
-              <select
-                value={currentUser.id}
-                onChange={(e) => {
-                  const u = users.find(x => x.id === e.target.value);
-                  if (u) setCurrentUser({ id: u.id, username: u.username, role: u.role });
-                }}
-                className="bg-transparent border border-[#141414] py-1 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer max-w-[140px] sm:max-w-none"
-              >
-                {users.filter(u => u.active).map(u => (
-                  <option key={u.id} value={u.id}>{u.username} — {ROLE_LABELS[u.role] ?? u.role}</option>
-                ))}
-              </select>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="font-mono font-black text-[11px] text-[#141414] uppercase tracking-wider">{currentUser.username || '—'}</span>
+              <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">{ROLE_LABELS[currentUser.role] ?? currentUser.role}</span>
             </div>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              title="Cerrar sesión"
+              className="p-1.5 border border-transparent hover:border-red-600 hover:text-red-600 transition-colors"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </header>
 

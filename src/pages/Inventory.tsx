@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, ChevronDown, ChevronRight, Edit2, AlertTriangle, Trash2, Download, Upload } from 'lucide-react';
+import { Search, Plus, X, ChevronDown, ChevronRight, Edit2, AlertTriangle, Trash2, Download, Upload, QrCode } from 'lucide-react';
 import { Product } from '../types';
 import Papa from 'papaparse';
 import { canEdit } from '../lib/permissions';
+import { QRModal } from '../components/QRModal';
 
 export const Inventory: React.FC = () => {
   const { products, stockLevels, locations, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
@@ -32,6 +33,7 @@ export const Inventory: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
 
   const uniqueColors = Array.from(new Set(products.map(p => p.color).filter(Boolean))) as string[];
   const uniqueSizes = Array.from(new Set(products.map(p => p.size).filter(Boolean))) as string[];
@@ -453,16 +455,21 @@ export const Inventory: React.FC = () => {
                                       <span className="text-xs font-bold font-mono">{item.sellPrice ? `S/ ${item.sellPrice.toFixed(2)}` : 'N/A'}</span>
                                     </div>
                                   </div>
-                                  {canEdit(currentUser.role, 'inventory') && (
-                                    <div className="flex flex-col gap-2 shrink-0 ml-4">
-                                      <button onClick={(e) => openEditModal(item, e)} className="bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors p-2" title="EDITAR SKU">
-                                        <Edit2 size={14} />
-                                      </button>
-                                      <button onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }} className="bg-white border border-red-700 text-red-700 hover:bg-red-700 hover:text-white transition-colors p-2" title="ELIMINAR SKU">
-                                        <Trash2 size={14} />
-                                      </button>
-                                    </div>
-                                  )}
+                                  <div className="flex flex-col gap-2 shrink-0 ml-4">
+                                    <button onClick={(e) => { e.stopPropagation(); setQrProduct(item); }} className="bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors p-2" title="VER QR">
+                                      <QrCode size={14} />
+                                    </button>
+                                    {canEdit(currentUser.role, 'inventory') && (
+                                      <>
+                                        <button onClick={(e) => openEditModal(item, e)} className="bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors p-2" title="EDITAR SKU">
+                                          <Edit2 size={14} />
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }} className="bg-white border border-red-700 text-red-700 hover:bg-red-700 hover:text-white transition-colors p-2" title="ELIMINAR SKU">
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div>
@@ -746,6 +753,13 @@ export const Inventory: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {qrProduct && (
+        <QRModal
+          item={{ kind: 'product', id: qrProduct.id, code: qrProduct.code, name: qrProduct.name, color: qrProduct.color, size: qrProduct.size, brand: activeBrand }}
+          onClose={() => setQrProduct(null)}
+        />
       )}
     </div>
   );
