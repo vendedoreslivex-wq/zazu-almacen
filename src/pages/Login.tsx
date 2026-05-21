@@ -27,9 +27,7 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-[#E4E3E0] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-[#141414] text-[#E4E3E0] font-black text-xl mb-4">
-            L
-          </div>
+          <img src="/img-icono/zazu_icon.png" alt="LogixZazu" className="w-16 h-16 object-contain mx-auto mb-4" />
           <h1 className="font-mono font-black text-lg tracking-widest text-[#141414] uppercase">LOGIXZAZU</h1>
           <p className="font-mono text-[10px] opacity-40 tracking-[0.3em] uppercase mt-1">Sistema de Gestión de Almacén</p>
         </div>
