@@ -12,7 +12,11 @@ type NavItem = {
   icon: React.ElementType;
 };
 
-const BRAND_INITIAL: Record<string, string> = { OVERSHARK: 'O', BRAVOS: 'B', BOX_PRIME: 'bp' };
+const BRAND_ICON: Record<string, string> = {
+  OVERSHARK: '/img-icono/Img-barra/over-icon.png',
+  BRAVOS: '/img-icono/Img-barra/brav-icon.png',
+  BOX_PRIME: '/img-icono/Img-barra/box.icon.png',
+};
 const BRAND_NAME: Record<string, string> = { OVERSHARK: 'OVERSHARK', BRAVOS: 'BRAVOS URBAN', BOX_PRIME: 'BOX PRIME' };
 const BRAND_LEGAL: Record<string, string> = { OVERSHARK: 'OVERSHARK PERU S.A.C.', BRAVOS: 'BRAVOS URBAN CO.', BOX_PRIME: 'BOX PRIME PERU' };
 
@@ -90,8 +94,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2 overflow-hidden"
               >
-                <div className="w-6 h-6 border border-[#141414] bg-[#141414] text-[#E4E3E0] flex items-center justify-center font-bold text-[10px] flex-shrink-0">
-                  {BRAND_INITIAL[activeBrand] ?? 'bp'}
+                <div className="w-7 h-7 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
+                    alt={BRAND_NAME[activeBrand] ?? activeBrand}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <span className="font-mono font-bold tracking-wider text-sm text-[#141414] whitespace-nowrap">
                   {BRAND_NAME[activeBrand] ?? activeBrand}
@@ -99,7 +107,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               </motion.div>
             )}
           </AnimatePresence>
-            <button
+          {!sidebarOpen && (
+            <div className="hidden md:flex w-7 h-7 flex-shrink-0 overflow-hidden mx-auto">
+              <img
+                src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
+                alt={BRAND_NAME[activeBrand] ?? activeBrand}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="text-[#141414] opacity-60 hover:opacity-100 transition-colors p-1 shrink-0"
           >
