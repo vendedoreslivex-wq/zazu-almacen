@@ -132,6 +132,13 @@ function buildHTML(p: DispatchEmailParams): string {
 </html>`;
 }
 
+const PO_RECIPIENTS = [
+  { name: 'Rubén',     email: 'rbnasmat@gmail.com' },
+  { name: 'Williams',  email: 'Melaminacolors2@gmail.com' },
+  { name: 'Benjamín',  email: 'elbenjael17@gmail.com' },
+  { name: 'Valentino', email: 'jamesrojasdiaz01@gmail.com' },
+];
+
 export async function sendOperationEmail(params: DispatchEmailParams): Promise<void> {
   const html = buildHTML(params);
   await emailjs.send(
@@ -147,14 +154,22 @@ export async function sendOperationEmail(params: DispatchEmailParams): Promise<v
   );
 }
 
-// ─── Purchase Order Emails ────────────────────────────────────────────────────
+export async function sendOperationToInternalRecipients(params: Omit<DispatchEmailParams, 'toEmail' | 'toName'>): Promise<void> {
+  const html = buildHTML({ ...params, toEmail: '', toName: '' });
+  const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
+  await Promise.allSettled(
+    PO_RECIPIENTS.map(r =>
+      emailjs.send(
+        SERVICE_ID,
+        TEMPLATE_ID,
+        { to_email: r.email, to_name: r.name, subject, html_body: html },
+        PUBLIC_KEY
+      )
+    )
+  );
+}
 
-const PO_RECIPIENTS = [
-  { name: 'Rubén',     email: 'rbnasmat@gmail.com' },
-  { name: 'Williams',  email: 'Melaminacolors2@gmail.com' },
-  { name: 'Benjamín',  email: 'elbenjael17@gmail.com' },
-  { name: 'Valentino', email: 'jamesrojasdiaz01@gmail.com' },
-];
+// ─── Purchase Order Emails ────────────────────────────────────────────────────
 
 export interface POEmailItem {
   productCode: string;

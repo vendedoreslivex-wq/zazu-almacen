@@ -8,7 +8,7 @@ import {
 import { cn } from '../lib/utils';
 import SignatureCanvas from 'react-signature-canvas';
 import { TransactionType, Transaction } from '../types';
-import { sendOperationEmail, OperationType, OperationItem } from '../lib/emailService';
+import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, OperationItem } from '../lib/emailService';
 import { Html5Qrcode } from 'html5-qrcode';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -475,6 +475,9 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     if (contact?.email && (type === 'RECEPTION' || type === 'DISPATCH')) {
       sendOperationEmail({ toEmail: contact.email, toName: contact.name, ...emailPayload }).catch(() => {});
     }
+
+    // Email to internal recipients (always)
+    sendOperationToInternalRecipients(emailPayload);
   };
 
   return (
