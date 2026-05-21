@@ -188,6 +188,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             >
               <Menu size={16} />
             </button>
+            <img src="/img-icono/zazu_icon.png" alt="LogixZazu" className="w-7 h-7 md:w-8 md:h-8 object-contain shrink-0" />
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
             <span className="hidden sm:inline text-[10px] font-mono bg-[#141414] text-[#E4E3E0] px-2 py-0.5 border border-[#141414] whitespace-nowrap shrink-0">/ {navItems.find(n => n.id === activeTab)?.label}</span>
           </div>
