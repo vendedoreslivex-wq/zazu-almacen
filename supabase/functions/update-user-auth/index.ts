@@ -54,7 +54,8 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error('update-user-auth error:', err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    const msg = err instanceof Error ? err.message : JSON.stringify(err);
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
