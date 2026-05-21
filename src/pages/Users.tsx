@@ -75,17 +75,18 @@ export const Users: React.FC = () => {
 
   const openEdit = (u: UserWithPassword) => {
     setEditing(u);
-    setForm({ username: u.username, password: u.password, email: u.email || '', role: u.role, active: u.active });
+    setForm({ username: u.username, password: '', email: u.email || '', role: u.role, active: u.active });
     setShowModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username || !form.password) return;
+    if (!form.username) return;
     if (editing) {
-      updateUser({ ...editing, ...form });
+      await updateUser({ ...editing, ...form, password: editing.password }, form.password || undefined);
     } else {
-      addUser(form);
+      if (!form.password) return;
+      await addUser(form);
     }
     setShowModal(false);
   };
@@ -224,10 +225,14 @@ export const Users: React.FC = () => {
                   className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Contraseña *</label>
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">
+                  Contraseña {editing ? <span className="opacity-50 normal-case">(dejar vacío para no cambiar)</span> : '*'}
+                </label>
                 <div className="relative">
                   <input type={showPass ? 'text' : 'password'} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    className="w-full border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
+                    placeholder={editing ? '••••••••' : ''}
+                    className="w-full border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                    required={!editing} />
                   <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[9px] opacity-50 hover:opacity-100">
                     {showPass ? 'OCULTAR' : 'VER'}
                   </button>

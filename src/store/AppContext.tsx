@@ -32,7 +32,7 @@ interface AppContextType {
   deleteContact: (id: string) => void;
   setCurrentUser: (user: User) => void;
   addUser: (user: Omit<UserWithPassword, 'id'>) => Promise<void>;
-  updateUser: (user: UserWithPassword) => void;
+  updateUser: (user: UserWithPassword, newPassword?: string) => Promise<void>;
   deleteUser: (id: string) => void;
   addPurchaseOrder: (po: Omit<PurchaseOrder, 'id' | 'date'>) => void;
   updatePurchaseOrder: (po: PurchaseOrder) => void;
@@ -1209,10 +1209,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateUser = (updated: UserWithPassword) => {
+  const updateUser = async (updated: UserWithPassword, newPassword?: string): Promise<void> => {
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-    supabase.from('profiles').update({ username: updated.username, role: updated.role, active: updated.active }).eq('id', updated.id)
+    const profileUpdate = supabase.from('profiles').update({ username: updated.username, role: updated.role, active: updated.active }).eq('id', updated.id)
       .then(({ error }) => { if (error) supabase.from('profiles').select('*').then(({ data }) => { if (data) setUsers(data.map(dbToUser)); }); });
+
+    const authUpdates: { password?: string; email?: string } = {};
+    if (newPassword) authUpdates.password = newPassword;
+    if (updated.email) authUpdates.email = updated.email;
+
+    const tasks: Promise<unknown>[] = [Promise.resolve(profileUpdate)];
+    if (Object.keys(authUpdates).length > 0) {
+      tasks.push(
+        fetch('https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/update-user-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: updated.id, ...authUpdates }),
+        })
+      );
+    }
+    await Promise.all(tasks);
   };
 
   const deleteUser = (id: string) => {
