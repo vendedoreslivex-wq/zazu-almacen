@@ -171,7 +171,7 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
       const toLoc = locations.find(l => l.id === tx.toLocationId);
       const contact = contacts.find(c => c.id === tx.contactId);
       const now = new Date();
-      const guideNumber = `OP-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+      const guideNumber = nextGuideNumber(tx.type, activeBrand);
 
       setGuide({
         number: guideNumber,
@@ -529,6 +529,20 @@ type OperationGuide = {
   serialNumber?: string;
   signature?: string;
 };
+
+const GUIDE_PREFIX: Record<TransactionType, string> = {
+  RECEPTION: 'RE',
+  DISPATCH:  'DE',
+  TRANSFER:  'TR',
+};
+
+function nextGuideNumber(type: TransactionType, brand: string): string {
+  const key = `guide_seq_${brand}_${type}`;
+  const current = parseInt(localStorage.getItem(key) ?? '0', 10);
+  const next = current + 1;
+  localStorage.setItem(key, String(next));
+  return `${GUIDE_PREFIX[type]}-${String(next).padStart(5, '0')}`;
+}
 
 const TYPE_META: Record<TransactionType, { label: string; accentColor: string; bgColor: string; borderColor: string; icon: string }> = {
   RECEPTION: { label: 'RECEPCIÓN', accentColor: '#15803d', bgColor: '#f0fdf4', borderColor: '#16a34a', icon: '↓' },
