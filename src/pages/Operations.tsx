@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X, Printer, CheckCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SignatureCanvas from 'react-signature-canvas';
 import { TransactionType } from '../types';
@@ -76,6 +76,7 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showReceptionPrompt, setShowReceptionPrompt] = useState(false);
   const [pendingTx, setPendingTx] = useState<any>(null);
+  const [guide, setGuide] = useState<OperationGuide | null>(null);
 
   const getAvailableStock = () => {
     if (!productId || !fromLocation || type === 'RECEPTION') return null;
@@ -164,6 +165,30 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
   const executeTransaction = async (tx: any) => {
     try {
       await addTransaction(tx);
+
+      const product = products.find(p => p.id === tx.productId);
+      const fromLoc = locations.find(l => l.id === tx.fromLocationId);
+      const toLoc = locations.find(l => l.id === tx.toLocationId);
+      const contact = contacts.find(c => c.id === tx.contactId);
+      const now = new Date();
+      const guideNumber = `OP-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+
+      setGuide({
+        number: guideNumber,
+        type: tx.type,
+        date: now.toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+        operator: currentUser.username,
+        brand: activeBrand,
+        productName: product?.name ?? tx.productId,
+        productCode: product?.code ?? '',
+        quantity: tx.quantity,
+        fromLocation: fromLoc?.name,
+        toLocation: toLoc?.name,
+        reference: tx.reference,
+        contact: contact?.name,
+        serialNumber: tx.serialNumber,
+        signature: tx.signature,
+      });
 
       // Reset
       setProductId('');
@@ -440,6 +465,8 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
     box-shadow: 2px 2px 0 0 #141414;
   }
 `}</style>
+      {guide && <GuideModal guide={guide} onClose={() => setGuide(null)} />}
+
       {showReceptionPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
           <div className="bg-[#E4E3E0] border-4 border-[#141414] w-full max-w-sm shadow-[8px_8px_0_#141414] flex flex-col">
@@ -485,3 +512,139 @@ const FormGroup: React.FC<{label: string, error?: string, children: React.ReactN
     {error && <span className="font-mono text-[9px] font-bold text-red-700 uppercase mt-0.5 border border-red-700 px-1 py-0.5 bg-red-100 w-fit shrink-0 tracking-wider tooltip">{error}</span>}
   </div>
 );
+
+type OperationGuide = {
+  number: string;
+  type: TransactionType;
+  date: string;
+  operator: string;
+  brand: string;
+  productName: string;
+  productCode: string;
+  quantity: number;
+  fromLocation?: string;
+  toLocation?: string;
+  reference: string;
+  contact?: string;
+  serialNumber?: string;
+  signature?: string;
+};
+
+const TYPE_LABEL: Record<TransactionType, string> = {
+  RECEPTION: 'RECEPCIÓN',
+  DISPATCH: 'DESPACHO',
+  TRANSFER: 'TRASLADO',
+};
+const TYPE_COLOR: Record<TransactionType, string> = {
+  RECEPTION: 'bg-green-700',
+  DISPATCH: 'bg-red-700',
+  TRANSFER: 'bg-sky-700',
+};
+
+const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ guide, onClose }) => {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    const content = printRef.current;
+    if (!content) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<html><head><title>Guía ${guide.number}</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family:'Courier New',monospace; background:white; padding:24px; }
+      .guide { border:2px solid #141414; padding:20px; max-width:400px; }
+      .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #141414; padding-bottom:12px; margin-bottom:12px; }
+      .badge { padding:4px 10px; color:white; font-size:9px; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+      .rx{background:#15803d} .tx{background:#b91c1c} .mv{background:#0369a1}
+      .number { font-size:11px; font-weight:900; letter-spacing:1px; }
+      .row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #e5e5e5; font-size:10px; }
+      .label { opacity:0.55; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
+      .value { font-weight:900; text-align:right; }
+      .sig { margin-top:12px; border:1px solid #141414; padding:4px; }
+      .sig img { max-width:100%; height:60px; object-fit:contain; }
+      @media print { body{padding:0} }
+    </style></head><body>
+    <div class="guide">${content.innerHTML}</div></body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 400);
+  };
+
+  const badgeClass = guide.type === 'RECEPTION' ? 'rx' : guide.type === 'DISPATCH' ? 'tx' : 'mv';
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-md flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-[#141414] text-[#E4E3E0] px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={16} className="text-green-400" />
+            <span className="font-mono font-black text-[11px] uppercase tracking-widest">GUÍA DE OPERACIÓN</span>
+          </div>
+          <button onClick={onClose} className="opacity-60 hover:opacity-100 transition-opacity p-0.5">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Printable content */}
+        <div ref={printRef} className="p-5 flex flex-col gap-0">
+          {/* Sub-header */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest">{guide.brand.replace('_', ' ')}</div>
+              <div className="font-mono font-black text-sm tracking-wider number">{guide.number}</div>
+            </div>
+            <span className={`${TYPE_COLOR[guide.type]} badge text-white font-mono font-black text-[9px] px-3 py-1 uppercase tracking-widest`}>
+              {TYPE_LABEL[guide.type]}
+            </span>
+          </div>
+
+          {/* Data rows */}
+          {[
+            { label: 'FECHA', value: guide.date },
+            { label: 'OPERADOR', value: guide.operator },
+            { label: 'PRODUCTO', value: `${guide.productCode} — ${guide.productName}` },
+            { label: 'CANTIDAD', value: String(guide.quantity) },
+            guide.fromLocation && { label: 'ORIGEN', value: guide.fromLocation },
+            guide.toLocation && { label: 'DESTINO', value: guide.toLocation },
+            { label: 'REFERENCIA', value: guide.reference },
+            guide.contact && { label: guide.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE', value: guide.contact },
+            guide.serialNumber && { label: 'SERIE / LOTE', value: guide.serialNumber },
+          ].filter(Boolean).map((row: any) => (
+            <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#141414]/10 row">
+              <span className="font-mono text-[9px] opacity-55 font-bold uppercase tracking-widest label">{row.label}</span>
+              <span className="font-mono text-[11px] font-black text-right max-w-[55%] value">{row.value}</span>
+            </div>
+          ))}
+
+          {guide.signature && (
+            <div className="mt-3 sig">
+              <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">FIRMA</div>
+              <img src={guide.signature} alt="firma" className="h-14 w-full object-contain" />
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="border-t border-[#141414] p-3 flex gap-2">
+          <button
+            onClick={handlePrint}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#141414] text-[#E4E3E0] py-2.5 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
+          >
+            <Printer size={13} /> IMPRIMIR GUÍA
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 border border-[#141414] py-2.5 text-[10px] font-bold font-mono uppercase hover:bg-white/50 transition-all"
+          >
+            CERRAR
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

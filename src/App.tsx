@@ -31,16 +31,7 @@ function AppShell() {
     return () => window.removeEventListener('navigate', handleNavigate as EventListener);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#E4E3E0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-[#141414] border-t-transparent animate-spin" />
-          <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">CARGANDO SISTEMA...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <SplashScreen label="CARGANDO SISTEMA..." />;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -78,14 +69,7 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Still resolving session
-  if (session === undefined) {
-    return (
-      <div className="min-h-screen bg-[#E4E3E0] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#141414] border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  if (session === undefined) return <SplashScreen />;
 
   if (!session) return <Login />;
 
@@ -93,5 +77,35 @@ export default function App() {
     <AppProvider>
       <AppShell />
     </AppProvider>
+  );
+}
+
+function SplashScreen({ label = 'INICIANDO...' }: { label?: string }) {
+  return (
+    <div className="min-h-screen bg-[#E4E3E0] flex flex-col items-center justify-center gap-6">
+      <div className="relative flex items-center justify-center">
+        <div className="absolute w-24 h-24 border-2 border-[#141414]/20 rounded-full animate-ping" />
+        <div className="absolute w-20 h-20 border border-[#141414]/10 rounded-full animate-pulse" />
+        <img
+          src="/img-icono/zazu_icon.png"
+          alt="LogixZazu"
+          className="w-16 h-16 object-contain relative z-10 animate-pulse"
+          style={{ animationDuration: '1.5s' }}
+        />
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <span className="font-mono font-black text-base tracking-[0.3em] text-[#141414] uppercase">LOGIXZAZU</span>
+        <span className="font-mono text-[9px] opacity-40 tracking-[0.4em] uppercase">{label}</span>
+      </div>
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map(i => (
+          <div
+            key={i}
+            className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce"
+            style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
