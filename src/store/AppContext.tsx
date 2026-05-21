@@ -1211,29 +1211,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUser = async (updated: UserWithPassword, newPassword?: string): Promise<void> => {
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-    const profileUpdate = supabase.from('profiles').update({ username: updated.username, role: updated.role, active: updated.active }).eq('id', updated.id)
-      .then(({ error }) => { if (error) supabase.from('profiles').select('*').then(({ data }) => { if (data) setUsers(data.map(dbToUser)); }); });
-
-    const authUpdates: { password?: string; email?: string } = {};
-    if (newPassword) authUpdates.password = newPassword;
-    if (updated.email) authUpdates.email = updated.email;
-
-    const tasks: Promise<unknown>[] = [Promise.resolve(profileUpdate)];
-    if (Object.keys(authUpdates).length > 0) {
-      tasks.push(
-        fetch('https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/update-user-auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: updated.id, ...authUpdates }),
-        })
-      );
+    const res = await fetch('https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/update-user-auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        userId: updated.id,
+        username: updated.username,
+        role: updated.role,
+        active: updated.active,
+        email: updated.email || undefined,
+        password: newPassword || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('updateUser edge fn error:', err);
+      const { data } = await supabase.from('profiles').select('*');
+      if (data) setUsers(data.map(dbToUser));
     }
-    await Promise.all(tasks);
   };
 
   const deleteUser = (id: string) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u));
-    supabase.from('profiles').update({ active: false }).eq('id', id);
+    fetch('https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/update-user-auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ userId: id, active: false }),
+    });
   };
 
   const addPurchaseOrder = (po: Omit<PurchaseOrder, 'id' | 'date'>) => {

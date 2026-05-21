@@ -10,29 +10,44 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { userId, password, email } = await req.json() as {
+    const { userId, password, email, username, role, active } = await req.json() as {
       userId: string;
       password?: string;
       email?: string;
+      username?: string;
+      role?: string;
+      active?: boolean;
     };
-
-    const updates: { password?: string; email?: string } = {};
-    if (password) updates.password = password;
-    if (email) updates.email = email;
-
-    if (Object.keys(updates).length === 0) {
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...CORS, 'Content-Type': 'application/json' },
-      });
-    }
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates);
-    if (error) throw error;
+    // Update Supabase Auth (password and/or email)
+    const authUpdates: { password?: string; email?: string } = {};
+    if (password) authUpdates.password = password;
+    if (email) authUpdates.email = email;
+
+    if (Object.keys(authUpdates).length > 0) {
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdates);
+      if (authError) throw authError;
+    }
+
+    // Update profiles table (bypasses RLS using service role)
+    const profileUpdates: Record<string, unknown> = {};
+    if (username !== undefined) profileUpdates.username = username;
+    if (role !== undefined) profileUpdates.role = role;
+    if (active !== undefined) profileUpdates.active = active;
+    if (email !== undefined) profileUpdates.email = email;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', userId);
+      if (profileError) throw profileError;
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
