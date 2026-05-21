@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, InventoryAdjustment } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
@@ -40,6 +40,10 @@ interface AppContextType {
   addAdjustment: (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => void;
   rolePermissions: Record<Role, Record<string, Permission>>;
   updateRolePermission: (role: Role, module: string, permission: Permission) => Promise<void>;
+  deleteTransaction: (txId: string) => Promise<void>;
+  updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null }) => Promise<void>;
+  clearAllTransactions: () => Promise<void>;
+  receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
 }
 
 const defaultProductsOvershark: Product[] = [
@@ -962,6 +966,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadBrandData(activeBrand);
   }, [activeBrand, sessionUserId, loadBrandData]);
 
+  // One-time migration: set low_stock_threshold=30 for all OVERSHARK and BRAVOS products
+  useEffect(() => {
+    if (!sessionUserId) return;
+    const key = 'lst_migration_overshark_bravos_30';
+    if (localStorage.getItem(key)) return;
+    Promise.all([
+      supabase.from('products').update({ low_stock_threshold: 30 }).eq('brand', 'OVERSHARK'),
+      supabase.from('products').update({ low_stock_threshold: 30 }).eq('brand', 'BRAVOS'),
+    ]).then(([r1, r2]) => {
+      if (!r1.error && !r2.error) {
+        localStorage.setItem(key, '1');
+        setProducts(prev => prev.map(p => ({ ...p, lowStockThreshold: 30 })));
+      }
+    });
+  }, [sessionUserId]);
+
   // Load custom role permissions once on login (not brand-dependent)
   useEffect(() => {
     if (!sessionUserId) return;
@@ -1021,6 +1041,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ]);
     if (s.data) setStockLevels(s.data.map(dbToStock));
     if (t.data) setTransactions(t.data.map(dbToTx));
+  };
+
+  const deleteTransaction = async (txId: string): Promise<void> => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx) return;
+    const { error } = await supabase.from('transactions').update({ status: 'CANCELLED' }).eq('id', txId);
+    if (error) throw new Error(error.message);
+    if (tx.status === 'COMPLETED') {
+      if (tx.type === 'RECEPTION' && tx.toLocationId) {
+        const { data } = await supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand).maybeSingle();
+        if (data) await supabase.from('stock_levels').update({ quantity: Math.max(0, data.quantity - tx.quantity) }).eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand);
+      } else if (tx.type === 'DISPATCH' && tx.fromLocationId) {
+        const { data } = await supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand).maybeSingle();
+        if (data) await supabase.from('stock_levels').update({ quantity: data.quantity + tx.quantity }).eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand);
+        else await supabase.from('stock_levels').insert({ product_id: tx.productId, location_id: tx.fromLocationId, brand: activeBrand, quantity: tx.quantity });
+      } else if (tx.type === 'TRANSFER' && tx.fromLocationId && tx.toLocationId) {
+        const [fromR, toR] = await Promise.all([
+          supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand).maybeSingle(),
+          supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand).maybeSingle(),
+        ]);
+        if (fromR.data) await supabase.from('stock_levels').update({ quantity: fromR.data.quantity + tx.quantity }).eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand);
+        if (toR.data) await supabase.from('stock_levels').update({ quantity: Math.max(0, toR.data.quantity - tx.quantity) }).eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand);
+      }
+    }
+    const [s, t] = await Promise.all([
+      supabase.from('stock_levels').select('*').eq('brand', activeBrand),
+      supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
+    ]);
+    if (s.data) setStockLevels(s.data.map(dbToStock));
+    if (t.data) setTransactions(t.data.map(dbToTx));
+  };
+
+  const updateTransaction = async (txId: string, updates: { reference?: string; contactId?: string | null }): Promise<void> => {
+    const dbUpdates: Record<string, any> = {};
+    if (updates.reference !== undefined) dbUpdates.reference = updates.reference;
+    if ('contactId' in updates) dbUpdates.contact_id = updates.contactId ?? null;
+    const { error } = await supabase.from('transactions').update(dbUpdates).eq('id', txId);
+    if (error) throw new Error(error.message);
+    setTransactions(prev => prev.map(t => t.id === txId ? {
+      ...t,
+      ...(updates.reference !== undefined ? { reference: updates.reference } : {}),
+      ...('contactId' in updates ? { contactId: updates.contactId ?? undefined } : {}),
+    } : t));
+  };
+
+  const clearAllTransactions = async (): Promise<void> => {
+    const { error: txErr } = await supabase.from('transactions').delete().eq('brand', activeBrand);
+    if (txErr) throw new Error(txErr.message);
+    const { error: slErr } = await supabase.from('stock_levels').delete().eq('brand', activeBrand);
+    if (slErr) throw new Error(slErr.message);
+    setTransactions([]);
+    setStockLevels([]);
+  };
+
+  const receivePurchaseOrder = async (po: PurchaseOrder, receiveQtys: Record<number, number>): Promise<void> => {
+    for (let i = 0; i < po.items.length; i++) {
+      const qty = receiveQtys[i] || 0;
+      if (qty <= 0) continue;
+      const item = po.items[i];
+      await addTransaction({
+        type: 'RECEPTION',
+        productId: item.productId,
+        quantity: qty,
+        toLocationId: po.locationId || undefined,
+        reference: po.reference,
+        user: currentUser.username,
+        contactId: po.supplierId || undefined,
+      });
+    }
+    const updatedItems = po.items.map((item, i) => ({
+      ...item,
+      receivedQuantity: item.receivedQuantity + (receiveQtys[i] || 0),
+    }));
+    const allComplete = updatedItems.every(i => i.receivedQuantity >= i.quantity);
+    const anyReceived = updatedItems.some(i => i.receivedQuantity > 0);
+    const newStatus: PurchaseOrderStatus = allComplete ? 'COMPLETED' : anyReceived ? 'PARTIAL' : po.status;
+    const updated: PurchaseOrder = { ...po, items: updatedItems, status: newStatus };
+    setPurchaseOrders(prev => prev.map(p => p.id === po.id ? updated : p));
+    await supabase.from('purchase_orders').update({ status: newStatus }).eq('id', po.id);
+    await Promise.all(updatedItems.map(item =>
+      supabase.from('purchase_order_items')
+        .update({ received_quantity: item.receivedQuantity })
+        .eq('purchase_order_id', po.id)
+        .eq('product_id', item.productId)
+    ));
   };
 
   const addProduct = (p: Omit<Product, 'id'>) => {
@@ -1158,11 +1263,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loading, activeBrand, setActiveBrand,
       products, locations, transactions, stockLevels,
       contacts, currentUser, users, purchaseOrders, adjustments,
-      addTransaction, addProduct, updateProduct, deleteProduct,
+      addTransaction, deleteTransaction, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
       addLocation, updateLocation, deleteLocation, deleteStockLevel,
       addContact, updateContact, deleteContact, setCurrentUser,
       addUser, updateUser, deleteUser,
-      addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
+      addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder,
       addAdjustment,
       rolePermissions, updateRolePermission,
     }}>

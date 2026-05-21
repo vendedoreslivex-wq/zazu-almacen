@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { format } from 'date-fns';
-import { ChevronRight, ChevronDown, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
 
 export const History: React.FC = () => {
     const { transactions, products, locations, contacts } = useAppContext();
@@ -10,13 +10,24 @@ export const History: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [filterProduct, setFilterProduct] = useState('ALL');
     const [filterUser, setFilterUser] = useState('ALL');
+    const [filterContact, setFilterContact] = useState('ALL');
+    const [filterReference, setFilterReference] = useState('');
     const [dateRangePreset, setDateRangePreset] = useState('ALL_TIME');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    const [filterHasSignature, setFilterHasSignature] = useState(false);
+    const [filterHasPhoto, setFilterHasPhoto] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [selected, setSelected] = useState<Set<string>>(new Set());
 
     const uniqueUsers = Array.from(new Set(transactions.map(tx => tx.user || 'OPERATOR_01')));
+
+    const activeFilterCount = [
+        filterType !== 'ALL', filterStatus !== 'ALL', filterProduct !== 'ALL',
+        filterUser !== 'ALL', filterContact !== 'ALL', filterReference.trim() !== '',
+        dateRangePreset !== 'ALL_TIME', filterHasSignature, filterHasPhoto,
+    ].filter(Boolean).length;
 
     const filteredTransactions = transactions.filter(tx => {
         if (filterType !== 'ALL' && tx.type !== filterType) return false;
@@ -24,6 +35,10 @@ export const History: React.FC = () => {
         if (filterProduct !== 'ALL' && tx.productId !== filterProduct) return false;
         const txUser = tx.user || 'OPERATOR_01';
         if (filterUser !== 'ALL' && txUser !== filterUser) return false;
+        if (filterContact !== 'ALL' && tx.contactId !== filterContact) return false;
+        if (filterReference.trim() && !tx.reference?.toLowerCase().includes(filterReference.toLowerCase())) return false;
+        if (filterHasSignature && !tx.signature) return false;
+        if (filterHasPhoto && !(tx as any).photo) return false;
         if (dateFrom && new Date(tx.date) < new Date(dateFrom)) return false;
         if (dateTo) {
             const dTo = new Date(dateTo);
@@ -38,9 +53,34 @@ export const History: React.FC = () => {
         setFilterStatus('ALL');
         setFilterProduct('ALL');
         setFilterUser('ALL');
+        setFilterContact('ALL');
+        setFilterReference('');
         setDateRangePreset('ALL_TIME');
         setDateFrom('');
         setDateTo('');
+        setFilterHasSignature(false);
+        setFilterHasPhoto(false);
+    };
+
+    const toggleSelect = (id: string) => {
+        const next = new Set(selected);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        setSelected(next);
+    };
+
+    const allSelected = filteredTransactions.length > 0 && filteredTransactions.every(tx => selected.has(tx.id));
+    const someSelected = selected.size > 0;
+
+    const toggleSelectAll = () => {
+        if (allSelected) {
+            const next = new Set(selected);
+            filteredTransactions.forEach(tx => next.delete(tx.id));
+            setSelected(next);
+        } else {
+            const next = new Set(selected);
+            filteredTransactions.forEach(tx => next.add(tx.id));
+            setSelected(next);
+        }
     };
 
     const handleDatePreset = (preset: string) => {
@@ -72,8 +112,11 @@ export const History: React.FC = () => {
     };
 
     const exportToCSV = () => {
+        const toExport = someSelected
+            ? filteredTransactions.filter(tx => selected.has(tx.id))
+            : filteredTransactions;
         const headers = ["ID", "Fecha", "Tipo", "Estado", "Producto SKU", "Nombre Producto", "Cantidad", "Origen", "Destino", "Usuario", "Referencia"];
-        const rows = filteredTransactions.map(tx => {
+        const rows = toExport.map(tx => {
             const product = products.find(p => p.id === tx.productId);
             const fromLoc = locations.find(l => l.id === tx.fromLocationId);
             const toLoc = locations.find(l => l.id === tx.toLocationId);
@@ -117,17 +160,25 @@ export const History: React.FC = () => {
                     <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Historial inmutable de movimientos en la red de almacenes.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button 
+                    {someSelected && (
+                        <span className="font-mono text-[9px] font-bold opacity-60">{selected.size} SEL.</span>
+                    )}
+                    <button
                         onClick={exportToCSV}
                         className="flex items-center gap-2 px-3 py-1.5 font-mono text-[10px] font-bold uppercase transition-all border border-[#141414] shadow-[2px_2px_0_#141414] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] bg-white text-[#141414] hover:bg-black/5"
                     >
-                        <Download size={14} /> EXPORTAR CSV
+                        <Download size={14} /> {someSelected ? `CSV (${selected.size})` : 'EXPORTAR CSV'}
                     </button>
-                    <button 
+                    <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-3 py-1.5 font-mono text-[10px] font-bold uppercase transition-all border border-[#141414] shadow-[2px_2px_0_#141414] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] ${showFilters ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white/50 text-[#141414] hover:bg-white'}`}
                     >
-                        FILTROS {showFilters ? 'ACTIVOS' : ''}
+                        FILTROS
+                        {activeFilterCount > 0 && (
+                            <span className="bg-red-600 text-white font-black text-[8px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                {activeFilterCount}
+                            </span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -192,6 +243,43 @@ export const History: React.FC = () => {
                     
                     <div className="flex flex-col md:flex-row gap-4 items-end">
                         <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
+                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">CONTACTO</label>
+                            <select
+                                value={filterContact}
+                                onChange={e => setFilterContact(e.target.value)}
+                                className="bg-white/70 border border-[#141414] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                            >
+                                <option value="ALL">TODOS LOS CONTACTOS</option>
+                                {contacts.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
+                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">REFERENCIA / GUÍA</label>
+                            <input
+                                type="text"
+                                value={filterReference}
+                                onChange={e => setFilterReference(e.target.value)}
+                                placeholder="Buscar referencia..."
+                                className="bg-white/70 border border-[#141414] p-2 text-[10px] font-bold uppercase font-mono rounded-none w-full placeholder:opacity-40 placeholder:normal-case outline-none focus:bg-white"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 flex-wrap">
+                        <button type="button" onClick={() => setFilterHasSignature(v => !v)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase border border-[#141414] transition-colors ${filterHasSignature ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white/50 hover:bg-white'}`}>
+                            {filterHasSignature ? <CheckSquare size={11} /> : <Square size={11} />} CON FIRMA
+                        </button>
+                        <button type="button" onClick={() => setFilterHasPhoto(v => !v)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase border border-[#141414] transition-colors ${filterHasPhoto ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white/50 hover:bg-white'}`}>
+                            {filterHasPhoto ? <CheckSquare size={11} /> : <Square size={11} />} CON FOTO
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
                             <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">RANGO DE FECHAS</label>
                             <div className="flex bg-white/70 border border-[#141414]">
                                 <button type="button" onClick={() => handleDatePreset('ALL_TIME')} className={`flex-1 px-2 py-2 text-[9px] font-bold uppercase font-mono transition-colors ${dateRangePreset === 'ALL_TIME' ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-black/5'}`}>TODO</button>
@@ -237,7 +325,10 @@ export const History: React.FC = () => {
             )}
 
             <div className="data-table-container flex-1 flex flex-col overflow-hidden">
-                <div className="grid grid-cols-[40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-header sticky top-0 bg-[#BCBBA7]">
+                <div className="grid grid-cols-[32px_40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-header sticky top-0 bg-[#BCBBA7]">
+                    <div className="flex items-center justify-center cursor-pointer" onClick={toggleSelectAll}>
+                        {allSelected ? <CheckSquare size={13} /> : <Square size={13} className="opacity-50" />}
+                    </div>
                     <div></div>
                     <div>TIMESTAMP</div>
                     <div>TIPO</div>
@@ -262,10 +353,13 @@ export const History: React.FC = () => {
 
                         return (
                             <React.Fragment key={tx.id}>
-                                <div 
-                                    className={`grid grid-cols-[40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-row items-center cursor-pointer select-none ${isExpanded ? 'bg-white/80 border-b-transparent' : ''}`}
+                                <div
+                                    className={`grid grid-cols-[32px_40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-row items-center cursor-pointer select-none ${isExpanded ? 'bg-white/80 border-b-transparent' : ''} ${selected.has(tx.id) ? '!bg-blue-50' : ''}`}
                                     onClick={() => toggleExpand(tx.id)}
                                 >
+                                    <div className="flex justify-center" onClick={e => { e.stopPropagation(); toggleSelect(tx.id); }}>
+                                        {selected.has(tx.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} className="opacity-30" />}
+                                    </div>
                                     <div className="flex justify-center opacity-50">
                                         {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </div>

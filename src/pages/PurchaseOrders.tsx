@@ -26,10 +26,12 @@ const STATUS_STYLE: Record<PurchaseOrderStatus, string> = {
 const emptyItem = (): PurchaseOrderItem => ({ productId: '', quantity: 1, unitCost: 0, receivedQuantity: 0 });
 
 export const PurchaseOrders: React.FC = () => {
-  const { purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, contacts, products, locations, currentUser } = useAppContext();
+  const { purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder, contacts, products, locations, currentUser } = useAppContext();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [receiveModal, setReceiveModal] = useState<PurchaseOrder | null>(null);
+  const [receiving, setReceiving] = useState(false);
+  const [receiveError, setReceiveError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'ALL' | PurchaseOrderStatus>('ALL');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -62,20 +64,22 @@ export const PurchaseOrders: React.FC = () => {
     const init: Record<number, number> = {};
     po.items.forEach((item, i) => { init[i] = item.quantity - item.receivedQuantity; });
     setReceiveQtys(init);
+    setReceiveError(null);
     setReceiveModal(po);
   };
 
-  const confirmReceive = () => {
+  const confirmReceive = async () => {
     if (!receiveModal) return;
-    const updatedItems = receiveModal.items.map((item, i) => ({
-      ...item,
-      receivedQuantity: item.receivedQuantity + (receiveQtys[i] || 0),
-    }));
-    const allComplete = updatedItems.every(i => i.receivedQuantity >= i.quantity);
-    const anyReceived = updatedItems.some(i => i.receivedQuantity > 0);
-    const newStatus: PurchaseOrderStatus = allComplete ? 'COMPLETED' : anyReceived ? 'PARTIAL' : receiveModal.status;
-    updatePurchaseOrder({ ...receiveModal, items: updatedItems, status: newStatus });
-    setReceiveModal(null);
+    setReceiving(true);
+    setReceiveError(null);
+    try {
+      await receivePurchaseOrder(receiveModal, receiveQtys);
+      setReceiveModal(null);
+    } catch {
+      setReceiveError('Error al registrar la recepción. Intenta de nuevo.');
+    } finally {
+      setReceiving(false);
+    }
   };
 
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }));
@@ -303,9 +307,12 @@ export const PurchaseOrders: React.FC = () => {
                   </div>
                 );
               })}
+              {receiveError && <p className="font-mono text-[10px] text-red-600 font-bold">{receiveError}</p>}
               <div className="flex gap-2 pt-2">
-                <button onClick={confirmReceive} className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase">CONFIRMAR RECEPCIÓN</button>
-                <button onClick={() => setReceiveModal(null)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
+                <button onClick={confirmReceive} disabled={receiving} className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">
+                  {receiving ? 'REGISTRANDO...' : 'CONFIRMAR RECEPCIÓN'}
+                </button>
+                <button onClick={() => setReceiveModal(null)} disabled={receiving} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">CANCELAR</button>
               </div>
             </div>
           </div>

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, History, X } from 'lucide-react';
 import { Contact } from '../types';
+import { format } from 'date-fns';
 
 export const Contacts: React.FC = () => {
-  const { contacts, addContact, updateContact, deleteContact } = useAppContext();
+  const { contacts, addContact, updateContact, deleteContact, transactions, products } = useAppContext();
+  const [historyContact, setHistoryContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
   
@@ -116,6 +118,9 @@ export const Contacts: React.FC = () => {
               <div className="font-mono text-[10px] opacity-80">{c.phone || '---'}</div>
               <div className="font-mono text-[10px] opacity-80 truncate pr-2">{c.email || '---'}</div>
               <div className="flex items-center justify-end gap-2 pr-2">
+                <button onClick={() => setHistoryContact(c)} title="Ver historial" className="p-1 hover:bg-[#141414] hover:text-white transition-colors border border-transparent hover:border-[#141414]">
+                  <History size={12} />
+                </button>
                 <button onClick={() => openEdit(c)} className="p-1 hover:bg-[#141414] hover:text-white transition-colors border border-transparent hover:border-[#141414]">
                   <Edit2 size={12} />
                 </button>
@@ -130,6 +135,66 @@ export const Contacts: React.FC = () => {
           )}
         </div>
       </div>
+
+      {historyContact && (
+        <div className="fixed inset-0 z-50 bg-[#E4E3E0]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="border-b-2 border-[#141414] p-4 flex justify-between items-center bg-white shrink-0">
+              <div>
+                <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">HISTORIAL — {historyContact.name}</h2>
+                <p className="font-mono text-[9px] opacity-60 uppercase mt-0.5">{historyContact.type === 'SUPPLIER' ? 'PROVEEDOR' : 'CLIENTE'} · {historyContact.document}</p>
+              </div>
+              <button onClick={() => setHistoryContact(null)} className="p-1 hover:bg-[#141414] hover:text-white transition-colors border border-transparent hover:border-[#141414]">
+                <X size={14} />
+              </button>
+            </div>
+            {(() => {
+              const contactTxs = transactions
+                .filter(tx => (tx as any).contactId === historyContact.id)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              const totalReceptions = contactTxs.filter(t => t.type === 'RECEPTION').reduce((s, t) => s + t.quantity, 0);
+              const totalDispatches = contactTxs.filter(t => t.type === 'DISPATCH').reduce((s, t) => s + t.quantity, 0);
+              return (
+                <>
+                  <div className="flex gap-4 p-3 border-b border-[#141414] bg-[#D4D3D0] shrink-0">
+                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">RECEPCIONES:</span> <span className="text-[#15803d]">{totalReceptions} U</span></div>
+                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">DESPACHOS:</span> <span className="text-[#b91c1c]">{totalDispatches} U</span></div>
+                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">TOTAL MOVS:</span> {contactTxs.length}</div>
+                  </div>
+                  <div className="overflow-auto flex-1">
+                    {contactTxs.length === 0 ? (
+                      <div className="p-12 text-center font-mono text-sm opacity-50 font-bold uppercase">SIN MOVIMIENTOS REGISTRADOS</div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-[110px_90px_90px_minmax(120px,1fr)_80px] p-2 bg-[#D4D3D0] text-[9px] font-bold uppercase tracking-widest opacity-80 font-mono border-b border-[#141414]">
+                          <div>FECHA</div>
+                          <div>TIPO</div>
+                          <div>SKU</div>
+                          <div>PRODUCTO</div>
+                          <div className="text-right">CANT.</div>
+                        </div>
+                        {contactTxs.map(tx => {
+                          const prod = products.find(p => p.id === tx.productId);
+                          const typeColor = tx.type === 'RECEPTION' ? 'bg-[#15803d] text-white' : tx.type === 'DISPATCH' ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white border border-[#141414]';
+                          return (
+                            <div key={tx.id} className="grid grid-cols-[110px_90px_90px_minmax(120px,1fr)_80px] items-center py-2 px-2 border-b border-[#141414]/10 hover:bg-white/40 transition-colors">
+                              <div className="font-mono text-[9px] opacity-70">{format(new Date(tx.date), 'dd/MM/yy HH:mm')}</div>
+                              <div><span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 uppercase ${typeColor}`}>{tx.type}</span></div>
+                              <div className="font-mono text-[10px] font-bold">{prod?.code || '???'}</div>
+                              <div className="font-mono text-[10px] truncate pr-2">{prod?.name || tx.reference}</div>
+                              <div className="font-mono text-sm font-black text-right">{tx.quantity}</div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 bg-[#E4E3E0]/80 backdrop-blur-sm flex items-center justify-center p-4">

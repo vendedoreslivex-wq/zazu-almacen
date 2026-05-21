@@ -1,23 +1,44 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+type Screen = 'login' | 'forgot' | 'forgot_sent';
+
 export const Login: React.FC = () => {
+  const [screen, setScreen] = useState<Screen>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-    } catch (err: any) {
-      const msg = err.message || 'Error desconocido';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
       if (msg.includes('Invalid login credentials')) setError('Email o contraseña incorrectos.');
       else setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setScreen('forgot_sent');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -35,49 +56,113 @@ export const Login: React.FC = () => {
         <div className="border-2 border-[#141414] bg-white shadow-[6px_6px_0_#141414]">
           <div className="border-b-2 border-[#141414]">
             <div className="py-3 text-center font-mono text-[10px] font-bold tracking-widest uppercase bg-[#141414] text-[#E4E3E0]">
-              INGRESAR AL SISTEMA
+              {screen === 'login' ? 'INGRESAR AL SISTEMA' : screen === 'forgot' ? 'RECUPERAR CONTRASEÑA' : 'CORREO ENVIADO'}
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-            {error && (
-              <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
-                {error}
-              </div>
-            )}
+          {screen === 'login' && (
+            <form onSubmit={handleLogin} className="p-6 flex flex-col gap-4">
+              {error && (
+                <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
+                  {error}
+                </div>
+              )}
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="usuario@zazu-org.com"
+                  className="auth-input"
+                  autoComplete="email"
+                  required
+                />
+              </Field>
+              <Field label="Contraseña">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="auth-input"
+                  autoComplete="current-password"
+                  required
+                />
+              </Field>
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] disabled:opacity-50 transition-all"
+              >
+                {loading ? 'VERIFICANDO...' : 'INGRESAR'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScreen('forgot'); setError(''); }}
+                className="text-center font-mono text-[9px] opacity-40 hover:opacity-80 transition-opacity uppercase tracking-widest"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </form>
+          )}
 
-            <Field label="Email">
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="usuario@zazu-org.com"
-                className="auth-input"
-                autoComplete="email"
-                required
-              />
-            </Field>
+          {screen === 'forgot' && (
+            <form onSubmit={handleForgot} className="p-6 flex flex-col gap-4">
+              <p className="font-mono text-[10px] opacity-60 uppercase tracking-wide leading-relaxed">
+                Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+              </p>
+              {error && (
+                <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
+                  {error}
+                </div>
+              )}
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="usuario@zazu-org.com"
+                  className="auth-input"
+                  autoComplete="email"
+                  required
+                />
+              </Field>
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] disabled:opacity-50 transition-all"
+              >
+                {loading ? 'ENVIANDO...' : 'ENVIAR ENLACE'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScreen('login'); setError(''); }}
+                className="text-center font-mono text-[9px] opacity-40 hover:opacity-80 transition-opacity uppercase tracking-widest"
+              >
+                ← Volver al inicio de sesión
+              </button>
+            </form>
+          )}
 
-            <Field label="Contraseña">
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="auth-input"
-                autoComplete="current-password"
-                required
-              />
-            </Field>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] disabled:opacity-50 transition-all"
-            >
-              {loading ? 'VERIFICANDO...' : 'INGRESAR'}
-            </button>
-          </form>
+          {screen === 'forgot_sent' && (
+            <div className="p-6 flex flex-col gap-4 items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-[#141414]/10 flex items-center justify-center text-2xl">✓</div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-wide">
+                Enlace enviado a:
+              </p>
+              <p className="font-mono text-xs font-black">{email}</p>
+              <p className="font-mono text-[10px] opacity-50 uppercase tracking-wide leading-relaxed">
+                Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setScreen('login'); setError(''); }}
+                className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all"
+              >
+                VOLVER AL LOGIN
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-center font-mono text-[9px] opacity-30 tracking-widest uppercase mt-6">

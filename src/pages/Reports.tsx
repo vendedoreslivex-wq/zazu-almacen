@@ -1,17 +1,19 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clock } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments';
+type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
 const REPORT_TITLES: Record<ReportType, string> = {
   inventory: 'INVENTARIO VALORIZADO',
   movements: 'MOVIMIENTOS POR PROVEEDOR',
   valuation: 'VALORIZACIÓN POR MARCA',
   adjustments: 'HISTORIAL DE AJUSTES',
+  abc: 'ANÁLISIS ABC DE ROTACIÓN',
+  aging: 'ANTIGÜEDAD DE STOCK',
 };
 
 export const Reports: React.FC = () => {
@@ -51,6 +53,43 @@ export const Reports: React.FC = () => {
     if (dateTo && adj.date > dateTo + 'T23:59:59') return false;
     return true;
   });
+
+  const [agingDays, setAgingDays] = useState(30);
+
+  const abcData = useMemo(() => {
+    const rows = products.map(p => {
+      const dispatched = transactions
+        .filter(t => t.type === 'DISPATCH' && t.productId === p.id)
+        .reduce((s, t) => s + t.quantity, 0);
+      return { prod: p, dispatched };
+    }).filter(r => r.dispatched > 0).sort((a, b) => b.dispatched - a.dispatched);
+    const totalDisp = rows.reduce((s, r) => s + r.dispatched, 0);
+    let cumulative = 0;
+    return rows.map(r => {
+      cumulative += r.dispatched;
+      const pct = totalDisp > 0 ? cumulative / totalDisp : 0;
+      const cls = pct <= 0.8 ? 'A' : pct <= 0.95 ? 'B' : 'C';
+      return { ...r, cls, pct: (r.dispatched / totalDisp) * 100 };
+    });
+  }, [products, transactions]);
+
+  type AgingRow = { prod: typeof products[0]; stock: number; lastDispatch: string | undefined; daysSince: number | null };
+  const agingData = useMemo((): AgingRow[] => {
+    const now = new Date();
+    const rows: AgingRow[] = [];
+    for (const p of products) {
+      const stock = totalStock(p.id);
+      if (stock <= 0) continue;
+      const lastDispatch = transactions
+        .filter(t => t.type === 'DISPATCH' && t.productId === p.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const daysSince = lastDispatch ? differenceInDays(now, new Date(lastDispatch.date)) : null;
+      if (daysSince === null || daysSince >= agingDays) {
+        rows.push({ prod: p, stock, lastDispatch: lastDispatch?.date, daysSince });
+      }
+    }
+    return rows.sort((a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999));
+  }, [products, transactions, stockLevels, agingDays]);
 
   const exportCSV = () => {
     let csv = '';
@@ -126,12 +165,14 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* Report selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {([
           { id: 'inventory', label: 'Inventario Valorizado', icon: Package },
           { id: 'movements', label: 'Movimientos Proveedor', icon: ArrowLeftRight },
           { id: 'valuation', label: 'Valorización', icon: BarChart2 },
           { id: 'adjustments', label: 'Ajustes de Stock', icon: Users },
+          { id: 'abc', label: 'Análisis ABC', icon: Star },
+          { id: 'aging', label: 'Antigüedad Stock', icon: Clock },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveReport(id)}
             className={`flex items-center gap-2 p-3 border text-left transition-all ${activeReport === id ? 'bg-[#141414] text-[#E4E3E0] border-[#141414] shadow-[2px_2px_0_#9f9d99]' : 'border-[#141414] bg-white/30 hover:bg-white/60'}`}>
@@ -299,6 +340,93 @@ export const Reports: React.FC = () => {
                 })}
             </tbody>
           </table>
+        )}
+
+        {activeReport === 'abc' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3 flex-wrap text-[10px] font-mono font-bold">
+              {(['A','B','C'] as const).map(cls => {
+                const items = abcData.filter(r => r.cls === cls);
+                const colors = { A: 'bg-green-100 border-green-700 text-green-800', B: 'bg-amber-100 border-amber-700 text-amber-800', C: 'bg-[#f5f5f5] border-[#141414]' };
+                const pctVol = items.reduce((s, r) => s + r.pct, 0);
+                return (
+                  <div key={cls} className={`border px-3 py-2 ${colors[cls]}`}>
+                    <span className="text-lg font-black">{cls}</span>
+                    <span className="ml-2">{items.length} SKUs · {pctVol.toFixed(1)}% del volumen</span>
+                  </div>
+                );
+              })}
+            </div>
+            <table className="w-full text-[10px] font-mono border-collapse">
+              <thead>
+                <tr className="border-b-2 border-[#141414]">
+                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Clase</th>
+                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
+                  <th className="text-right py-1.5 px-3 font-bold uppercase">Despachos</th>
+                  <th className="text-right py-1.5 pl-3 font-bold uppercase">% Volumen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {abcData.map((r, i) => {
+                  const clsColors = { A: 'text-green-700', B: 'text-amber-700', C: 'opacity-60' };
+                  return (
+                    <tr key={r.prod.id} className={`border-b border-[#141414]/15 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
+                      <td className={`py-1.5 pr-3 font-black text-base ${clsColors[r.cls as 'A'|'B'|'C']}`}>{r.cls}</td>
+                      <td className="py-1.5 pr-3">
+                        <span className="font-bold">{r.prod.code}</span>
+                        <span className="opacity-60 ml-2">{r.prod.name} {r.prod.color} {r.prod.size}</span>
+                      </td>
+                      <td className="text-right py-1.5 px-3 font-bold">{r.dispatched}</td>
+                      <td className="text-right py-1.5 pl-3">{r.pct.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
+                {abcData.length === 0 && <tr><td colSpan={4} className="text-center py-8 opacity-50">Sin despachos registrados</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeReport === 'aging' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="font-mono text-[9px] font-bold uppercase opacity-60">Mostrar stock sin movimiento en más de</span>
+              {[15, 30, 60, 90].map(d => (
+                <button key={d} onClick={() => setAgingDays(d)}
+                  className={`px-3 py-1 text-[9px] font-bold font-mono uppercase border border-[#141414] transition-colors ${agingDays === d ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}>
+                  {d}D
+                </button>
+              ))}
+            </div>
+            <table className="w-full text-[10px] font-mono border-collapse">
+              <thead>
+                <tr className="border-b-2 border-[#141414]">
+                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
+                  <th className="text-right py-1.5 px-3 font-bold uppercase">Stock</th>
+                  <th className="text-right py-1.5 px-3 font-bold uppercase">Último despacho</th>
+                  <th className="text-right py-1.5 pl-3 font-bold uppercase">Días sin movimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agingData.map((r, i) => (
+                  <tr key={r.prod.id} className={`border-b border-[#141414]/15 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
+                    <td className="py-1.5 pr-3">
+                      <span className="font-bold">{r.prod.code}</span>
+                      <span className="opacity-60 ml-2">{r.prod.name} {r.prod.color} {r.prod.size}</span>
+                    </td>
+                    <td className="text-right py-1.5 px-3 font-bold">{r.stock}</td>
+                    <td className="text-right py-1.5 px-3 opacity-70">
+                      {r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—'}
+                    </td>
+                    <td className={`text-right py-1.5 pl-3 font-bold ${r.daysSince !== null && r.daysSince >= 90 ? 'text-red-600' : r.daysSince !== null && r.daysSince >= 30 ? 'text-amber-700' : ''}`}>
+                      {r.daysSince !== null ? r.daysSince : 'Sin despachos'}
+                    </td>
+                  </tr>
+                ))}
+                {agingData.length === 0 && <tr><td colSpan={4} className="text-center py-8 opacity-50">No hay productos estancados con ese criterio</td></tr>}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

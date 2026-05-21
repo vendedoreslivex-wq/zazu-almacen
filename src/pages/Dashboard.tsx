@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Package, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle } from 'lucide-react';
@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export const Dashboard: React.FC = () => {
   const { products, transactions, stockLevels } = useAppContext();
+  const [days, setDays] = useState<7 | 14 | 30>(7);
 
   const totalItemsInStock = stockLevels.reduce((acc, curr) => acc + curr.quantity, 0);
   const totalInventoryValue = stockLevels.reduce((acc, curr) => {
@@ -21,27 +22,26 @@ export const Dashboard: React.FC = () => {
   const todaysReceptions = todayTxs.filter(t => t.type === 'RECEPTION').reduce((acc, curr) => acc + curr.quantity, 0);
   const todaysDispatches = todayTxs.filter(t => t.type === 'DISPATCH').reduce((acc, curr) => acc + curr.quantity, 0);
 
-  // Generate chart data for the last 7 days
-  const chartData = Array.from({ length: 7 }).map((_, i) => {
-    const d = subDays(new Date(), 6 - i);
+  // Generate chart data for the selected range
+  const chartData = Array.from({ length: days }).map((_, i) => {
+    const d = subDays(new Date(), days - 1 - i);
     const dayStart = startOfDay(d);
     const dayEnd = endOfDay(d);
-    
     const dayTxs = transactions.filter(t => {
       const txDate = new Date(t.date);
       return txDate >= dayStart && txDate <= dayEnd;
     });
-
     return {
-      date: format(d, 'dd/MM'),
+      date: days <= 14 ? format(d, 'dd/MM') : format(d, 'dd/MM'),
       recepciones: dayTxs.filter(t => t.type === 'RECEPTION').reduce((acc, curr) => acc + curr.quantity, 0),
       despachos: dayTxs.filter(t => t.type === 'DISPATCH').reduce((acc, curr) => acc + curr.quantity, 0),
     };
   });
 
-  // Calculate top categories by dispatches (rotación)
+  const rangeStart = startOfDay(subDays(new Date(), days - 1));
+  // Calculate top categories by dispatches (rotación) within selected range
   const categoryRotations: Record<string, number> = {};
-  transactions.filter(t => t.type === 'DISPATCH').forEach(tx => {
+  transactions.filter(t => t.type === 'DISPATCH' && new Date(t.date) >= rangeStart).forEach(tx => {
     const p = products.find(prod => prod.id === tx.productId);
     if (p) {
       const cat = p.category || 'General';
@@ -144,8 +144,16 @@ export const Dashboard: React.FC = () => {
       {/* Chart Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="data-table-container">
-          <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center">
-            <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">02 // TENDENCIA_SEMANAL</h3>
+          <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center gap-2">
+            <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">02 // TENDENCIA — ÚLTIMOS {days}D</h3>
+            <div className="flex gap-0 border border-[#141414]">
+              {([7, 14, 30] as const).map(d => (
+                <button key={d} onClick={() => setDays(d)}
+                  className={`px-2 py-0.5 text-[9px] font-bold font-mono uppercase border-r last:border-r-0 border-[#141414] transition-colors ${days === d ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}>
+                  {d}D
+                </button>
+              ))}
+            </div>
           </div>
           <div className="h-[300px] p-4 bg-white/50">
             <ResponsiveContainer width="100%" height="100%">
