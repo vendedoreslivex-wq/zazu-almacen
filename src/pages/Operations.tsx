@@ -11,34 +11,34 @@ export const Operations: React.FC = () => {
   const [activeOpt, setActiveOpt] = useState<TransactionType>('RECEPTION');
 
   return (
-    <div className="max-w-4xl mx-auto h-full flex flex-col gap-8">
+    <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
       <ModuleInfo number="05" title="Operaciones" description="Registro de movimientos de stock: entradas, salidas y transferencias entre ubicaciones. Cada operación queda trazada con fecha, usuario y motivo." />
       {/* Operation Type Selector */}
       <div className="grid grid-cols-3 gap-2 bg-[#D4D3D0] border border-[#141414] p-2 shadow-[4px_4px_0_#141414]">
-        <OptButton 
-          icon={<ArrowDownLeft size={18} />} 
-          label="RECEPCIÓN" 
-          active={activeOpt === 'RECEPTION'} 
-          onClick={() => setActiveOpt('RECEPTION')} 
+        <OptButton
+          icon={<ArrowDownLeft size={18} />}
+          label="RECEPCIÓN"
+          active={activeOpt === 'RECEPTION'}
+          onClick={() => setActiveOpt('RECEPTION')}
           colorClass="text-[var(--success-green)]"
         />
-        <OptButton 
-          icon={<ArrowUpRight size={18} />} 
-          label="DESPACHO" 
-          active={activeOpt === 'DISPATCH'} 
-          onClick={() => setActiveOpt('DISPATCH')} 
+        <OptButton
+          icon={<ArrowUpRight size={18} />}
+          label="DESPACHO"
+          active={activeOpt === 'DISPATCH'}
+          onClick={() => setActiveOpt('DISPATCH')}
           colorClass="text-[var(--danger-red)]"
         />
-        <OptButton 
-          icon={<ArrowRightLeft size={18} />} 
-          label="TRANSLADO" 
-          active={activeOpt === 'TRANSFER'} 
-          onClick={() => setActiveOpt('TRANSFER')} 
+        <OptButton
+          icon={<ArrowRightLeft size={18} />}
+          label="TRANSLADO"
+          active={activeOpt === 'TRANSFER'}
+          onClick={() => setActiveOpt('TRANSFER')}
           colorClass="text-[#00DDFF]"
         />
       </div>
 
-      <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 flex-1 relative overflow-hidden">
+      <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 relative overflow-visible">
         <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">{activeOpt === 'RECEPTION' ? 'RX' : activeOpt === 'DISPATCH' ? 'TX' : 'MV'}</div>
         <OperationForm type={activeOpt} />
       </div>
@@ -530,116 +530,229 @@ type OperationGuide = {
   signature?: string;
 };
 
-const TYPE_LABEL: Record<TransactionType, string> = {
-  RECEPTION: 'RECEPCIÓN',
-  DISPATCH: 'DESPACHO',
-  TRANSFER: 'TRASLADO',
-};
-const TYPE_COLOR: Record<TransactionType, string> = {
-  RECEPTION: 'bg-green-700',
-  DISPATCH: 'bg-red-700',
-  TRANSFER: 'bg-sky-700',
+const TYPE_META: Record<TransactionType, { label: string; accentColor: string; bgColor: string; borderColor: string; icon: string }> = {
+  RECEPTION: { label: 'RECEPCIÓN', accentColor: '#15803d', bgColor: '#f0fdf4', borderColor: '#16a34a', icon: '↓' },
+  DISPATCH:  { label: 'DESPACHO',  accentColor: '#b91c1c', bgColor: '#fef2f2', borderColor: '#dc2626', icon: '↑' },
+  TRANSFER:  { label: 'TRASLADO',  accentColor: '#0369a1', bgColor: '#eff6ff', borderColor: '#2563eb', icon: '⇄' },
 };
 
 const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ guide, onClose }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const meta = TYPE_META[guide.type];
 
   const handlePrint = () => {
     const content = printRef.current;
     if (!content) return;
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<html><head><title>Guía ${guide.number}</title>
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Guía ${guide.number}</title>
     <style>
-      * { margin:0; padding:0; box-sizing:border-box; }
-      body { font-family:'Courier New',monospace; background:white; padding:24px; }
-      .guide { border:2px solid #141414; padding:20px; max-width:400px; }
-      .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #141414; padding-bottom:12px; margin-bottom:12px; }
-      .badge { padding:4px 10px; color:white; font-size:9px; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
-      .rx{background:#15803d} .tx{background:#b91c1c} .mv{background:#0369a1}
-      .number { font-size:11px; font-weight:900; letter-spacing:1px; }
-      .row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #e5e5e5; font-size:10px; }
-      .label { opacity:0.55; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
-      .value { font-weight:900; text-align:right; }
-      .sig { margin-top:12px; border:1px solid #141414; padding:4px; }
-      .sig img { max-width:100%; height:60px; object-fit:contain; }
-      @media print { body{padding:0} }
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Courier New',monospace;background:#fff;display:flex;justify-content:center;padding:32px 16px}
+      .doc{width:420px;border:2px solid #141414}
+      .stripe{height:6px;background:${meta.accentColor}}
+      .top{padding:20px 20px 14px;border-bottom:2px solid #141414;display:flex;justify-content:space-between;align-items:flex-start}
+      .brand{font-size:8px;font-weight:700;letter-spacing:3px;opacity:.4;text-transform:uppercase;margin-bottom:4px}
+      .docnum{font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+      .badge{padding:6px 14px;color:#fff;font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;background:${meta.accentColor};display:flex;align-items:center;gap:6px}
+      .badge-icon{font-size:14px}
+      .meta{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #e5e5e5}
+      .meta-cell{padding:10px 20px;border-right:1px solid #e5e5e5;border-bottom:1px solid #e5e5e5}
+      .meta-cell:nth-child(even){border-right:none}
+      .meta-label{font-size:7px;font-weight:700;letter-spacing:2px;opacity:.4;text-transform:uppercase;margin-bottom:3px}
+      .meta-value{font-size:11px;font-weight:900;text-transform:uppercase}
+      .section{padding:14px 20px;border-bottom:1px solid #e5e5e5}
+      .section-title{font-size:7px;font-weight:700;letter-spacing:3px;opacity:.35;text-transform:uppercase;margin-bottom:10px}
+      .product-name{font-size:13px;font-weight:900;text-transform:uppercase;margin-bottom:2px}
+      .product-code{font-size:9px;opacity:.5;font-weight:700;letter-spacing:1px}
+      .qty-box{display:inline-block;background:#141414;color:#fff;padding:6px 16px;font-size:20px;font-weight:900;margin-top:8px}
+      .flow{display:flex;align-items:center;gap:0;margin-top:8px}
+      .flow-box{flex:1;background:#f5f5f5;border:1px solid #ddd;padding:8px 10px}
+      .flow-label{font-size:7px;font-weight:700;letter-spacing:2px;opacity:.4;text-transform:uppercase;margin-bottom:3px}
+      .flow-name{font-size:10px;font-weight:900;text-transform:uppercase}
+      .flow-arrow{padding:0 10px;font-size:18px;color:${meta.accentColor};font-weight:900;flex-shrink:0}
+      .sig-section{padding:14px 20px;border-bottom:1px solid #e5e5e5}
+      .sig-img{border:1px solid #ddd;padding:4px;max-height:60px;width:100%;object-fit:contain}
+      .footer{padding:10px 20px;display:flex;justify-content:space-between;align-items:center;background:#fafafa}
+      .footer-text{font-size:7px;opacity:.35;letter-spacing:1px;text-transform:uppercase}
+      .stamp{border:2px solid ${meta.accentColor};color:${meta.accentColor};padding:4px 10px;font-size:8px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+      @media print{body{padding:0}.doc{border:2px solid #141414}}
     </style></head><body>
-    <div class="guide">${content.innerHTML}</div></body></html>`);
+    <div class="doc">
+      <div class="stripe"></div>
+      <div class="top">
+        <div>
+          <div class="brand">${guide.brand.replace('_', ' ')} // Sistema de Almacén</div>
+          <div class="docnum">${guide.number}</div>
+        </div>
+        <div class="badge"><span class="badge-icon">${meta.icon}</span>${meta.label}</div>
+      </div>
+      <div class="meta">
+        <div class="meta-cell"><div class="meta-label">Fecha</div><div class="meta-value">${guide.date}</div></div>
+        <div class="meta-cell"><div class="meta-label">Operador</div><div class="meta-value">${guide.operator}</div></div>
+        <div class="meta-cell"><div class="meta-label">Referencia</div><div class="meta-value">${guide.reference}</div></div>
+        ${guide.contact ? `<div class="meta-cell"><div class="meta-label">${guide.type === 'RECEPTION' ? 'Proveedor' : 'Cliente'}</div><div class="meta-value">${guide.contact}</div></div>` : '<div class="meta-cell"></div>'}
+      </div>
+      <div class="section">
+        <div class="section-title">Producto</div>
+        <div class="product-name">${guide.productName}</div>
+        <div class="product-code">${guide.productCode}${guide.serialNumber ? ' // S/N: ' + guide.serialNumber : ''}</div>
+        <div class="qty-box">${guide.quantity} UND</div>
+      </div>
+      ${(guide.fromLocation || guide.toLocation) ? `
+      <div class="section">
+        <div class="section-title">Movimiento</div>
+        <div class="flow">
+          ${guide.fromLocation ? `<div class="flow-box"><div class="flow-label">Origen</div><div class="flow-name">${guide.fromLocation}</div></div>` : ''}
+          ${guide.fromLocation && guide.toLocation ? `<div class="flow-arrow">${meta.icon}</div>` : ''}
+          ${guide.toLocation ? `<div class="flow-box"><div class="flow-label">Destino</div><div class="flow-name">${guide.toLocation}</div></div>` : ''}
+        </div>
+      </div>` : ''}
+      ${guide.signature ? `<div class="sig-section"><div class="section-title">Firma de conformidad</div><img class="sig-img" src="${guide.signature}" alt="firma"/></div>` : ''}
+      <div class="footer">
+        <div class="footer-text">LogixZazu v3.0 // Documento generado automáticamente</div>
+        <div class="stamp">REGISTRADO</div>
+      </div>
+    </div>
+    </body></html>`);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); win.close(); }, 400);
   };
 
-  const badgeClass = guide.type === 'RECEPTION' ? 'rx' : guide.type === 'DISPATCH' ? 'tx' : 'mv';
-
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-md flex flex-col"
+        className="bg-white border-2 border-[#141414] shadow-[10px_10px_0_#141414] w-full max-w-lg flex flex-col my-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="bg-[#141414] text-[#E4E3E0] px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CheckCircle size={16} className="text-green-400" />
-            <span className="font-mono font-black text-[11px] uppercase tracking-widest">GUÍA DE OPERACIÓN</span>
+        {/* Color stripe top */}
+        <div className="h-1.5 w-full" style={{ background: meta.accentColor }} />
+
+        {/* Document header */}
+        <div className="px-6 py-4 border-b-2 border-[#141414] flex items-start justify-between gap-4" style={{ background: meta.bgColor }}>
+          <div>
+            <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-40 uppercase mb-1">
+              {guide.brand.replace('_', ' ')} // GUÍA DE OPERACIÓN
+            </div>
+            <div className="font-mono font-black text-xl tracking-tight text-[#141414]">{guide.number}</div>
           </div>
-          <button onClick={onClose} className="opacity-60 hover:opacity-100 transition-opacity p-0.5">
-            <X size={14} />
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <div
+              className="flex items-center gap-2 px-4 py-2 text-white font-mono font-black text-[10px] tracking-widest uppercase"
+              style={{ background: meta.accentColor }}
+            >
+              <span className="text-base leading-none">{meta.icon}</span>
+              {meta.label}
+            </div>
+            <button onClick={onClose} className="p-1 opacity-40 hover:opacity-80 transition-opacity">
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
-        {/* Printable content */}
-        <div ref={printRef} className="p-5 flex flex-col gap-0">
-          {/* Sub-header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest">{guide.brand.replace('_', ' ')}</div>
-              <div className="font-mono font-black text-sm tracking-wider number">{guide.number}</div>
-            </div>
-            <span className={`${TYPE_COLOR[guide.type]} badge text-white font-mono font-black text-[9px] px-3 py-1 uppercase tracking-widest`}>
-              {TYPE_LABEL[guide.type]}
-            </span>
+        {/* Printable area */}
+        <div ref={printRef}>
+          {/* Meta grid */}
+          <div className="grid grid-cols-2 border-b border-[#141414]/15">
+            {[
+              { label: 'FECHA', value: guide.date },
+              { label: 'OPERADOR', value: guide.operator },
+              { label: 'REFERENCIA', value: guide.reference },
+              guide.contact
+                ? { label: guide.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE', value: guide.contact }
+                : null,
+            ].filter(Boolean).map((cell: any) => (
+              <div key={cell.label} className="px-5 py-3 border-b border-r border-[#141414]/10 odd:border-r even:border-r-0">
+                <div className="font-mono text-[8px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">{cell.label}</div>
+                <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{cell.value}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Data rows */}
-          {[
-            { label: 'FECHA', value: guide.date },
-            { label: 'OPERADOR', value: guide.operator },
-            { label: 'PRODUCTO', value: `${guide.productCode} — ${guide.productName}` },
-            { label: 'CANTIDAD', value: String(guide.quantity) },
-            guide.fromLocation && { label: 'ORIGEN', value: guide.fromLocation },
-            guide.toLocation && { label: 'DESTINO', value: guide.toLocation },
-            { label: 'REFERENCIA', value: guide.reference },
-            guide.contact && { label: guide.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE', value: guide.contact },
-            guide.serialNumber && { label: 'SERIE / LOTE', value: guide.serialNumber },
-          ].filter(Boolean).map((row: any) => (
-            <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#141414]/10 row">
-              <span className="font-mono text-[9px] opacity-55 font-bold uppercase tracking-widest label">{row.label}</span>
-              <span className="font-mono text-[11px] font-black text-right max-w-[55%] value">{row.value}</span>
+          {/* Product section */}
+          <div className="px-5 py-4 border-b border-[#141414]/15">
+            <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-3">PRODUCTO</div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="font-mono font-black text-base text-[#141414] uppercase leading-tight truncate">{guide.productName}</div>
+                <div className="font-mono text-[10px] opacity-50 mt-0.5">
+                  {guide.productCode}{guide.serialNumber ? ` · S/N: ${guide.serialNumber}` : ''}
+                </div>
+              </div>
+              <div
+                className="shrink-0 flex flex-col items-center justify-center px-4 py-2 text-white font-mono font-black"
+                style={{ background: meta.accentColor, minWidth: '72px' }}
+              >
+                <span className="text-xl leading-none">{guide.quantity}</span>
+                <span className="text-[8px] tracking-widest opacity-80 mt-0.5">UND</span>
+              </div>
             </div>
-          ))}
+          </div>
 
-          {guide.signature && (
-            <div className="mt-3 sig">
-              <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">FIRMA</div>
-              <img src={guide.signature} alt="firma" className="h-14 w-full object-contain" />
+          {/* Movement flow */}
+          {(guide.fromLocation || guide.toLocation) && (
+            <div className="px-5 py-4 border-b border-[#141414]/15">
+              <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-3">MOVIMIENTO</div>
+              <div className="flex items-stretch gap-0">
+                {guide.fromLocation && (
+                  <div className="flex-1 border border-[#141414]/20 bg-[#fafaf9] px-3 py-2.5">
+                    <div className="font-mono text-[7px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">ORIGEN</div>
+                    <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{guide.fromLocation}</div>
+                  </div>
+                )}
+                {guide.fromLocation && guide.toLocation && (
+                  <div
+                    className="flex items-center justify-center px-3 font-black text-lg text-white shrink-0"
+                    style={{ background: meta.accentColor }}
+                  >
+                    {meta.icon}
+                  </div>
+                )}
+                {guide.toLocation && (
+                  <div className="flex-1 border border-[#141414]/20 bg-[#fafaf9] px-3 py-2.5">
+                    <div className="font-mono text-[7px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">DESTINO</div>
+                    <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{guide.toLocation}</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Signature */}
+          {guide.signature && (
+            <div className="px-5 py-4 border-b border-[#141414]/15">
+              <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-2">FIRMA DE CONFORMIDAD</div>
+              <div className="border border-[#141414]/20 bg-[#fafaf9] p-2">
+                <img src={guide.signature} alt="firma" className="h-16 w-full object-contain" />
+              </div>
+            </div>
+          )}
+
+          {/* Footer stamp */}
+          <div className="px-5 py-3 flex items-center justify-between bg-[#fafaf9]">
+            <div className="font-mono text-[8px] opacity-30 tracking-widest uppercase">LogixZazu v3.0 // Documento generado automáticamente</div>
+            <div
+              className="font-mono font-black text-[8px] tracking-widest uppercase px-3 py-1.5 border-2"
+              style={{ borderColor: meta.accentColor, color: meta.accentColor }}
+            >
+              ✓ REGISTRADO
+            </div>
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="border-t border-[#141414] p-3 flex gap-2">
+        {/* Action buttons */}
+        <div className="border-t-2 border-[#141414] p-3 flex gap-2 bg-[#f5f4f1]">
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#141414] text-[#E4E3E0] py-2.5 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
+            className="flex-1 flex items-center justify-center gap-2 text-white py-2.5 text-[10px] font-bold font-mono uppercase transition-all hover:opacity-90 active:scale-[0.98]"
+            style={{ background: meta.accentColor }}
           >
             <Printer size={13} /> IMPRIMIR GUÍA
           </button>
           <button
             onClick={onClose}
-            className="flex-1 border border-[#141414] py-2.5 text-[10px] font-bold font-mono uppercase hover:bg-white/50 transition-all"
+            className="flex-1 border-2 border-[#141414] py-2.5 text-[10px] font-bold font-mono uppercase hover:bg-white transition-all text-[#141414]"
           >
             CERRAR
           </button>
