@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts';
+import nodemailer from 'npm:nodemailer@6.9.13';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -19,25 +19,27 @@ serve(async (req) => {
     const gmailUser = Deno.env.get('GMAIL_USER')!;
     const gmailPass = Deno.env.get('GMAIL_APP_PASSWORD')!;
 
-    const client = new SmtpClient();
-    await client.connectTLS({ hostname: 'smtp.gmail.com', port: 465, username: gmailUser, password: gmailPass });
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user: gmailUser, pass: gmailPass },
+    });
 
     for (const r of recipients) {
-      await client.send({
+      await transporter.sendMail({
         from: `LogixZazu <${gmailUser}>`,
         to: r.email,
         subject,
-        content: 'Ver versión HTML.',
         html,
       });
     }
-
-    await client.close();
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    console.error('send-email error:', err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...CORS, 'Content-Type': 'application/json' },

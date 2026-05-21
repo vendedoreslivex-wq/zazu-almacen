@@ -1174,7 +1174,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteStockLevel = (productId: string, locationId: string) => {
     setStockLevels(prev => prev.filter(s => !(s.productId === productId && s.locationId === locationId)));
-    supabase.from('stock_levels').delete().eq('product_id', productId).eq('location_id', locationId).eq('brand', activeBrand);
+    supabase.from('stock_levels').delete().eq('product_id', productId).eq('location_id', locationId).eq('brand', activeBrand).then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
   const addContact = (contact: Omit<Contact, 'id'>) => {
