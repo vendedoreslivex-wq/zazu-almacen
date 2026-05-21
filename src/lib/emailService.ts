@@ -1,8 +1,21 @@
-import emailjs from '@emailjs/browser';
+const EDGE_FN_URL = 'https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/send-email';
 
-const PUBLIC_KEY = 'Nl9Zi36JAgLjwURH4';
-const SERVICE_ID = 'service_zazu';
-const TEMPLATE_ID = 'template_zazu';
+const INTERNAL_RECIPIENTS = [
+  { name: 'Rubén',     email: 'rbnasmat@gmail.com' },
+  { name: 'Williams',  email: 'Melaminacolors2@gmail.com' },
+  { name: 'Benjamín',  email: 'elbenjael17@gmail.com' },
+  { name: 'Valentino', email: 'jamesrojasdiaz01@gmail.com' },
+];
+
+async function callEdgeFunction(recipients: { name: string; email: string }[], subject: string, html: string): Promise<void> {
+  await fetch(EDGE_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipients, subject, html }),
+  });
+}
+
+// ─── Operation Emails ─────────────────────────────────────────────────────────
 
 export type OperationType = 'RECEPTION' | 'DISPATCH' | 'TRANSFER';
 
@@ -132,41 +145,16 @@ function buildHTML(p: DispatchEmailParams): string {
 </html>`;
 }
 
-const PO_RECIPIENTS = [
-  { name: 'Rubén',     email: 'rbnasmat@gmail.com' },
-  { name: 'Williams',  email: 'Melaminacolors2@gmail.com' },
-  { name: 'Benjamín',  email: 'elbenjael17@gmail.com' },
-  { name: 'Valentino', email: 'jamesrojasdiaz01@gmail.com' },
-];
-
 export async function sendOperationEmail(params: DispatchEmailParams): Promise<void> {
   const html = buildHTML(params);
-  await emailjs.send(
-    SERVICE_ID,
-    TEMPLATE_ID,
-    {
-      to_email: params.toEmail,
-      to_name: params.toName,
-      subject: `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`,
-      html_body: html,
-    },
-    PUBLIC_KEY
-  );
+  const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
+  await callEdgeFunction([{ name: params.toName, email: params.toEmail }], subject, html);
 }
 
 export async function sendOperationToInternalRecipients(params: Omit<DispatchEmailParams, 'toEmail' | 'toName'>): Promise<void> {
   const html = buildHTML({ ...params, toEmail: '', toName: '' });
   const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
-  await Promise.allSettled(
-    PO_RECIPIENTS.map(r =>
-      emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        { to_email: r.email, to_name: r.name, subject, html_body: html },
-        PUBLIC_KEY
-      )
-    )
-  );
+  await callEdgeFunction(INTERNAL_RECIPIENTS, subject, html);
 }
 
 // ─── Purchase Order Emails ────────────────────────────────────────────────────
@@ -280,14 +268,5 @@ function buildPOHTML(p: PurchaseOrderEmailParams): string {
 export async function sendPurchaseOrderEmail(params: PurchaseOrderEmailParams): Promise<void> {
   const html = buildPOHTML(params);
   const subject = `[OC ${PO_STATUS_LABEL[params.status]}] ${params.reference} — ${params.supplierName}`;
-  await Promise.allSettled(
-    PO_RECIPIENTS.map(r =>
-      emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        { to_email: r.email, to_name: r.name, subject, html_body: html },
-        PUBLIC_KEY
-      )
-    )
-  );
+  await callEdgeFunction(INTERNAL_RECIPIENTS, subject, html);
 }
