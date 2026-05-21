@@ -6,6 +6,7 @@ import { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../types'
 import { canEdit as hasPermission } from '../lib/permissions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { sendPurchaseOrderEmail } from '../lib/emailService';
 
 const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   DRAFT: 'BORRADOR',
@@ -49,15 +50,48 @@ export const PurchaseOrders: React.FC = () => {
     setShowModal(true);
   };
 
+  const buildEmailItems = (items: PurchaseOrderItem[]) =>
+    items.map(item => {
+      const prod = products.find(p => p.id === item.productId);
+      return {
+        productCode: prod?.code ?? item.productId,
+        productName: [prod?.name, prod?.color, prod?.size].filter(Boolean).join(' '),
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+      };
+    });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.supplierId || form.items.some(i => !i.productId)) return;
     addPurchaseOrder({ ...form, status: 'DRAFT' });
     setShowModal(false);
+    const supplier = contacts.find(c => c.id === form.supplierId);
+    sendPurchaseOrderEmail({
+      reference: form.reference,
+      supplierName: supplier?.name ?? '—',
+      status: 'DRAFT',
+      date: format(new Date(), "dd/MM/yyyy HH:mm", { locale: es }),
+      operator: currentUser.username,
+      items: buildEmailItems(form.items),
+      notes: form.notes,
+    });
   };
 
   const changeStatus = (po: PurchaseOrder, status: PurchaseOrderStatus) => {
     updatePurchaseOrder({ ...po, status });
+    if (status === 'APPROVED') {
+      const supplier = contacts.find(c => c.id === po.supplierId);
+      sendPurchaseOrderEmail({
+        reference: po.reference,
+        supplierName: supplier?.name ?? '—',
+        status: 'APPROVED',
+        date: format(new Date(), "dd/MM/yyyy HH:mm", { locale: es }),
+        operator: currentUser.username,
+        items: buildEmailItems(po.items),
+        notes: po.notes,
+      });
+    }
   };
 
   const openReceive = (po: PurchaseOrder) => {
