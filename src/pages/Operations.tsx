@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X, Printer, CheckCircle } from 'lucide-react';
@@ -77,6 +77,10 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
   const [showReceptionPrompt, setShowReceptionPrompt] = useState(false);
   const [pendingTx, setPendingTx] = useState<any>(null);
   const [guide, setGuide] = useState<OperationGuide | null>(null);
+
+  useEffect(() => {
+    setReference(peekGuideNumber(type, activeBrand));
+  }, [type, activeBrand]);
 
   const getAvailableStock = () => {
     if (!productId || !fromLocation || type === 'RECEPTION') return null;
@@ -193,7 +197,7 @@ const OperationForm: React.FC<{type: TransactionType}> = ({ type }) => {
       // Reset
       setProductId('');
       setQuantity('');
-      setReference('');
+      setReference(peekGuideNumber(tx.type, activeBrand));
       setSerialNumber('');
       setFromLocation('');
       setToLocation('');
@@ -542,6 +546,12 @@ function nextGuideNumber(type: TransactionType, brand: string): string {
   const next = current + 1;
   localStorage.setItem(key, String(next));
   return `${GUIDE_PREFIX[type]}-${String(next).padStart(5, '0')}`;
+}
+
+function peekGuideNumber(type: TransactionType, brand: string): string {
+  const key = `guide_seq_${brand}_${type}`;
+  const current = parseInt(localStorage.getItem(key) ?? '0', 10);
+  return `${GUIDE_PREFIX[type]}-${String(current + 1).padStart(5, '0')}`;
 }
 
 const TYPE_META: Record<TransactionType, { label: string; accentColor: string; bgColor: string; borderColor: string; icon: string }> = {
