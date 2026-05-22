@@ -69,6 +69,9 @@ export const Users: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
 
+  const [userError, setUserError] = useState('');
+  const [userSubmitting, setUserSubmitting] = useState(false);
+
   // Subscriber state
   const [showSubModal, setShowSubModal] = useState(false);
   const [editingSub, setEditingSub] = useState<NotificationSubscriber | null>(null);
@@ -82,25 +85,36 @@ export const Users: React.FC = () => {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setUserError('');
     setShowModal(true);
   };
 
   const openEdit = (u: UserWithPassword) => {
     setEditing(u);
     setForm({ username: u.username, password: '', email: u.email || '', role: u.role, active: u.active });
+    setUserError('');
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username) return;
-    if (editing) {
-      await updateUser({ ...editing, ...form, password: editing.password }, form.password || undefined);
-    } else {
-      if (!form.password) return;
-      await addUser(form);
+    setUserError('');
+    if (!form.username) { setUserError('El nombre de usuario es obligatorio.'); return; }
+    if (!editing && !form.email) { setUserError('El email es obligatorio para crear un usuario.'); return; }
+    if (!editing && !form.password) { setUserError('La contraseña es obligatoria para crear un usuario.'); return; }
+    setUserSubmitting(true);
+    try {
+      if (editing) {
+        await updateUser({ ...editing, ...form, password: editing.password }, form.password || undefined);
+      } else {
+        await addUser(form);
+      }
+      setShowModal(false);
+    } catch (err) {
+      setUserError(err instanceof Error ? err.message : 'Error al guardar el usuario');
+    } finally {
+      setUserSubmitting(false);
     }
-    setShowModal(false);
   };
 
   const handleDelete = (id: string) => {
@@ -316,10 +330,23 @@ export const Users: React.FC = () => {
               <button onClick={() => setShowModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
+              {userError && (
+                <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
+                  {userError}
+                </div>
+              )}
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Usuario *</label>
                 <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                   className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">
+                  Email {editing ? <span className="opacity-50 normal-case">(necesario)</span> : '*'}
+                </label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                  required={!editing} />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">
@@ -336,11 +363,6 @@ export const Users: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Email</label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" />
-              </div>
-              <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Rol</label>
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
                   className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer">
@@ -352,10 +374,10 @@ export const Users: React.FC = () => {
                 <label htmlFor="active" className="font-mono text-[10px] font-bold uppercase cursor-pointer">Usuario activo</label>
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all">
-                  {editing ? 'GUARDAR' : 'CREAR'}
+                <button type="submit" disabled={userSubmitting} className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] disabled:opacity-50 transition-all">
+                  {userSubmitting ? 'GUARDANDO...' : (editing ? 'GUARDAR' : 'CREAR')}
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50 transition-all">
+                <button type="button" onClick={() => setShowModal(false)} disabled={userSubmitting} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50 disabled:opacity-50 transition-all">
                   CANCELAR
                 </button>
               </div>
