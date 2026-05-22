@@ -46,10 +46,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { recipients, subject, html } = await req.json() as {
+    const { recipients, subject, html, attachments } = await req.json() as {
       recipients: { name: string; email: string }[];
       subject: string;
       html: string;
+      attachments?: { filename: string; content: string; cid: string }[];
     };
 
     // Basic input validation
@@ -82,6 +83,29 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (attachments !== undefined) {
+      if (!Array.isArray(attachments) || attachments.length > 10) {
+        return new Response(JSON.stringify({ error: 'Invalid attachments (max 10)' }), {
+          status: 400,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
+      for (const a of attachments) {
+        if (!a || typeof a.filename !== 'string' || typeof a.content !== 'string' || typeof a.cid !== 'string') {
+          return new Response(JSON.stringify({ error: 'Invalid attachment shape' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          });
+        }
+        if (a.content.length > 2_000_000) {
+          return new Response(JSON.stringify({ error: 'Attachment too large (max ~1.5MB)' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
     const gmailUser = Deno.env.get('GMAIL_USER')!;
     const gmailPass = Deno.env.get('GMAIL_APP_PASSWORD')!;
 
@@ -92,12 +116,20 @@ Deno.serve(async (req) => {
       auth: { user: gmailUser, pass: gmailPass },
     });
 
+    const mailAttachments = (attachments ?? []).map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      encoding: 'base64' as const,
+      cid: a.cid,
+    }));
+
     for (const r of recipients) {
       await transporter.sendMail({
         from: `LogixZazu <${gmailUser}>`,
         to: r.email,
         subject,
         html,
+        attachments: mailAttachments.length > 0 ? mailAttachments : undefined,
       });
     }
 

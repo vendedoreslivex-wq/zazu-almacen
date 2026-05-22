@@ -12,7 +12,7 @@ import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, O
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import { supabase } from '../lib/supabase';
-import { uploadSignature, uploadPhoto } from '../lib/signatureStorage';
+import { uploadSignature } from '../lib/signatureStorage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -395,12 +395,10 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const guideNumber = await nextGuideNumber(type, activeBrand);
     const guideItems: OperationItem[] = [];
 
-    // Upload signature and photo to Storage once. Email clients (Gmail in
-    // particular) strip <img src="data:..."> so we need public URLs for the
-    // signature/photo to actually render. Falls back to the data URL if the
-    // upload fails (uploader logs the reason in DevTools).
+    // Upload signature to Storage so the DB stores a URL instead of a 50KB
+    // base64 blob. Photos aren't stored in the DB — they only travel embedded
+    // in the email (as CID attachments).
     const storedSig = sigData ? await uploadSignature(sigData) : undefined;
-    const storedPhoto = photo ? await uploadPhoto(photo) : undefined;
 
     try {
       for (const item of lineItems) {
@@ -463,8 +461,10 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     padRef.current?.clear();
     if (photoInputRef.current) photoInputRef.current.value = '';
 
-    // Email payload — uses the Storage public URLs so Gmail/Outlook render
-    // the images instead of stripping data: URLs.
+    // Email payload — pass the original data URLs so emailService can embed
+    // the images as CID attachments. Gmail/Outlook strip <img src="data:...">
+    // and Storage public URLs aren't always rendered either, so we attach the
+    // images directly into the MIME message.
     const emailPayload = {
       brand: activeBrand,
       operationType: type as OperationType,
@@ -475,8 +475,8 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
       fromLocation: fromLoc?.name,
       toLocation: toLoc?.name,
       contact: contact?.name,
-      signature: storedSig,
-      photo: storedPhoto,
+      signature: sigData,
+      photo: photo ?? undefined,
     };
 
     // Email to operator

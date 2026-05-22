@@ -2,6 +2,8 @@ import { supabase, FUNCTIONS_URL } from './supabase';
 
 const EDGE_FN_URL = `${FUNCTIONS_URL}/send-email`;
 
+type EmailAttachment = { filename: string; content: string; cid: string };
+
 async function loadInternalRecipients(): Promise<{ name: string; email: string }[]> {
   const { data } = await supabase
     .from('notification_subscribers')
@@ -10,7 +12,32 @@ async function loadInternalRecipients(): Promise<{ name: string; email: string }
   return data ?? [];
 }
 
-async function callEdgeFunction(recipients: { name: string; email: string }[], subject: string, html: string): Promise<void> {
+/**
+ * If `value` is a data URL, push an attachment record and return a `cid:` URI
+ * suitable for use in <img src=...>. Otherwise return the value unchanged
+ * (already an HTTP URL or empty).
+ */
+function inlineDataUrl(
+  value: string | undefined,
+  hint: string,
+  out: EmailAttachment[],
+): string | undefined {
+  if (!value) return value;
+  const m = /^data:([^;]+);base64,(.+)$/.exec(value);
+  if (!m) return value;
+  const mime = m[1];
+  const ext = mime === 'image/jpeg' ? 'jpg' : 'png';
+  const cid = `${hint}-${Math.random().toString(36).slice(2, 10)}@logixzazu`;
+  out.push({ filename: `${hint}.${ext}`, content: m[2], cid });
+  return `cid:${cid}`;
+}
+
+async function callEdgeFunction(
+  recipients: { name: string; email: string }[],
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[],
+): Promise<void> {
   if (recipients.length === 0) return;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return;
@@ -21,7 +48,7 @@ async function callEdgeFunction(recipients: { name: string; email: string }[], s
       'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ recipients, subject, html }),
+    body: JSON.stringify({ recipients, subject, html, attachments }),
   });
 }
 
@@ -155,17 +182,27 @@ function buildHTML(p: DispatchEmailParams): string {
 </html>`;
 }
 
+function prepareOperationEmail(params: DispatchEmailParams): { html: string; attachments: EmailAttachment[] } {
+  const attachments: EmailAttachment[] = [];
+  const inlined: DispatchEmailParams = {
+    ...params,
+    signature: inlineDataUrl(params.signature, 'firma', attachments),
+    photo: inlineDataUrl(params.photo, 'foto', attachments),
+  };
+  return { html: buildHTML(inlined), attachments };
+}
+
 export async function sendOperationEmail(params: DispatchEmailParams): Promise<void> {
-  const html = buildHTML(params);
+  const { html, attachments } = prepareOperationEmail(params);
   const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
-  await callEdgeFunction([{ name: params.toName, email: params.toEmail }], subject, html);
+  await callEdgeFunction([{ name: params.toName, email: params.toEmail }], subject, html, attachments);
 }
 
 export async function sendOperationToInternalRecipients(params: Omit<DispatchEmailParams, 'toEmail' | 'toName'>): Promise<void> {
-  const html = buildHTML({ ...params, toEmail: '', toName: '' });
+  const { html, attachments } = prepareOperationEmail({ ...params, toEmail: '', toName: '' });
   const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
   const recipients = await loadInternalRecipients();
-  await callEdgeFunction(recipients, subject, html);
+  await callEdgeFunction(recipients, subject, html, attachments);
 }
 
 // ─── Purchase Order Emails ────────────────────────────────────────────────────
