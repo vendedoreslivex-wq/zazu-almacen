@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, FUNCTIONS_URL } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
@@ -356,12 +356,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addUser = async (u: Omit<UserWithPassword, 'id'>): Promise<void> => {
     if (!u.email) throw new Error('El email es obligatorio para crear usuarios');
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-auth`, {
+    if (!session?.access_token) throw new Error('Sesión expirada. Vuelve a iniciar sesión.');
+    const res = await fetch(`${FUNCTIONS_URL}/update-user-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         action: 'create',
@@ -374,8 +375,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Error al crear el usuario');
+      const raw = await res.text();
+      let detail = raw;
+      try { detail = JSON.parse(raw).error ?? raw; } catch { /* not JSON */ }
+      console.error('addUser failed:', res.status, raw);
+      throw new Error(`[${res.status}] ${detail || 'Error al crear el usuario'}`);
     }
     const { data } = await supabase.from('profiles').select('*');
     if (data) setUsers(data.map(dbToUser));
@@ -383,7 +387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUser = async (updated: UserWithPassword, newPassword?: string): Promise<void> => {
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-auth`, {
+    const res = await fetch(`${FUNCTIONS_URL}/update-user-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -409,7 +413,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteUser = (id: string) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u));
-    fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-auth`, {
+    fetch(`${FUNCTIONS_URL}/update-user-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

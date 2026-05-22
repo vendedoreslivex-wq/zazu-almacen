@@ -1,6 +1,6 @@
-import { supabase } from './supabase';
+import { supabase, FUNCTIONS_URL } from './supabase';
 
-const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/send-email`;
+const EDGE_FN_URL = `${FUNCTIONS_URL}/send-email`;
 
 async function loadInternalRecipients(): Promise<{ name: string; email: string }[]> {
   const { data } = await supabase
