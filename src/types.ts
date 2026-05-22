@@ -107,3 +107,18 @@ export type NotificationSubscriber = {
   email: string;
   active: boolean;
 };
+
+export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE';
+
+export type AuditLogEntry = {
+  id: string;
+  occurredAt: string;
+  userId?: string;
+  userName?: string;
+  action: AuditAction;
+  tableName: string;
+  recordId?: string;
+  brand?: string;
+  oldData?: Record<string, unknown>;
+  newData?: Record<string, unknown>;
+};

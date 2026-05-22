@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, FUNCTIONS_URL } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber, AuditLogEntry } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
-import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber } from './mappers';
+import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry } from './mappers';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
 
@@ -50,6 +50,8 @@ interface AppContextType {
   addSubscriber: (s: Omit<NotificationSubscriber, 'id'>) => Promise<void>;
   updateSubscriber: (s: NotificationSubscriber) => Promise<void>;
   deleteSubscriber: (id: string) => Promise<void>;
+  auditLog: AuditLogEntry[];
+  refreshAuditLog: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,10 +72,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<Role, Record<string, Permission>>>(DEFAULT_ROLE_PERMISSIONS);
   const [notificationSubscribers, setNotificationSubscribers] = useState<NotificationSubscriber[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
 
   const loadProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) setCurrentUser({ id: data.id, username: data.username, role: data.role as Role });
+    if (!data) return;
+    if (data.active === false) {
+      // Inactive accounts must not be allowed to use the app.
+      sessionStorage.setItem('auth_message', 'Tu cuenta está desactivada. Contacta al administrador.');
+      await supabase.auth.signOut();
+      return;
+    }
+    setCurrentUser({ id: data.id, username: data.username, role: data.role as Role });
   };
 
   const loadBrandData = useCallback(async (brand: Brand) => {
@@ -157,6 +167,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, [sessionUserId]);
 
+  // Load audit log once on login (latest 1000 entries — admins only via RLS).
+  const refreshAuditLog = useCallback(async (): Promise<void> => {
+    const { data } = await supabase
+      .from('audit_log')
+      .select('*')
+      .order('occurred_at', { ascending: false })
+      .limit(1000);
+    if (data) setAuditLog(data.map(dbToAuditEntry));
+  }, []);
+
+  useEffect(() => {
+    if (!sessionUserId) return;
+    refreshAuditLog();
+  }, [sessionUserId, refreshAuditLog]);
+
   // Load custom role permissions once on login (not brand-dependent)
   useEffect(() => {
     if (!sessionUserId) return;
@@ -205,6 +230,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         () => supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setPurchaseOrders(data.map(dbToPO)); }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_adjustments', filter: `brand=eq.${activeBrand}` },
         () => supabase.from('inventory_adjustments').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setAdjustments(data.map(dbToAdj)); }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log' },
+        (payload) => {
+          const entry = dbToAuditEntry(payload.new);
+          setAuditLog(prev => [entry, ...prev].slice(0, 1000));
+        })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeBrand, session]);
@@ -508,10 +538,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAdjustment,
     rolePermissions, updateRolePermission,
     notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
+    auditLog, refreshAuditLog,
   }), [
     loading, activeBrand, products, locations, transactions, stockLevels,
     contacts, currentUser, users, purchaseOrders, adjustments, rolePermissions,
-    notificationSubscribers,
+    notificationSubscribers, auditLog, refreshAuditLog,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

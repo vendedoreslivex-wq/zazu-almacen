@@ -1,173 +1,178 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronDown, ChevronUp, Filter, Download } from 'lucide-react';
+import { ChevronDown, ChevronUp, Filter, Download, RefreshCw } from 'lucide-react';
+import type { AuditAction, AuditLogEntry } from '../types';
 
-type EventType = 'OPERATION' | 'ADJUSTMENT' | 'PURCHASE_ORDER';
+// ─── Friendly labels ───────────────────────────────────────────────────────────
 
-type UnifiedEvent = {
-  id: string;
-  date: string;
-  type: EventType;
-  label: string;
-  detail: string;
-  user: string;
-  productName?: string;
-  quantity?: number;
-  delta?: number;
+const TABLE_LABEL: Record<string, string> = {
+  products: 'Productos',
+  locations: 'Ubicaciones',
+  contacts: 'Contactos',
+  stock_levels: 'Stock',
+  transactions: 'Operaciones',
+  purchase_orders: 'Órdenes de Compra',
+  purchase_order_items: 'Items OC',
+  inventory_adjustments: 'Ajustes',
+  profiles: 'Usuarios',
+  role_permissions: 'Permisos',
+  notification_subscribers: 'Notificaciones',
 };
 
-const TYPE_COLOR: Record<EventType, string> = {
-  OPERATION: 'border-blue-600 text-blue-700',
-  ADJUSTMENT: 'border-orange-600 text-orange-700',
-  PURCHASE_ORDER: 'border-purple-600 text-purple-700',
+const ACTION_LABEL: Record<AuditAction, string> = {
+  INSERT: 'CREÓ',
+  UPDATE: 'EDITÓ',
+  DELETE: 'ELIMINÓ',
 };
 
-const TYPE_LABEL: Record<EventType, string> = {
-  OPERATION: 'OPERACIÓN',
-  ADJUSTMENT: 'AJUSTE',
-  PURCHASE_ORDER: 'ORDEN COMPRA',
+const ACTION_COLOR: Record<AuditAction, string> = {
+  INSERT: 'border-green-700 text-green-700',
+  UPDATE: 'border-blue-700 text-blue-700',
+  DELETE: 'border-red-700 text-red-700',
 };
 
-const TX_LABEL: Record<string, string> = {
-  RECEPTION: 'RECEPCIÓN',
-  DISPATCH: 'DESPACHO',
-  TRANSFER: 'TRANSFERENCIA',
-};
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const ADJ_LABEL: Record<string, string> = {
-  DAMAGE: 'DAÑO / ROTURA',
-  LOSS: 'MERMA / PÉRDIDA',
-  COUNT: 'CONTEO FÍSICO',
-  RETURN: 'DEVOLUCIÓN',
-  OTHER: 'OTRO',
-};
+function summarize(entry: AuditLogEntry): string {
+  const row = entry.newData ?? entry.oldData ?? {};
+  const name = (row.name as string) || (row.username as string) || (row.code as string) || (row.reference as string);
+  if (name) return name;
+  if (entry.tableName === 'stock_levels' && entry.newData) {
+    const qty = entry.newData.quantity;
+    const prev = entry.oldData?.quantity;
+    if (prev !== undefined) return `cantidad ${prev} → ${qty}`;
+    return `cantidad ${qty}`;
+  }
+  if (entry.tableName === 'transactions' && entry.newData) {
+    const t = entry.newData;
+    return `${t.type} · ${t.quantity}u · ${t.reference}`;
+  }
+  if (entry.tableName === 'inventory_adjustments' && entry.newData) {
+    const a = entry.newData;
+    return `${a.previous_quantity} → ${a.new_quantity} (${a.reason})`;
+  }
+  return entry.recordId?.slice(0, 8) ?? '—';
+}
 
-const PO_LABEL: Record<string, string> = {
-  DRAFT: 'BORRADOR',
-  APPROVED: 'APROBADA',
-  PARTIAL: 'PARCIAL',
-  COMPLETED: 'COMPLETADA',
-  CANCELLED: 'CANCELADA',
-};
+function changedFields(entry: AuditLogEntry): Array<{ key: string; from: unknown; to: unknown }> {
+  if (entry.action !== 'UPDATE' || !entry.oldData || !entry.newData) return [];
+  const keys = new Set([...Object.keys(entry.oldData), ...Object.keys(entry.newData)]);
+  const out: Array<{ key: string; from: unknown; to: unknown }> = [];
+  for (const k of keys) {
+    if (k === 'updated_at' || k === 'created_at') continue;
+    const before = entry.oldData[k];
+    const after = entry.newData[k];
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      out.push({ key: k, from: before, to: after });
+    }
+  }
+  return out;
+}
 
-const exportCSV = (rows: UnifiedEvent[]) => {
-  const headers = ['FECHA', 'MÓDULO', 'TIPO', 'PRODUCTO/DETALLE', 'REFERENCIA/USUARIO', 'CANTIDAD', 'DELTA'];
+function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'string' && v.length > 80) return v.slice(0, 80) + '…';
+  if (typeof v === 'object') return JSON.stringify(v).slice(0, 120);
+  return String(v);
+}
+
+const exportCSV = (rows: AuditLogEntry[]) => {
+  const headers = ['FECHA', 'USUARIO', 'ACCION', 'TABLA', 'REGISTRO', 'MARCA', 'DETALLE'];
   const lines = rows.map(r => [
-    format(new Date(r.date), 'dd/MM/yyyy HH:mm'),
-    TYPE_LABEL[r.type],
-    r.label,
-    r.productName ?? r.detail,
-    r.user,
-    r.quantity ?? '',
-    r.delta !== undefined ? (r.delta > 0 ? `+${r.delta}` : r.delta) : '',
+    format(new Date(r.occurredAt), 'dd/MM/yyyy HH:mm:ss'),
+    r.userName ?? '—',
+    ACTION_LABEL[r.action],
+    TABLE_LABEL[r.tableName] ?? r.tableName,
+    r.recordId ?? '—',
+    r.brand ?? '—',
+    summarize(r),
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
   const csv = [headers.join(','), ...lines].join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `historial_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
+  a.download = `auditoria_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 };
 
+// ─── Page ──────────────────────────────────────────────────────────────────────
+
 export const OperationHistory: React.FC = () => {
-  const { transactions, adjustments, purchaseOrders, products, locations, contacts } = useAppContext();
-  const [filterType, setFilterType] = useState<'ALL' | EventType>('ALL');
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const { auditLog, refreshAuditLog, currentUser } = useAppContext();
+  const [filterTable, setFilterTable] = useState<string>('ALL');
+  const [filterAction, setFilterAction] = useState<'ALL' | AuditAction>('ALL');
+  const [filterBrand, setFilterBrand] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const events = useMemo((): UnifiedEvent[] => {
-    const ops: UnifiedEvent[] = transactions.map(tx => {
-      const prod = products.find(p => p.id === tx.productId);
-      const from = locations.find(l => l.id === tx.fromLocationId);
-      const to = locations.find(l => l.id === tx.toLocationId);
-      const detail = tx.type === 'TRANSFER'
-        ? `${from?.name ?? '—'} → ${to?.name ?? '—'}`
-        : tx.type === 'RECEPTION'
-        ? `→ ${to?.name ?? '—'}`
-        : `${from?.name ?? '—'} →`;
-      return {
-        id: tx.id,
-        date: tx.date,
-        type: 'OPERATION',
-        label: TX_LABEL[tx.type] ?? tx.type,
-        detail,
-        user: tx.user,
-        productName: prod ? `${prod.code} ${prod.name}` : tx.productId,
-        quantity: tx.quantity,
-      };
-    });
+  if (currentUser.role !== 'ADMIN_GENERAL') {
+    return (
+      <div className="flex flex-col gap-6 h-full relative">
+        <ModuleInfo number="14" title="Historial General" description="Registro completo de todas las acciones del sistema." />
+        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest border border-[#141414]/20 bg-white/30">
+          Solo ADMIN_GENERAL puede ver el historial completo.
+        </div>
+      </div>
+    );
+  }
 
-    const adjs: UnifiedEvent[] = adjustments.map(adj => {
-      const prod = products.find(p => p.id === adj.productId);
-      const loc = locations.find(l => l.id === adj.locationId);
-      return {
-        id: adj.id,
-        date: adj.date,
-        type: 'ADJUSTMENT',
-        label: ADJ_LABEL[adj.reason] ?? adj.reason,
-        detail: loc?.name ?? '—',
-        user: adj.user,
-        productName: prod ? `${prod.code} ${prod.name}` : adj.productId,
-        delta: adj.newQuantity - adj.previousQuantity,
-      };
-    });
+  const tables = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of auditLog) set.add(e.tableName);
+    return Array.from(set).sort();
+  }, [auditLog]);
 
-    const pos: UnifiedEvent[] = purchaseOrders.map(po => {
-      const supplier = contacts.find(c => c.id === po.supplierId);
-      const totalUnits = po.items.reduce((s, i) => s + i.quantity, 0);
-      return {
-        id: po.id,
-        date: po.date,
-        type: 'PURCHASE_ORDER',
-        label: PO_LABEL[po.status] ?? po.status,
-        detail: supplier?.name ?? '—',
-        user: po.reference,
-        quantity: totalUnits,
-      };
-    });
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of auditLog) if (e.brand) set.add(e.brand);
+    return Array.from(set).sort();
+  }, [auditLog]);
 
-    return [...ops, ...adjs, ...pos].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, adjustments, purchaseOrders, products, locations, contacts]);
-
-  const filtered = useMemo(() => events.filter(e => {
-    if (filterType !== 'ALL' && e.type !== filterType) return false;
+  const filtered = useMemo(() => auditLog.filter(e => {
+    if (filterTable !== 'ALL' && e.tableName !== filterTable) return false;
+    if (filterAction !== 'ALL' && e.action !== filterAction) return false;
+    if (filterBrand !== 'ALL' && e.brand !== filterBrand) return false;
     if (dateFrom || dateTo) {
-      const d = new Date(e.date);
+      const d = new Date(e.occurredAt);
       if (dateFrom && d < startOfDay(parseISO(dateFrom))) return false;
       if (dateTo && d > endOfDay(parseISO(dateTo))) return false;
     }
     if (search) {
       const q = search.toLowerCase();
-      return !!(
-        e.productName?.toLowerCase().includes(q) ||
-        e.label.toLowerCase().includes(q) ||
-        e.detail.toLowerCase().includes(q) ||
-        e.user.toLowerCase().includes(q)
-      );
+      const haystack = [
+        e.userName, e.recordId, e.brand, TABLE_LABEL[e.tableName] ?? e.tableName,
+        summarize(e),
+        JSON.stringify(e.newData ?? {}),
+        JSON.stringify(e.oldData ?? {}),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
     }
     return true;
-  }), [events, filterType, dateFrom, dateTo, search]);
+  }), [auditLog, filterTable, filterAction, filterBrand, search, dateFrom, dateTo]);
 
-  const counts: Record<EventType, number> = {
-    OPERATION: events.filter(e => e.type === 'OPERATION').length,
-    ADJUSTMENT: events.filter(e => e.type === 'ADJUSTMENT').length,
-    PURCHASE_ORDER: events.filter(e => e.type === 'PURCHASE_ORDER').length,
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try { await refreshAuditLog(); } finally { setRefreshing(false); }
   };
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="14" title="Historial General" description="Registro unificado y cronológico de todas las operaciones del sistema: movimientos de stock, ajustes e historial de órdenes de compra en una sola vista." />
+      <ModuleInfo number="14" title="Historial General" description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock — qué se hizo, quién lo hizo y cuándo." />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">14 // HISTORIAL_OPERACIONES_GENERAL</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Registro unificado de todas las operaciones del sistema.</p>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">14 // AUDITORÍA_SISTEMA</h2>
+          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">
+            {auditLog.length} entradas cargadas · últimas 1000 acciones
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 border border-[#141414] bg-white/50 px-2">
@@ -195,32 +200,34 @@ export const OperationHistory: React.FC = () => {
             />
             <Filter size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40" />
           </div>
-          <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
+          <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
             className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-            <option value="ALL">TODOS ({events.length})</option>
-            <option value="OPERATION">OPERACIONES ({counts.OPERATION})</option>
-            <option value="ADJUSTMENT">AJUSTES ({counts.ADJUSTMENT})</option>
-            <option value="PURCHASE_ORDER">ÓRDENES OC ({counts.PURCHASE_ORDER})</option>
+            <option value="ALL">TODAS LAS TABLAS</option>
+            {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
           </select>
+          <select value={filterAction} onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
+            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            <option value="ALL">TODAS</option>
+            <option value="INSERT">CREÓ</option>
+            <option value="UPDATE">EDITÓ</option>
+            <option value="DELETE">ELIMINÓ</option>
+          </select>
+          {brands.length > 1 && (
+            <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
+              className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+              <option value="ALL">TODAS MARCAS</option>
+              {brands.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
+            </select>
+          )}
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="flex items-center gap-1.5 border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-white/80 disabled:opacity-50 transition-all">
+            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> RECARGAR
+          </button>
           <button onClick={() => exportCSV(filtered)}
             className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all shrink-0">
             <Download size={12} /> CSV ({filtered.length})
           </button>
         </div>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
-        {(Object.keys(counts) as EventType[]).map(t => (
-          <div
-            key={t}
-            onClick={() => setFilterType(filterType === t ? 'ALL' : t)}
-            className={`border p-3 cursor-pointer transition-all ${filterType === t ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/30 hover:bg-white/60'}`}
-          >
-            <div className="font-mono text-[22px] font-black">{counts[t]}</div>
-            <div className="font-mono text-[8px] uppercase tracking-widest opacity-70 mt-0.5">{TYPE_LABEL[t]}</div>
-          </div>
-        ))}
       </div>
 
       {filtered.length === 0 && (
@@ -230,6 +237,7 @@ export const OperationHistory: React.FC = () => {
       <div className="flex flex-col gap-2">
         {filtered.map(ev => {
           const isExp = expanded === ev.id;
+          const changes = changedFields(ev);
           return (
             <div key={ev.id} className="border border-[#141414] bg-white/40">
               <div
@@ -237,39 +245,75 @@ export const OperationHistory: React.FC = () => {
                 onClick={() => setExpanded(isExp ? null : ev.id)}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${TYPE_COLOR[ev.type]}`}>
-                    {TYPE_LABEL[ev.type]}
+                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${ACTION_COLOR[ev.action]}`}>
+                    {ACTION_LABEL[ev.action]}
                   </span>
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[#141414]/30 text-[#141414]/70`}>
-                    {ev.label}
+                  <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[#141414]/30 text-[#141414]/80">
+                    {(TABLE_LABEL[ev.tableName] ?? ev.tableName).toUpperCase()}
                   </span>
-                  {ev.productName && (
-                    <span className="font-mono font-bold text-xs text-[#141414] truncate">{ev.productName}</span>
-                  )}
-                  <span className="font-mono text-[10px] opacity-50 shrink-0">{ev.detail}</span>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {ev.delta !== undefined && (
-                    <span className={`font-mono font-bold text-xs ${ev.delta > 0 ? 'text-green-700' : ev.delta < 0 ? 'text-red-600' : 'text-[#9f9d99]'}`}>
-                      {ev.delta > 0 ? `+${ev.delta}` : ev.delta}
+                  {ev.brand && (
+                    <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[#141414]/20 text-[#141414]/60">
+                      {ev.brand.replace('_', ' ')}
                     </span>
                   )}
-                  {ev.quantity !== undefined && ev.delta === undefined && (
-                    <span className="font-mono font-bold text-xs text-[#141414]">{ev.quantity} u.</span>
-                  )}
-                  <span className="font-mono text-[9px] opacity-40">
-                    {format(new Date(ev.date), 'dd MMM yyyy', { locale: es })}
+                  <span className="font-mono font-bold text-xs text-[#141414] truncate">{summarize(ev)}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-mono text-[10px] font-bold opacity-80">{ev.userName ?? '—'}</span>
+                  <span className="font-mono text-[9px] opacity-40 hidden sm:inline">
+                    {format(new Date(ev.occurredAt), 'dd MMM HH:mm', { locale: es })}
                   </span>
                   {isExp ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
               </div>
 
               {isExp && (
-                <div className="border-t border-[#141414]/20 px-4 py-3 flex flex-wrap gap-4 text-[10px] font-mono bg-white/20">
-                  <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(ev.date), 'dd MMM yyyy HH:mm', { locale: es })}</span></div>
-                  <div><span className="opacity-50 uppercase">{ev.type === 'PURCHASE_ORDER' ? 'Referencia' : 'Usuario'}:</span> <span className="font-bold">{ev.user}</span></div>
-                  {ev.productName && <div><span className="opacity-50 uppercase">Producto:</span> <span className="font-bold">{ev.productName}</span></div>}
-                  <div><span className="opacity-50 uppercase">Módulo:</span> <span className="font-bold">{TYPE_LABEL[ev.type]}</span></div>
+                <div className="border-t border-[#141414]/20 px-4 py-3 flex flex-col gap-2 text-[10px] font-mono bg-white/20">
+                  <div className="flex flex-wrap gap-4">
+                    <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(ev.occurredAt), 'dd MMM yyyy HH:mm:ss', { locale: es })}</span></div>
+                    <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{ev.userName ?? '—'}</span></div>
+                    <div><span className="opacity-50 uppercase">Tabla:</span> <span className="font-bold">{TABLE_LABEL[ev.tableName] ?? ev.tableName}</span></div>
+                    <div><span className="opacity-50 uppercase">Registro:</span> <span className="font-bold">{ev.recordId?.slice(0, 8) ?? '—'}</span></div>
+                    {ev.brand && <div><span className="opacity-50 uppercase">Marca:</span> <span className="font-bold">{ev.brand.replace('_', ' ')}</span></div>}
+                  </div>
+
+                  {ev.action === 'UPDATE' && changes.length > 0 && (
+                    <div className="border-t border-[#141414]/15 pt-2 mt-1">
+                      <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest mb-1">Cambios</div>
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="text-left opacity-50 uppercase tracking-wide">
+                            <th className="py-1 pr-3 w-32">Campo</th>
+                            <th className="py-1 pr-3">Antes</th>
+                            <th className="py-1">Después</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {changes.map(c => (
+                            <tr key={c.key} className="border-t border-[#141414]/10">
+                              <td className="py-1 pr-3 font-bold opacity-70">{c.key}</td>
+                              <td className="py-1 pr-3 text-red-700/80">{formatValue(c.from)}</td>
+                              <td className="py-1 text-green-700/80">{formatValue(c.to)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {ev.action === 'INSERT' && ev.newData && (
+                    <details className="border-t border-[#141414]/15 pt-2 mt-1">
+                      <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos creados</summary>
+                      <pre className="mt-1 text-[9px] bg-white/40 border border-[#141414]/10 p-2 overflow-x-auto">{JSON.stringify(ev.newData, null, 2)}</pre>
+                    </details>
+                  )}
+
+                  {ev.action === 'DELETE' && ev.oldData && (
+                    <details className="border-t border-[#141414]/15 pt-2 mt-1">
+                      <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos eliminados</summary>
+                      <pre className="mt-1 text-[9px] bg-white/40 border border-[#141414]/10 p-2 overflow-x-auto">{JSON.stringify(ev.oldData, null, 2)}</pre>
+                    </details>
+                  )}
                 </div>
               )}
             </div>

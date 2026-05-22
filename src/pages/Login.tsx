@@ -8,7 +8,11 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const msg = sessionStorage.getItem('auth_message');
+    if (msg) sessionStorage.removeItem('auth_message');
+    return msg ?? '';
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

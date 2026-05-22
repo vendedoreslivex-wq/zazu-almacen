@@ -121,6 +121,12 @@ Deno.serve(async (req) => {
       if (profileError) throw profileError;
     }
 
+    // If the user is being deactivated, revoke every active session so
+    // they can't keep using the app until their JWT expires.
+    if (active === false) {
+      await supabaseAdmin.auth.admin.signOut(userId, 'global').catch(() => {});
+    }
+
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
