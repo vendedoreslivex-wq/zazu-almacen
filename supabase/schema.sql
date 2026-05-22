@@ -125,6 +125,8 @@ create table if not exists inventory_adjustments (
 
 -- =====================================================
 -- ROW LEVEL SECURITY
+-- Para políticas granulares por rol, ejecutar también
+-- `rls_migration.sql` después de este archivo.
 -- =====================================================
 alter table profiles enable row level security;
 alter table products enable row level security;
@@ -136,16 +138,96 @@ alter table purchase_orders enable row level security;
 alter table purchase_order_items enable row level security;
 alter table inventory_adjustments enable row level security;
 
--- Todo usuario autenticado puede leer y escribir todo
-create policy "auth_full" on profiles        for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on products         for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on locations        for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on stock_levels     for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on transactions     for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on contacts         for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on purchase_orders  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on purchase_order_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "auth_full" on inventory_adjustments for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+-- =====================================================
+-- HELPER: rol del usuario autenticado (sin recursión RLS)
+-- =====================================================
+create or replace function get_my_role()
+returns text language sql stable security definer as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+-- =====================================================
+-- PROFILES
+-- =====================================================
+drop policy if exists "profiles_select" on profiles;
+drop policy if exists "profiles_update_own" on profiles;
+create policy "profiles_select" on profiles
+  for select using (auth.role() = 'authenticated');
+create policy "profiles_update_own" on profiles
+  for update using (id = auth.uid()) with check (id = auth.uid());
+
+-- =====================================================
+-- PRODUCTS / LOCATIONS / CONTACTS
+-- Lectura: todos. Escritura: ADMINISTRADOR+. Delete: CEO+.
+-- =====================================================
+do $$
+declare t text;
+begin
+  foreach t in array array['products', 'locations', 'contacts'] loop
+    execute format('drop policy if exists "%1$s_select" on %1$s', t);
+    execute format('drop policy if exists "%1$s_insert" on %1$s', t);
+    execute format('drop policy if exists "%1$s_update" on %1$s', t);
+    execute format('drop policy if exists "%1$s_delete" on %1$s', t);
+    execute format('create policy "%1$s_select" on %1$s for select using (auth.role() = ''authenticated'')', t);
+    execute format('create policy "%1$s_insert" on %1$s for insert with check (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR''))', t);
+    execute format('create policy "%1$s_update" on %1$s for update using (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR'')) with check (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR''))', t);
+    execute format('create policy "%1$s_delete" on %1$s for delete using (get_my_role() in (''ADMIN_GENERAL'', ''CEO''))', t);
+  end loop;
+end $$;
+
+-- =====================================================
+-- STOCK_LEVELS — lectura: todos, escritura directa: ADMINISTRADOR+
+-- (escrituras normales pasan por RPCs SECURITY DEFINER)
+-- =====================================================
+drop policy if exists "stock_levels_select" on stock_levels;
+drop policy if exists "stock_levels_insert" on stock_levels;
+drop policy if exists "stock_levels_update" on stock_levels;
+drop policy if exists "stock_levels_delete" on stock_levels;
+create policy "stock_levels_select" on stock_levels for select using (auth.role() = 'authenticated');
+create policy "stock_levels_insert" on stock_levels for insert with check (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR'));
+create policy "stock_levels_update" on stock_levels for update using (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR')) with check (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR'));
+create policy "stock_levels_delete" on stock_levels for delete using (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR'));
+
+-- =====================================================
+-- TRANSACTIONS — INSERT: todos; UPDATE: admins; DELETE: ADMIN_GENERAL
+-- =====================================================
+drop policy if exists "transactions_select" on transactions;
+drop policy if exists "transactions_insert" on transactions;
+drop policy if exists "transactions_update" on transactions;
+drop policy if exists "transactions_delete" on transactions;
+create policy "transactions_select" on transactions for select using (auth.role() = 'authenticated');
+create policy "transactions_insert" on transactions for insert with check (auth.role() = 'authenticated');
+create policy "transactions_update" on transactions for update using (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR')) with check (get_my_role() in ('ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR'));
+create policy "transactions_delete" on transactions for delete using (get_my_role() = 'ADMIN_GENERAL');
+
+-- =====================================================
+-- PURCHASE_ORDERS / PURCHASE_ORDER_ITEMS
+-- INSERT: ADMINISTRADOR+; UPDATE: todos (JEFE_ALMACEN recibe); DELETE: CEO+
+-- =====================================================
+do $$
+declare t text;
+begin
+  foreach t in array array['purchase_orders', 'purchase_order_items'] loop
+    execute format('drop policy if exists "%1$s_select" on %1$s', t);
+    execute format('drop policy if exists "%1$s_insert" on %1$s', t);
+    execute format('drop policy if exists "%1$s_update" on %1$s', t);
+    execute format('drop policy if exists "%1$s_delete" on %1$s', t);
+    execute format('create policy "%1$s_select" on %1$s for select using (auth.role() = ''authenticated'')', t);
+    execute format('create policy "%1$s_insert" on %1$s for insert with check (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR''))', t);
+    execute format('create policy "%1$s_update" on %1$s for update using (auth.role() = ''authenticated'') with check (auth.role() = ''authenticated'')', t);
+    execute format('create policy "%1$s_delete" on %1$s for delete using (get_my_role() in (''ADMIN_GENERAL'', ''CEO''))', t);
+  end loop;
+end $$;
+
+-- =====================================================
+-- INVENTORY_ADJUSTMENTS — INSERT: todos; UPDATE: ninguno; DELETE: ADMIN_GENERAL
+-- =====================================================
+drop policy if exists "inventory_adjustments_select" on inventory_adjustments;
+drop policy if exists "inventory_adjustments_insert" on inventory_adjustments;
+drop policy if exists "inventory_adjustments_delete" on inventory_adjustments;
+create policy "inventory_adjustments_select" on inventory_adjustments for select using (auth.role() = 'authenticated');
+create policy "inventory_adjustments_insert" on inventory_adjustments for insert with check (auth.role() = 'authenticated');
+create policy "inventory_adjustments_delete" on inventory_adjustments for delete using (get_my_role() = 'ADMIN_GENERAL');
 
 -- =====================================================
 -- TRIGGER: crear perfil automáticamente al registrarse

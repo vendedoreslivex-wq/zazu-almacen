@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderStatus, InventoryAdjustment } from '../types';
@@ -143,22 +143,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!sessionUserId) return;
     loadBrandData(activeBrand);
   }, [activeBrand, sessionUserId, loadBrandData]);
-
-  // One-time migration: set low_stock_threshold=30 for all OVERSHARK and BRAVOS products
-  useEffect(() => {
-    if (!sessionUserId) return;
-    const key = 'lst_migration_overshark_bravos_30';
-    if (localStorage.getItem(key)) return;
-    Promise.all([
-      supabase.from('products').update({ low_stock_threshold: 30 }).eq('brand', 'OVERSHARK'),
-      supabase.from('products').update({ low_stock_threshold: 30 }).eq('brand', 'BRAVOS'),
-    ]).then(([r1, r2]) => {
-      if (!r1.error && !r2.error) {
-        localStorage.setItem(key, '1');
-        setProducts(prev => prev.map(p => ({ ...p, lowStockThreshold: 30 })));
-      }
-    });
-  }, [sessionUserId]);
 
   // Load custom role permissions once on login (not brand-dependent)
   useEffect(() => {
@@ -464,22 +448,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
-  return (
-    <AppContext.Provider value={{
-      loading, activeBrand, setActiveBrand,
-      products, locations, transactions, stockLevels,
-      contacts, currentUser, users, purchaseOrders, adjustments,
-      addTransaction, deleteTransaction, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
-      addLocation, updateLocation, deleteLocation, deleteStockLevel,
-      addContact, updateContact, deleteContact, setCurrentUser,
-      addUser, updateUser, deleteUser,
-      addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder,
-      addAdjustment,
-      rolePermissions, updateRolePermission,
-    }}>
-      {children}
-    </AppContext.Provider>
-  );
+  const value = useMemo<AppContextType>(() => ({
+    loading, activeBrand, setActiveBrand,
+    products, locations, transactions, stockLevels,
+    contacts, currentUser, users, purchaseOrders, adjustments,
+    addTransaction, deleteTransaction, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
+    addLocation, updateLocation, deleteLocation, deleteStockLevel,
+    addContact, updateContact, deleteContact, setCurrentUser,
+    addUser, updateUser, deleteUser,
+    addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder,
+    addAdjustment,
+    rolePermissions, updateRolePermission,
+  }), [
+    loading, activeBrand, products, locations, transactions, stockLevels,
+    contacts, currentUser, users, purchaseOrders, adjustments, rolePermissions,
+  ]);
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useAppContext = () => {

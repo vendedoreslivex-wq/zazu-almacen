@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/send-email`;
 
 const INTERNAL_RECIPIENTS = [
@@ -8,9 +10,15 @@ const INTERNAL_RECIPIENTS = [
 ];
 
 async function callEdgeFunction(recipients: { name: string; email: string }[], subject: string, html: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return;
   await fetch(EDGE_FN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${session.access_token}`,
+    },
     body: JSON.stringify({ recipients, subject, html }),
   });
 }

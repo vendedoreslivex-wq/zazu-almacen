@@ -17,6 +17,7 @@ import { Reports } from './pages/Reports';
 import { Labels } from './pages/Labels';
 import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
+import { ResetPassword } from './pages/ResetPassword';
 import { supabase } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { Session } from '@supabase/supabase-js';
@@ -52,14 +53,21 @@ function AppShell() {
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
+      if (event === 'SIGNED_OUT') setRecoveryMode(false);
+      setSession(session);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
   if (session === undefined) return <SplashScreen />;
+
+  if (recoveryMode) return <ResetPassword />;
 
   if (!session) return <Login />;
 
