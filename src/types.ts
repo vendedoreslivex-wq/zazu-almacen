@@ -100,3 +100,10 @@ export type InventoryAdjustment = {
   notes?: string;
   user: string;
 };
+
+export type NotificationSubscriber = {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+};

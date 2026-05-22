@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Plus, Trash2, Edit2, ShieldCheck, TrendingUp, Settings, Warehouse } from 'lucide-react';
-import { UserWithPassword, Role } from '../types';
+import { Plus, Trash2, Edit2, ShieldCheck, TrendingUp, Settings, Warehouse, Mail } from 'lucide-react';
+import { UserWithPassword, Role, NotificationSubscriber } from '../types';
 import { canEdit, Permission } from '../lib/permissions';
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -58,14 +58,26 @@ const MODULE_LABELS: Record<string, string> = {
 const emptyForm = { username: '', password: '', email: '', role: 'JEFE_ALMACEN' as Role, active: true };
 
 export const Users: React.FC = () => {
-  const { users, addUser, updateUser, deleteUser, currentUser, rolePermissions, updateRolePermission } = useAppContext();
+  const {
+    users, addUser, updateUser, deleteUser, currentUser,
+    rolePermissions, updateRolePermission,
+    notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
+  } = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserWithPassword | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
 
+  // Subscriber state
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [editingSub, setEditingSub] = useState<NotificationSubscriber | null>(null);
+  const [subForm, setSubForm] = useState({ name: '', email: '', active: true });
+  const [confirmDeleteSub, setConfirmDeleteSub] = useState<string | null>(null);
+  const [subError, setSubError] = useState('');
+
   const isAdmin = canEdit(currentUser.role, 'users');
+  const isAdminGeneral = currentUser.role === 'ADMIN_GENERAL';
 
   const openAdd = () => {
     setEditing(null);
@@ -95,6 +107,44 @@ export const Users: React.FC = () => {
     if (id === 'u1') return;
     deleteUser(id);
     setConfirmDelete(null);
+  };
+
+  const openAddSub = () => {
+    setEditingSub(null);
+    setSubForm({ name: '', email: '', active: true });
+    setSubError('');
+    setShowSubModal(true);
+  };
+
+  const openEditSub = (s: NotificationSubscriber) => {
+    setEditingSub(s);
+    setSubForm({ name: s.name, email: s.email, active: s.active });
+    setSubError('');
+    setShowSubModal(true);
+  };
+
+  const handleSubmitSub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subForm.name.trim() || !subForm.email.trim()) return;
+    try {
+      if (editingSub) {
+        await updateSubscriber({ id: editingSub.id, ...subForm });
+      } else {
+        await addSubscriber(subForm);
+      }
+      setShowSubModal(false);
+    } catch (err) {
+      setSubError(err instanceof Error ? err.message : 'Error al guardar');
+    }
+  };
+
+  const handleDeleteSub = async (id: string) => {
+    try {
+      await deleteSubscriber(id);
+      setConfirmDeleteSub(null);
+    } catch {
+      setConfirmDeleteSub(null);
+    }
   };
 
   const roles: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN'];
@@ -210,6 +260,53 @@ export const Users: React.FC = () => {
         </div>
       </div>
 
+      {/* Notification Subscribers */}
+      <div className="border border-[#141414] bg-white/30 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Mail size={14} />
+            <h3 className="font-mono font-bold text-xs uppercase tracking-widest text-[#141414]">DESTINATARIOS DE NOTIFICACIONES</h3>
+          </div>
+          {isAdminGeneral && (
+            <button onClick={openAddSub} className="flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase border border-[#141414] px-2.5 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+              <Plus size={10} /> AGREGAR
+            </button>
+          )}
+        </div>
+        <p className="font-mono text-[9px] opacity-50 uppercase tracking-wide mb-3">
+          Reciben copia de cada operación y orden de compra. Solo ADMIN GENERAL puede modificar.
+        </p>
+        {notificationSubscribers.length === 0 ? (
+          <div className="font-mono text-[10px] opacity-50 uppercase tracking-wide py-4 text-center">
+            NO HAY DESTINATARIOS REGISTRADOS
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {notificationSubscribers.map(s => (
+              <div key={s.id} className={`border border-[#141414]/30 bg-white/40 px-3 py-2 flex items-center justify-between gap-3 ${!s.active ? 'opacity-50' : ''}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono font-bold text-xs">{s.name}</div>
+                  <div className="font-mono text-[10px] opacity-60 truncate">{s.email}</div>
+                </div>
+                <div className={`font-mono text-[9px] font-bold px-1.5 py-0.5 border shrink-0 ${s.active ? 'border-green-700 text-green-700' : 'border-red-700 text-red-700'}`}>
+                  {s.active ? 'ACTIVO' : 'INACTIVO'}
+                </div>
+                {isAdminGeneral && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEditSub(s)} className="p-1 border border-transparent hover:border-[#141414] transition-colors">
+                      <Edit2 size={12} />
+                    </button>
+                    <button onClick={() => setConfirmDeleteSub(s.id)} className="p-1 border border-transparent hover:border-red-600 hover:text-red-600 transition-colors">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -274,6 +371,59 @@ export const Users: React.FC = () => {
             <div className="flex gap-2">
               <button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-red-600 text-white py-2 text-xs font-bold font-mono uppercase">ELIMINAR</button>
               <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscriber Modal */}
+      {showSubModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-md">
+            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center">
+              <span className="font-mono font-bold text-xs uppercase tracking-widest">{editingSub ? 'EDITAR DESTINATARIO' : 'NUEVO DESTINATARIO'}</span>
+              <button onClick={() => setShowSubModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+            </div>
+            <form onSubmit={handleSubmitSub} className="p-5 flex flex-col gap-4">
+              {subError && (
+                <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
+                  {subError}
+                </div>
+              )}
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Nombre *</label>
+                <input value={subForm.name} onChange={e => setSubForm(f => ({ ...f, name: e.target.value }))}
+                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Email *</label>
+                <input type="email" value={subForm.email} onChange={e => setSubForm(f => ({ ...f, email: e.target.value }))}
+                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="sub-active" checked={subForm.active} onChange={e => setSubForm(f => ({ ...f, active: e.target.checked }))} className="cursor-pointer" />
+                <label htmlFor="sub-active" className="font-mono text-[10px] font-bold uppercase cursor-pointer">Recibir notificaciones</label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all">
+                  {editingSub ? 'GUARDAR' : 'AGREGAR'}
+                </button>
+                <button type="button" onClick={() => setShowSubModal(false)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50 transition-all">
+                  CANCELAR
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteSub && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] p-6 max-w-sm w-full">
+            <p className="font-mono text-xs font-bold mb-4">¿Eliminar este destinatario?</p>
+            <div className="flex gap-2">
+              <button onClick={() => handleDeleteSub(confirmDeleteSub)} className="flex-1 bg-red-600 text-white py-2 text-xs font-bold font-mono uppercase">ELIMINAR</button>
+              <button onClick={() => setConfirmDeleteSub(null)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
             </div>
           </div>
         </div>

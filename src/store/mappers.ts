@@ -1,4 +1,4 @@
-import type { Product, Location, StockLevel, Transaction, Contact, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment } from '../types';
+import type { Product, Location, StockLevel, Transaction, Contact, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment, NotificationSubscriber } from '../types';
 
 export const dbToProduct = (r: any): Product => ({ id: r.id, code: r.code, name: r.name, color: r.color ?? undefined, size: r.size ?? undefined, category: r.category, lowStockThreshold: r.low_stock_threshold ?? undefined, costPrice: r.cost_price ?? undefined, sellPrice: r.sell_price ?? undefined });
 export const dbToLocation = (r: any): Location => ({ id: r.id, name: r.name, type: r.type });
@@ -8,3 +8,4 @@ export const dbToContact = (r: any): Contact => ({ id: r.id, type: r.type, name:
 export const dbToUser = (r: any): UserWithPassword => ({ id: r.id, username: r.username, role: r.role as Role, password: '', email: r.email ?? undefined, emailPersonal: r.email_personal ?? undefined, active: r.active });
 export const dbToPO = (r: any): PurchaseOrder => ({ id: r.id, date: r.date, supplierId: r.supplier_id, status: r.status, reference: r.reference, notes: r.notes ?? undefined, locationId: r.location_id ?? undefined, items: (r.purchase_order_items ?? []).map((i: any): PurchaseOrderItem => ({ productId: i.product_id, quantity: i.quantity, unitCost: i.unit_cost, receivedQuantity: i.received_quantity })) });
 export const dbToAdj = (r: any): InventoryAdjustment => ({ id: r.id, date: r.date, productId: r.product_id, locationId: r.location_id, previousQuantity: r.previous_quantity, newQuantity: r.new_quantity, reason: r.reason, notes: r.notes ?? undefined, user: r.user_name });
+export const dbToSubscriber = (r: any): NotificationSubscriber => ({ id: r.id, name: r.name, email: r.email, active: r.active });

@@ -10,4 +10,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase': ['@supabase/supabase-js'],
+          'charts': ['recharts'],
+          'icons': ['lucide-react'],
+          'qr': ['qrcode.react', '@zxing/browser'],
+          'utils': ['date-fns', 'papaparse', 'signature_pad', 'clsx', 'tailwind-merge', 'uuid'],
+        },
+      },
+    },
+  },
 });

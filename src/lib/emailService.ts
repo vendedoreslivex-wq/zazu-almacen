@@ -2,14 +2,16 @@ import { supabase } from './supabase';
 
 const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/send-email`;
 
-const INTERNAL_RECIPIENTS = [
-  { name: 'Rubén',     email: 'rbnasmat@gmail.com' },
-  { name: 'Williams',  email: 'Melaminacolors2@gmail.com' },
-  { name: 'Benjamín',  email: 'elbenjael17@gmail.com' },
-  { name: 'Valentino', email: 'jamesrojasdiaz01@gmail.com' },
-];
+async function loadInternalRecipients(): Promise<{ name: string; email: string }[]> {
+  const { data } = await supabase
+    .from('notification_subscribers')
+    .select('name, email')
+    .eq('active', true);
+  return data ?? [];
+}
 
 async function callEdgeFunction(recipients: { name: string; email: string }[], subject: string, html: string): Promise<void> {
+  if (recipients.length === 0) return;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return;
   await fetch(EDGE_FN_URL, {
@@ -162,7 +164,8 @@ export async function sendOperationEmail(params: DispatchEmailParams): Promise<v
 export async function sendOperationToInternalRecipients(params: Omit<DispatchEmailParams, 'toEmail' | 'toName'>): Promise<void> {
   const html = buildHTML({ ...params, toEmail: '', toName: '' });
   const subject = `[${TYPE_LABEL[params.operationType]}] ${params.reference} — ${params.brand.replace('_', ' ')}`;
-  await callEdgeFunction(INTERNAL_RECIPIENTS, subject, html);
+  const recipients = await loadInternalRecipients();
+  await callEdgeFunction(recipients, subject, html);
 }
 
 // ─── Purchase Order Emails ────────────────────────────────────────────────────
@@ -276,5 +279,6 @@ function buildPOHTML(p: PurchaseOrderEmailParams): string {
 export async function sendPurchaseOrderEmail(params: PurchaseOrderEmailParams): Promise<void> {
   const html = buildPOHTML(params);
   const subject = `[OC ${PO_STATUS_LABEL[params.status]}] ${params.reference} — ${params.supplierName}`;
-  await callEdgeFunction(INTERNAL_RECIPIENTS, subject, html);
+  const recipients = await loadInternalRecipients();
+  await callEdgeFunction(recipients, subject, html);
 }

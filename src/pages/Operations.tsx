@@ -12,6 +12,7 @@ import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, O
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import { supabase } from '../lib/supabase';
+import { uploadSignature } from '../lib/signatureStorage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -394,6 +395,10 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const guideNumber = await nextGuideNumber(type, activeBrand);
     const guideItems: OperationItem[] = [];
 
+    // Upload signature to Storage once (returns public URL) — emails keep the
+    // inline data URL for self-contained delivery.
+    const storedSig = sigData ? await uploadSignature(sigData) : undefined;
+
     try {
       for (const item of lineItems) {
         await addTransaction({
@@ -405,7 +410,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
           reference,
           user: currentUser.username,
           contactId: contactId || undefined,
-          signature: sigData,
+          signature: storedSig,
           serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber || undefined : undefined,
         });
         const product = products.find(p => p.id === item.productId);

@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
-import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj } from './mappers';
+import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber } from './mappers';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
 
@@ -46,6 +46,10 @@ interface AppContextType {
   updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null }) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
   receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
+  notificationSubscribers: NotificationSubscriber[];
+  addSubscriber: (s: Omit<NotificationSubscriber, 'id'>) => Promise<void>;
+  updateSubscriber: (s: NotificationSubscriber) => Promise<void>;
+  deleteSubscriber: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -65,6 +69,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<Role, Record<string, Permission>>>(DEFAULT_ROLE_PERMISSIONS);
+  const [notificationSubscribers, setNotificationSubscribers] = useState<NotificationSubscriber[]>([]);
 
   const loadProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -144,6 +149,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadBrandData(activeBrand);
   }, [activeBrand, sessionUserId, loadBrandData]);
 
+  // Load notification subscribers once on login (not brand-dependent)
+  useEffect(() => {
+    if (!sessionUserId) return;
+    supabase.from('notification_subscribers').select('*').order('name').then(({ data }) => {
+      if (data) setNotificationSubscribers(data.map(dbToSubscriber));
+    });
+  }, [sessionUserId]);
+
   // Load custom role permissions once on login (not brand-dependent)
   useEffect(() => {
     if (!sessionUserId) return;
@@ -172,7 +185,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await supabase.from('role_permissions').upsert({ role, module, permission }, { onConflict: 'role,module' });
   };
 
-  // Real-time subscriptions
+  // Real-time subscriptions — every table that the active brand reads
   useEffect(() => {
     if (!session) return;
     const channel = supabase.channel(`brand_${activeBrand}`)
@@ -180,6 +193,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         () => supabase.from('stock_levels').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setStockLevels(data.map(dbToStock)); }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `brand=eq.${activeBrand}` },
         () => supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setTransactions(data.map(dbToTx)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('products').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setProducts(data.map(dbToProduct)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'locations', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('locations').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setLocations(data.map(dbToLocation)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('contacts').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setContacts(data.map(dbToContact)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_orders', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setPurchaseOrders(data.map(dbToPO)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_order_items' },
+        () => supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setPurchaseOrders(data.map(dbToPO)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_adjustments', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('inventory_adjustments').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setAdjustments(data.map(dbToAdj)); }))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeBrand, session]);
@@ -420,6 +445,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabase.from('purchase_orders').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
+  const addSubscriber = async (s: Omit<NotificationSubscriber, 'id'>): Promise<void> => {
+    const { data, error } = await supabase.from('notification_subscribers').insert({ name: s.name, email: s.email, active: s.active }).select().single();
+    if (error) throw new Error(error.message);
+    if (data) setNotificationSubscribers(prev => [...prev, dbToSubscriber(data)].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  const updateSubscriber = async (s: NotificationSubscriber): Promise<void> => {
+    setNotificationSubscribers(prev => prev.map(x => x.id === s.id ? s : x));
+    const { error } = await supabase.from('notification_subscribers').update({ name: s.name, email: s.email, active: s.active }).eq('id', s.id);
+    if (error) {
+      const { data } = await supabase.from('notification_subscribers').select('*').order('name');
+      if (data) setNotificationSubscribers(data.map(dbToSubscriber));
+      throw new Error(error.message);
+    }
+  };
+
+  const deleteSubscriber = async (id: string): Promise<void> => {
+    setNotificationSubscribers(prev => prev.filter(x => x.id !== id));
+    const { error } = await supabase.from('notification_subscribers').delete().eq('id', id);
+    if (error) {
+      const { data } = await supabase.from('notification_subscribers').select('*').order('name');
+      if (data) setNotificationSubscribers(data.map(dbToSubscriber));
+      throw new Error(error.message);
+    }
+  };
+
   const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => {
     const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: new Date().toISOString() };
     setAdjustments(prev => [tempAdj, ...prev]);
@@ -444,9 +495,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder,
     addAdjustment,
     rolePermissions, updateRolePermission,
+    notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
   }), [
     loading, activeBrand, products, locations, transactions, stockLevels,
     contacts, currentUser, users, purchaseOrders, adjustments, rolePermissions,
+    notificationSubscribers,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
