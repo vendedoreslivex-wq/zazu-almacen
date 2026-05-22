@@ -100,7 +100,7 @@ export const WarehouseMap: React.FC = () => {
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
             className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS LOS TIPOS</option>
-            {types.map(t => <option key={t} value={t}>{TYPE_LABEL[t] || t}</option>)}
+            {types.map(t => <option key={String(t)} value={String(t)}>{TYPE_LABEL[String(t)] || String(t)}</option>)}
           </select>
           <select value={filterFill} onChange={e => setFilterFill(e.target.value as any)}
             className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">

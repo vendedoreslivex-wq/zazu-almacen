@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Package, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle } from 'lucide-react';
@@ -7,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export const Dashboard: React.FC = () => {
   const { products, transactions, stockLevels } = useAppContext();
+  const navigate = useNavigate();
   const [days, setDays] = useState<7 | 14 | 30>(7);
 
   const totalItemsInStock = stockLevels.reduce((acc, curr) => acc + curr.quantity, 0);
@@ -74,7 +76,7 @@ export const Dashboard: React.FC = () => {
         <button 
           onClick={() => {
             window.sessionStorage.setItem('inventoryFilter', 'LOW_STOCK');
-            window.dispatchEvent(new CustomEvent('navigate', { detail: { tab: 'inventory' } }));
+            navigate('/inventory');
           }}
           className="bg-[#b91c1c]/10 border-2 border-[#b91c1c] p-4 flex flex-col gap-3 relative overflow-hidden text-left hover:bg-[#b91c1c]/20 transition-colors w-full cursor-pointer group"
         >

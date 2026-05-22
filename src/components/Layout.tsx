@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../store/AppContext';
 import { canView } from '../lib/permissions';
 
@@ -46,37 +46,29 @@ const navItems: NavItem[] = [
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: string;
-  setActiveTab: (id: string) => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
+export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { activeBrand, setActiveBrand, currentUser, rolePermissions } = useAppContext();
+  const location = useLocation();
 
   useEffect(() => {
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, []);
 
   const visibleNav = navItems.filter(item => canView(currentUser.role, item.id, rolePermissions));
-
-  const handleNavClick = (id: string) => {
-    setActiveTab(id);
-    if (window.innerWidth < 768) setSidebarOpen(false);
-  };
+  const currentNavLabel = navItems.find(n => location.pathname === `/${n.id}`)?.label ?? 'DASHBOARD';
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg-color)]">
       {/* Mobile backdrop */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-10 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <aside
@@ -86,27 +78,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         )}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-[#141414]">
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2 overflow-hidden"
-              >
-                <div className="w-7 h-7 flex-shrink-0 overflow-hidden">
-                  <img
-                    src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
-                    alt={BRAND_NAME[activeBrand] ?? activeBrand}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <span className="font-mono font-bold tracking-wider text-sm text-[#141414] whitespace-nowrap">
-                  {BRAND_NAME[activeBrand] ?? activeBrand}
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {sidebarOpen && (
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="w-7 h-7 flex-shrink-0 overflow-hidden">
+                <img
+                  src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
+                  alt={BRAND_NAME[activeBrand] ?? activeBrand}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <span className="font-mono font-bold tracking-wider text-sm text-[#141414] whitespace-nowrap">
+                {BRAND_NAME[activeBrand] ?? activeBrand}
+              </span>
+            </div>
+          )}
           {!sidebarOpen && (
             <div className="hidden md:flex w-7 h-7 flex-shrink-0 overflow-hidden mx-auto">
               <img
@@ -125,36 +110,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </div>
 
         <nav className="flex-1 py-6 px-3 flex flex-col gap-2 overflow-y-auto">
-          {visibleNav.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border border-transparent",
-                  isActive
-                    ? "bg-[#141414] text-[#E4E3E0] shadow-[2px_2px_0_#9f9d99]"
-                    : "text-[#141414] opacity-60 hover:opacity-100 hover:border-[#141414] hover:bg-white/50"
-                )}
-                title={item.label}
-              >
-                <item.icon size={18} className={cn("flex-shrink-0", isActive && "stroke-[2.5px]")} />
-                <AnimatePresence>
+          {visibleNav.map((item) => (
+            <NavLink
+              key={item.id}
+              to={`/${item.id}`}
+              onClick={() => { if (window.innerWidth < 768) setSidebarOpen(false); }}
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border border-transparent",
+                isActive
+                  ? "bg-[#141414] text-[#E4E3E0] shadow-[2px_2px_0_#9f9d99]"
+                  : "text-[#141414] opacity-60 hover:opacity-100 hover:border-[#141414] hover:bg-white/50"
+              )}
+              title={item.label}
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon size={18} className={cn("flex-shrink-0", isActive && "stroke-[2.5px]")} />
                   {sidebarOpen && (
-                    <motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="font-mono text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden"
-                    >
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden">
                       {item.label}
-                    </motion.span>
+                    </span>
                   )}
-                </AnimatePresence>
-              </button>
-            );
-          })}
+                </>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
         {sidebarOpen && (
@@ -171,7 +151,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 <option value="BOX_PRIME">BOX PRIME</option>
               </select>
             </div>
-
             <div className="font-mono text-[8px] opacity-60 uppercase tracking-widest mt-2">{BRAND_LEGAL[activeBrand] ?? activeBrand} // v-3.0</div>
           </div>
         )}
@@ -190,7 +169,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             </button>
             <img src="/img-icono/zazu_icon.png" alt="LogixZazu" className="w-7 h-7 md:w-8 md:h-8 object-contain shrink-0" />
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
-            <span className="hidden sm:inline text-[10px] font-mono bg-[#141414] text-[#E4E3E0] px-2 py-0.5 border border-[#141414] whitespace-nowrap shrink-0">/ {navItems.find(n => n.id === activeTab)?.label}</span>
+            <span className="hidden sm:inline text-[10px] font-mono bg-[#141414] text-[#E4E3E0] px-2 py-0.5 border border-[#141414] whitespace-nowrap shrink-0">/ {currentNavLabel}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex flex-col items-end gap-0.5">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -17,45 +18,34 @@ import { Labels } from './pages/Labels';
 import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
 import { supabase } from './lib/supabase';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { Session } from '@supabase/supabase-js';
 
 function AppShell() {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const { loading } = useAppContext();
-
-  useEffect(() => {
-    const handleNavigate = (e: CustomEvent) => {
-      if (e.detail?.tab) setActiveTab(e.detail.tab);
-    };
-    window.addEventListener('navigate', handleNavigate as EventListener);
-    return () => window.removeEventListener('navigate', handleNavigate as EventListener);
-  }, []);
 
   if (loading) return <SplashScreen label="CARGANDO SISTEMA..." />;
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
-      case 'analysis': return <Analysis />;
-      case 'inventory': return <Inventory />;
-      case 'locations': return <Locations />;
-      case 'operations': return <Operations />;
-      case 'history': return <History />;
-      case 'contacts': return <Contacts />;
-      case 'users': return <Users />;
-      case 'purchase-orders': return <PurchaseOrders />;
-      case 'adjustments': return <Adjustments />;
-      case 'reports': return <Reports />;
-      case 'labels': return <Labels />;
-      case 'warehouse-map': return <WarehouseMap />;
-      case 'operation-history': return <OperationHistory />;
-      default: return <Dashboard />;
-    }
-  };
-
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/analysis" element={<Analysis />} />
+        <Route path="/inventory" element={<Inventory />} />
+        <Route path="/locations" element={<Locations />} />
+        <Route path="/operations" element={<Operations />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/contacts" element={<Contacts />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/purchase-orders" element={<PurchaseOrders />} />
+        <Route path="/adjustments" element={<Adjustments />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/labels" element={<Labels />} />
+        <Route path="/warehouse-map" element={<WarehouseMap />} />
+        <Route path="/operation-history" element={<OperationHistory />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </Layout>
   );
 }
@@ -74,9 +64,13 @@ export default function App() {
   if (!session) return <Login />;
 
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <HashRouter>
+      <ErrorBoundary>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </ErrorBoundary>
+    </HashRouter>
   );
 }
 

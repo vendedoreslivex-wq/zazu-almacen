@@ -6,10 +6,11 @@ import {
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import SignatureCanvas from 'react-signature-canvas';
+import SignaturePad from 'signature_pad';
 import { TransactionType, Transaction } from '../types';
 import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, OperationItem } from '../lib/emailService';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BrowserQRCodeReader } from '@zxing/browser';
+import type { IScannerControls } from '@zxing/browser';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -295,8 +296,22 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const [serialNumber, setSerialNumber] = useState('');
   const [contactId, setContactId] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
-  const signatureRef = useRef<SignatureCanvas>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const padRef = useRef<SignaturePad | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    canvas.getContext('2d')?.scale(ratio, ratio);
+    const pad = new SignaturePad(canvas);
+    padRef.current = pad;
+    pad.addEventListener('beginStroke', () => setErrors(prev => ({ ...prev, signature: '' })));
+    return () => { pad.off(); padRef.current = null; };
+  }, []);
   const [scanningForKey, setScanningForKey] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lineErrors, setLineErrors] = useState<Record<string, { productId?: string; qty?: string }>>({});
@@ -353,7 +368,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
       if (fromLocation && toLocation && fromLocation === toLocation) newErrors.toLocation = 'DESTINO_DEBE_SER_DIFERENTE';
     }
     if (!reference.trim()) newErrors.reference = 'REFERENCIA_OBLIGATORIA';
-    if ((type === 'RECEPTION' || type === 'DISPATCH') && signatureRef.current?.isEmpty()) {
+    if ((type === 'RECEPTION' || type === 'DISPATCH') && (!padRef.current || padRef.current.isEmpty())) {
       newErrors.signature = 'FIRMA_REQUERIDA';
     }
 
@@ -366,8 +381,8 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     e.preventDefault();
     setFeedback(null);
     if (!validate()) return;
-    const sigData = (type === 'RECEPTION' || type === 'DISPATCH') && signatureRef.current && !signatureRef.current.isEmpty()
-      ? signatureRef.current.toDataURL()
+    const sigData = (type === 'RECEPTION' || type === 'DISPATCH') && padRef.current && !padRef.current.isEmpty()
+      ? padRef.current.toDataURL()
       : undefined;
     setPendingSig(sigData);
     setShowPreview(true);
@@ -440,7 +455,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     setPhoto(null);
     setErrors({});
     setLineErrors({});
-    if (signatureRef.current) signatureRef.current.clear();
+    padRef.current?.clear();
     if (photoInputRef.current) photoInputRef.current.value = '';
 
     // Email payload
@@ -712,14 +727,13 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
             'border border-[#141414] bg-white relative w-full h-32 overflow-hidden',
             errors.signature && 'border-red-600 shadow-[2px_2px_0_#dc2626]'
           )}>
-            <SignatureCanvas
-              ref={signatureRef}
-              canvasProps={{ className: 'w-full h-full cursor-crosshair' }}
-              onBegin={() => setErrors(prev => ({ ...prev, signature: '' }))}
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full cursor-crosshair"
             />
             <button
               type="button"
-              onClick={() => signatureRef.current?.clear()}
+              onClick={() => padRef.current?.clear()}
               className="absolute top-2 right-2 text-[9px] font-mono font-bold tracking-widest bg-[#141414] text-white px-2 py-1 opacity-70 hover:opacity-100"
             >
               BORRAR
@@ -843,41 +857,51 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
 // ─── QR Scanner ────────────────────────────────────────────────────────────────
 
 const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: string) => void }> = ({ onClose, onDetected }) => {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
   const [status, setStatus] = useState<'starting' | 'scanning' | 'error'>('starting');
   const [errorMsg, setErrorMsg] = useState('');
-  const containerId = 'qr-scanner-container';
 
   useEffect(() => {
-    let stopped = false;
-    const scanner = new Html5Qrcode(containerId);
-    scannerRef.current = scanner;
+    let active = true;
+    const reader = new BrowserQRCodeReader();
 
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 220, height: 220 } },
-      (decodedText) => {
-        if (stopped) return;
-        stopped = true;
-        scanner.stop().catch(() => {});
-        try {
-          const data = JSON.parse(decodedText);
-          if (data?.id) { onDetected(data.id); }
-          else { setErrorMsg('QR no corresponde a un producto válido.'); setStatus('error'); stopped = false; }
-        } catch {
-          setErrorMsg('QR no reconocido. Usa un QR generado por Etiquetas.');
-          setStatus('error'); stopped = false;
-        }
-      },
-      () => {}
-    )
-      .then(() => { if (!stopped) setStatus('scanning'); })
-      .catch((err: Error) => {
-        setErrorMsg(err?.message?.includes('permission') ? 'Sin acceso a cámara.' : 'No se pudo iniciar la cámara.');
+    const start = async () => {
+      if (!videoRef.current) return;
+      try {
+        controlsRef.current = await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result) => {
+            if (!active || !result) return;
+            active = false;
+            controlsRef.current?.stop();
+            try {
+              const data = JSON.parse(result.getText());
+              if (data?.id) {
+                onDetected(data.id);
+              } else {
+                setErrorMsg('QR no corresponde a un producto válido.');
+                setStatus('error');
+                active = true;
+              }
+            } catch {
+              setErrorMsg('QR no reconocido. Usa un QR generado por Etiquetas.');
+              setStatus('error');
+              active = true;
+            }
+          },
+        );
+        if (active) setStatus('scanning');
+      } catch (err: unknown) {
+        const e = err as Error;
+        setErrorMsg(e?.message?.toLowerCase().includes('permission') ? 'Sin acceso a cámara.' : 'No se pudo iniciar la cámara.');
         setStatus('error');
-      });
+      }
+    };
 
-    return () => { stopped = true; scanner.stop().catch(() => {}); };
+    start();
+    return () => { active = false; controlsRef.current?.stop(); };
   }, []);
 
   return (
@@ -891,7 +915,7 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
           <button onClick={onClose} className="opacity-60 hover:opacity-100"><X size={15} /></button>
         </div>
         <div className="relative bg-black">
-          <div id={containerId} className="w-full" style={{ minHeight: 280 }} />
+          <video ref={videoRef} className="w-full" style={{ minHeight: 280 }} />
           {status === 'starting' && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/60">
               <span className="font-mono text-[10px] text-white tracking-widest animate-pulse uppercase">INICIANDO CÁMARA...</span>

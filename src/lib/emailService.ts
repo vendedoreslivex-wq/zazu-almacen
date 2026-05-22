@@ -1,4 +1,4 @@
-const EDGE_FN_URL = 'https://thywwhpwistpjxzhuodu.supabase.co/functions/v1/send-email';
+const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/send-email`;
 
 const INTERNAL_RECIPIENTS = [
   { name: 'Rubén',     email: 'rbnasmat@gmail.com' },

@@ -1,6 +1,11 @@
 -- =====================================================
 -- LogixZazu — Usuarios Iniciales
 -- Ejecutar DESPUÉS de schema.sql en: Supabase Dashboard → SQL Editor
+--
+-- SEGURIDAD: Este archivo es solo para crear usuarios en un entorno VACÍO.
+-- Las contraseñas abajo son TEMPORALES de primer acceso. Cambiarlas
+-- inmediatamente tras el primer login desde Supabase Dashboard → Authentication.
+-- NUNCA usar estas contraseñas en otros sistemas.
 -- =====================================================
 
 -- Requiere extensión pgcrypto para hashear contraseñas
@@ -33,7 +38,7 @@ begin
   ) values (
     uid1, '00000000-0000-0000-0000-000000000000',
     'valentino@zazu-org.com',
-    crypt('30092023', gen_salt('bf')),
+    crypt('CAMBIAR_TRAS_PRIMER_LOGIN', gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
     '{"username":"VALENTINO","role":"ADMIN_GENERAL","email_personal":"jamesrojasdiaz01@gmail.com"}',
@@ -54,7 +59,7 @@ begin
   ) values (
     uid2, '00000000-0000-0000-0000-000000000000',
     'williams@zazu-org.com',
-    crypt('945610', gen_salt('bf')),
+    crypt('CAMBIAR_TRAS_PRIMER_LOGIN', gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
     '{"username":"WILLIAMS","role":"CEO","email_personal":"melaminacolors2@gmail.com"}',
@@ -75,7 +80,7 @@ begin
   ) values (
     uid3, '00000000-0000-0000-0000-000000000000',
     'ruben@zazu-org.com',
-    crypt('191524623', gen_salt('bf')),
+    crypt('CAMBIAR_TRAS_PRIMER_LOGIN', gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
     '{"username":"RUBEN","role":"ADMINISTRADOR","email_personal":"rbnasmat@gmail.com"}',
@@ -96,7 +101,7 @@ begin
   ) values (
     uid4, '00000000-0000-0000-0000-000000000000',
     'benjamin@zazu-org.com',
-    crypt('79846312', gen_salt('bf')),
+    crypt('CAMBIAR_TRAS_PRIMER_LOGIN', gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
     '{"username":"BENJAMIN","role":"JEFE_ALMACEN","email_personal":"elbenjael17@gmail.com"}',
