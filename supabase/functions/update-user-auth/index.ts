@@ -45,16 +45,59 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { userId, password, email, username, role, active } = await req.json() as {
-      userId: string;
+    const body = await req.json() as {
+      action?: 'create' | 'update';
+      userId?: string;
       password?: string;
       email?: string;
       username?: string;
       role?: string;
       active?: boolean;
+      emailPersonal?: string;
     };
 
-    // Update Supabase Auth (password and/or email)
+    const action = body.action ?? 'update';
+
+    // ── CREATE ─────────────────────────────────────────────────────────────
+    if (action === 'create') {
+      const { email, password, username, role, active = true, emailPersonal } = body;
+      if (!email || !password || !username || !role) {
+        return new Response(JSON.stringify({ error: 'Missing required fields (email, password, username, role)' }), {
+          status: 400,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { username, role, email_personal: emailPersonal },
+      });
+      if (createErr) throw createErr;
+
+      // The on_auth_user_created trigger inserts into profiles. Ensure values are correct.
+      if (created.user) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ username, role, active, email, email_personal: emailPersonal ?? null })
+          .eq('id', created.user.id);
+      }
+
+      return new Response(JSON.stringify({ ok: true, userId: created.user?.id }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── UPDATE ─────────────────────────────────────────────────────────────
+    const { userId, password, email, username, role, active } = body;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'userId is required for update' }), {
+        status: 400,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+
     const authUpdates: { password?: string; email?: string } = {};
     if (password) authUpdates.password = password;
     if (email) authUpdates.email = email;
@@ -64,7 +107,6 @@ Deno.serve(async (req) => {
       if (authError) throw authError;
     }
 
-    // Update profiles table (bypasses RLS using service role)
     const profileUpdates: Record<string, unknown> = {};
     if (username !== undefined) profileUpdates.username = username;
     if (role !== undefined) profileUpdates.role = role;

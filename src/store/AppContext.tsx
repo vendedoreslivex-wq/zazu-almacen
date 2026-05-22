@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, PurchaseOrderStatus, InventoryAdjustment } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
 import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj } from './mappers';
@@ -206,27 +206,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTransaction = async (txId: string): Promise<void> => {
-    const tx = transactions.find(t => t.id === txId);
-    if (!tx) return;
-    const { error } = await supabase.from('transactions').update({ status: 'CANCELLED' }).eq('id', txId);
+    const { error } = await supabase.rpc('cancel_transaction', { p_tx_id: txId });
     if (error) throw new Error(error.message);
-    if (tx.status === 'COMPLETED') {
-      if (tx.type === 'RECEPTION' && tx.toLocationId) {
-        const { data } = await supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand).maybeSingle();
-        if (data) await supabase.from('stock_levels').update({ quantity: Math.max(0, data.quantity - tx.quantity) }).eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand);
-      } else if (tx.type === 'DISPATCH' && tx.fromLocationId) {
-        const { data } = await supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand).maybeSingle();
-        if (data) await supabase.from('stock_levels').update({ quantity: data.quantity + tx.quantity }).eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand);
-        else await supabase.from('stock_levels').insert({ product_id: tx.productId, location_id: tx.fromLocationId, brand: activeBrand, quantity: tx.quantity });
-      } else if (tx.type === 'TRANSFER' && tx.fromLocationId && tx.toLocationId) {
-        const [fromR, toR] = await Promise.all([
-          supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand).maybeSingle(),
-          supabase.from('stock_levels').select('quantity').eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand).maybeSingle(),
-        ]);
-        if (fromR.data) await supabase.from('stock_levels').update({ quantity: fromR.data.quantity + tx.quantity }).eq('product_id', tx.productId).eq('location_id', tx.fromLocationId).eq('brand', activeBrand);
-        if (toR.data) await supabase.from('stock_levels').update({ quantity: Math.max(0, toR.data.quantity - tx.quantity) }).eq('product_id', tx.productId).eq('location_id', tx.toLocationId).eq('brand', activeBrand);
-      }
-    }
     const [s, t] = await Promise.all([
       supabase.from('stock_levels').select('*').eq('brand', activeBrand),
       supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
@@ -258,36 +239,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const receivePurchaseOrder = async (po: PurchaseOrder, receiveQtys: Record<number, number>): Promise<void> => {
-    for (let i = 0; i < po.items.length; i++) {
-      const qty = receiveQtys[i] || 0;
-      if (qty <= 0) continue;
-      const item = po.items[i];
-      await addTransaction({
-        type: 'RECEPTION',
-        productId: item.productId,
-        quantity: qty,
-        toLocationId: po.locationId || undefined,
-        reference: po.reference,
-        user: currentUser.username,
-        contactId: po.supplierId || undefined,
-      });
-    }
-    const updatedItems = po.items.map((item, i) => ({
-      ...item,
-      receivedQuantity: item.receivedQuantity + (receiveQtys[i] || 0),
-    }));
-    const allComplete = updatedItems.every(i => i.receivedQuantity >= i.quantity);
-    const anyReceived = updatedItems.some(i => i.receivedQuantity > 0);
-    const newStatus: PurchaseOrderStatus = allComplete ? 'COMPLETED' : anyReceived ? 'PARTIAL' : po.status;
-    const updated: PurchaseOrder = { ...po, items: updatedItems, status: newStatus };
-    setPurchaseOrders(prev => prev.map(p => p.id === po.id ? updated : p));
-    await supabase.from('purchase_orders').update({ status: newStatus }).eq('id', po.id);
-    await Promise.all(updatedItems.map(item =>
-      supabase.from('purchase_order_items')
-        .update({ received_quantity: item.receivedQuantity })
-        .eq('purchase_order_id', po.id)
-        .eq('product_id', item.productId)
-    ));
+    const payload = po.items
+      .map((item, i) => ({ product_id: item.productId, qty: receiveQtys[i] || 0 }))
+      .filter(x => x.qty > 0);
+    if (payload.length === 0) return;
+    const { error } = await supabase.rpc('receive_purchase_order', {
+      p_po_id: po.id,
+      p_user_name: currentUser.username,
+      p_qtys: payload,
+    });
+    if (error) throw new Error(error.message);
+    const [s, t, posR] = await Promise.all([
+      supabase.from('stock_levels').select('*').eq('brand', activeBrand),
+      supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
+      supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }),
+    ]);
+    if (s.data) setStockLevels(s.data.map(dbToStock));
+    if (t.data) setTransactions(t.data.map(dbToTx));
+    if (posR.data) setPurchaseOrders(posR.data.map(dbToPO));
   };
 
   const addProduct = (p: Omit<Product, 'id'>) => {
@@ -362,13 +331,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addUser = async (u: Omit<UserWithPassword, 'id'>): Promise<void> => {
     if (!u.email) throw new Error('El email es obligatorio para crear usuarios');
-    const { data, error } = await supabase.auth.signUp({ email: u.email, password: u.password, options: { data: { username: u.username, role: u.role } } });
-    if (error) throw error;
-    if (data.user) {
-      await supabase.from('profiles').update({ username: u.username, role: u.role, active: u.active }).eq('id', data.user.id);
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-      if (prof) setUsers(prev => [...prev.filter(x => x.id !== prof.id), dbToUser(prof)]);
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({
+        action: 'create',
+        email: u.email,
+        password: u.password,
+        username: u.username,
+        role: u.role,
+        active: u.active,
+        emailPersonal: u.emailPersonal,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al crear el usuario');
     }
+    const { data } = await supabase.from('profiles').select('*');
+    if (data) setUsers(data.map(dbToUser));
   };
 
   const updateUser = async (updated: UserWithPassword, newPassword?: string): Promise<void> => {

@@ -11,6 +11,7 @@ import { TransactionType, Transaction } from '../types';
 import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, OperationItem } from '../lib/emailService';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
+import { supabase } from '../lib/supabase';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,17 +66,13 @@ const TYPE_META: Record<TransactionType, { label: string; accentColor: string; b
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function nextGuideNumber(type: TransactionType, brand: string): string {
-  const key = `guide_seq_${brand}_${type}`;
-  const next = parseInt(localStorage.getItem(key) ?? '0', 10) + 1;
-  localStorage.setItem(key, String(next));
-  return `${GUIDE_PREFIX[type]}-${String(next).padStart(5, '0')}`;
-}
-
-function peekGuideNumber(type: TransactionType, brand: string): string {
-  const key = `guide_seq_${brand}_${type}`;
-  const current = parseInt(localStorage.getItem(key) ?? '0', 10);
-  return `${GUIDE_PREFIX[type]}-${String(current + 1).padStart(5, '0')}`;
+async function nextGuideNumber(type: TransactionType, brand: string): Promise<string> {
+  const { data, error } = await supabase.rpc('next_guide_number', { p_brand: brand, p_type: type });
+  if (error || !data) {
+    // Fallback to a timestamp-based local id so the operation can still complete.
+    return `${GUIDE_PREFIX[type]}-${Date.now().toString().slice(-5)}`;
+  }
+  return data as string;
 }
 
 function resizeImage(file: File): Promise<string> {
@@ -292,7 +289,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const [lineItems, setLineItems] = useState<LineItem[]>([{ key: '0', productId: '', qty: '' }]);
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
-  const [reference, setReference] = useState(() => peekGuideNumber(type, activeBrand));
+  const [reference, setReference] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [contactId, setContactId] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -394,7 +391,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   };
 
   const executeTransactions = async (sigData: string | undefined) => {
-    const guideNumber = nextGuideNumber(type, activeBrand);
+    const guideNumber = await nextGuideNumber(type, activeBrand);
     const guideItems: OperationItem[] = [];
 
     try {
@@ -449,7 +446,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     setLineItems([{ key: String(Date.now()), productId: '', qty: '' }]);
     setFromLocation('');
     setToLocation('');
-    setReference(peekGuideNumber(type, activeBrand));
+    setReference('');
     setSerialNumber('');
     setContactId('');
     setPhoto(null);
