@@ -287,9 +287,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addProduct = (p: Omit<Product, 'id'>) => {
     const tempId = crypto.randomUUID();
     setProducts(prev => [...prev, { ...p, id: tempId }]);
-    supabase.from('products').insert([{ brand: activeBrand, code: p.code, name: p.name, color: p.color || null, size: p.size || null, category: p.category, low_stock_threshold: p.lowStockThreshold || null, cost_price: p.costPrice || null, sell_price: p.sellPrice || null }]).select().single()
+    supabase.from('products').insert([{ id: tempId, brand: activeBrand, code: p.code, name: p.name, color: p.color || null, size: p.size || null, category: p.category, low_stock_threshold: p.lowStockThreshold || null, cost_price: p.costPrice || null, sell_price: p.sellPrice || null }]).select().single()
       .then(({ data, error }) => {
-        if (error) { setProducts(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (error) {
+          console.error('addProduct failed:', error);
+          setProducts(prev => prev.filter(x => x.id !== tempId));
+          return;
+        }
         if (data) setProducts(prev => prev.map(x => x.id === tempId ? dbToProduct(data) : x));
       });
   };
@@ -308,9 +312,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addLocation = (l: Omit<Location, 'id'>) => {
     const tempId = crypto.randomUUID();
     setLocations(prev => [...prev, { ...l, id: tempId }]);
-    supabase.from('locations').insert([{ brand: activeBrand, name: l.name, type: l.type }]).select().single()
+    supabase.from('locations').insert([{ id: tempId, brand: activeBrand, name: l.name, type: l.type }]).select().single()
       .then(({ data, error }) => {
-        if (error) { setLocations(prev => prev.filter(x => x.id !== tempId)); return; }
+        if (error) {
+          console.error('addLocation failed:', error);
+          setLocations(prev => prev.filter(x => x.id !== tempId));
+          return;
+        }
         if (data) setLocations(prev => prev.map(x => x.id === tempId ? dbToLocation(data) : x));
       });
   };
