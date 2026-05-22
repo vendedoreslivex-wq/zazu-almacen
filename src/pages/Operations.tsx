@@ -12,7 +12,7 @@ import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, O
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import { supabase } from '../lib/supabase';
-import { uploadSignature } from '../lib/signatureStorage';
+import { uploadSignature, uploadPhoto } from '../lib/signatureStorage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -395,9 +395,12 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const guideNumber = await nextGuideNumber(type, activeBrand);
     const guideItems: OperationItem[] = [];
 
-    // Upload signature to Storage once (returns public URL) — emails keep the
-    // inline data URL for self-contained delivery.
+    // Upload signature and photo to Storage once. Email clients (Gmail in
+    // particular) strip <img src="data:..."> so we need public URLs for the
+    // signature/photo to actually render. Falls back to the data URL if the
+    // upload fails (uploader logs the reason in DevTools).
     const storedSig = sigData ? await uploadSignature(sigData) : undefined;
+    const storedPhoto = photo ? await uploadPhoto(photo) : undefined;
 
     try {
       for (const item of lineItems) {
@@ -460,7 +463,8 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     padRef.current?.clear();
     if (photoInputRef.current) photoInputRef.current.value = '';
 
-    // Email payload
+    // Email payload — uses the Storage public URLs so Gmail/Outlook render
+    // the images instead of stripping data: URLs.
     const emailPayload = {
       brand: activeBrand,
       operationType: type as OperationType,
@@ -471,8 +475,8 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
       fromLocation: fromLoc?.name,
       toLocation: toLoc?.name,
       contact: contact?.name,
-      signature: sigData,
-      photo: photo ?? undefined,
+      signature: storedSig,
+      photo: storedPhoto,
     };
 
     // Email to operator
