@@ -268,7 +268,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase.removeChannel(channel);
       clearInterval(poll);
     };
-  }, [activeBrand, session, loadBrandData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBrand, sessionUserId]);
 
   // --- CRUD ---
 
