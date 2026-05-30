@@ -468,9 +468,13 @@ function StockTab({
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'RESERVADO' | 'CRITICO'>('ALL');
   const [modelFilter, setModelFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
 
   // Modelos únicos (nombres de producto sin color/talla)
   const models = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
+  const colors = useMemo(() => [...new Set(products.map(p => p.color).filter(Boolean))].sort() as string[], [products]);
+  const sizes = useMemo(() => [...new Set(products.map(p => p.size).filter(Boolean))].sort() as string[], [products]);
 
   // Calcular unidades reservadas por producto (solo reservas activas)
   const reservedByProduct = useMemo(() => {
@@ -518,13 +522,15 @@ function StockTab({
         const q = search.toLowerCase();
         if (q && !row.product.name.toLowerCase().includes(q) && !row.product.code.toLowerCase().includes(q)) return false;
         if (modelFilter && row.product.name !== modelFilter) return false;
+        if (colorFilter && row.product.color !== colorFilter) return false;
+        if (sizeFilter && row.product.size !== sizeFilter) return false;
         if (filter === 'RESERVADO') return row.reserved > 0;
         if (filter === 'CRITICO') return row.total > 0 && row.reserved / row.total >= 0.5 && row.reserved > 0;
         return true;
       });
-  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, modelFilter, filter]);
+  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, modelFilter, colorFilter, sizeFilter, filter]);
 
-  const hasActiveFilters = search || modelFilter || filter !== 'ALL';
+  const hasActiveFilters = search || modelFilter || colorFilter || sizeFilter || filter !== 'ALL';
 
   const selectCls = "bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider";
 
@@ -556,6 +562,22 @@ function StockTab({
           {models.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
 
+        {/* Color */}
+        {colors.length > 0 && (
+          <select value={colorFilter} onChange={e => setColorFilter(e.target.value)} className={selectCls}>
+            <option value="">Color</option>
+            {colors.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+
+        {/* Talla */}
+        {sizes.length > 0 && (
+          <select value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} className={selectCls}>
+            <option value="">Talla</option>
+            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+
         {/* Stock */}
         {(['ALL', 'RESERVADO', 'CRITICO'] as const).map(f => (
           <button
@@ -573,7 +595,7 @@ function StockTab({
         {/* Limpiar */}
         {hasActiveFilters && (
           <button
-            onClick={() => { setSearch(''); setModelFilter(''); setFilter('ALL'); }}
+            onClick={() => { setSearch(''); setModelFilter(''); setColorFilter(''); setSizeFilter(''); setFilter('ALL'); }}
             className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-300 text-red-500 rounded-sm hover:bg-red-50 transition-colors flex items-center gap-1"
           >
             <X size={10} /> Limpiar
