@@ -222,8 +222,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!session) return;
 
-    const refetchAll = () => loadBrandData(activeBrand);
-
     const channel = supabase.channel(`brand_${activeBrand}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_levels' },
         () => supabase.from('stock_levels').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setStockLevels(data.map(dbToStock)); }))
@@ -248,26 +246,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' },
         () => supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }).then(({ data }) => { if (data) setReservations(data.map(dbToReservation)); }))
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setTimeout(() => refetchAll(), 2000);
-        }
-      });
+      .subscribe();
 
-    // Polling de respaldo cada 30s por si el realtime no dispara
-    const poll = setInterval(() => {
-      Promise.all([
+    // Polling silencioso cada 5s — nunca toca `loading`, no interrumpe formularios
+    let polling = true;
+    const poll = setInterval(async () => {
+      if (!polling) return;
+      const [s, t, r] = await Promise.all([
         supabase.from('stock_levels').select('*').eq('brand', activeBrand),
         supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
         supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }),
-      ]).then(([s, t, r]) => {
-        if (s.data) setStockLevels(s.data.map(dbToStock));
-        if (t.data) setTransactions(t.data.map(dbToTx));
-        if (r.data) setReservations(r.data.map(dbToReservation));
-      });
+      ]);
+      if (!polling) return; // si el efecto se desmontó mientras esperábamos, no actualizar
+      if (s.data) setStockLevels(s.data.map(dbToStock));
+      if (t.data) setTransactions(t.data.map(dbToTx));
+      if (r.data) setReservations(r.data.map(dbToReservation));
     }, 5000);
 
     return () => {
+      polling = false;
       supabase.removeChannel(channel);
       clearInterval(poll);
     };
