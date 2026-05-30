@@ -265,7 +265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (t.data) setTransactions(t.data.map(dbToTx));
         if (r.data) setReservations(r.data.map(dbToReservation));
       });
-    }, 30000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
