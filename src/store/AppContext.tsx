@@ -254,8 +254,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
+    // Polling de respaldo cada 30s por si el realtime no dispara
+    const poll = setInterval(() => {
+      Promise.all([
+        supabase.from('stock_levels').select('*').eq('brand', activeBrand),
+        supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
+        supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }),
+      ]).then(([s, t, r]) => {
+        if (s.data) setStockLevels(s.data.map(dbToStock));
+        if (t.data) setTransactions(t.data.map(dbToTx));
+        if (r.data) setReservations(r.data.map(dbToReservation));
+      });
+    }, 30000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
   }, [activeBrand, session, loadBrandData]);
 
