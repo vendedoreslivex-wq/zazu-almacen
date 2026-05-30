@@ -96,124 +96,219 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
-// ─── CascadeProductSelector ────────────────────────────────────────────────────
+// ─── MatrixProductSelector ─────────────────────────────────────────────────────
+// Selecciona un modelo y muestra una grilla colores × tallas con qty por celda.
+// Llama onCommit con los LineItems generados (solo celdas con qty > 0).
 
-interface CascadeProps {
+interface MatrixProps {
   products: { id: string; name: string; code: string; color?: string; size?: string; category: string }[];
-  value: string;
-  onChange: (id: string) => void;
-  error?: string;
+  onCommit: (items: LineItem[]) => void;
   onScanClick?: () => void;
+  stockLevels?: { productId: string; locationId: string; quantity: number }[];
+  fromLocation?: string;
+  opType?: TransactionType;
 }
 
-const CascadeProductSelector: React.FC<CascadeProps> = ({ products, value, onChange, error, onScanClick }) => {
-  const init = useMemo(() => products.find(p => p.id === value), []);
-  const [baseName, setBaseName] = useState(init?.name ?? '');
-  const [color, setColor] = useState(init?.color ?? '');
-  const [size, setSize] = useState(init?.size ?? '');
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA ÚNICA', '(TALLA ÚNICA)', '10K', '20K'];
 
-  // Sync when value changes externally (QR scan remounts component via key)
-  const prevValue = useRef(value);
-  useEffect(() => {
-    if (value !== prevValue.current && value) {
-      const p = products.find(pr => pr.id === value);
-      if (p) { setBaseName(p.name); setColor(p.color ?? ''); setSize(p.size ?? ''); }
-    }
-    prevValue.current = value;
-  }, [value, products]);
+function sortSizes(sizes: string[]) {
+  return [...sizes].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(a.toUpperCase());
+    const ib = SIZE_ORDER.indexOf(b.toUpperCase());
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
 
+const MatrixProductSelector: React.FC<MatrixProps> = ({ products, onCommit, onScanClick, stockLevels = [], fromLocation, opType }) => {
   const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
+  const [baseName, setBaseName] = useState('');
+  // qty map: `${color}||${size}` → qty string
+  const [qtys, setQtys] = useState<Record<string, string>>({});
+
   const byName = useMemo(() => products.filter(p => p.name === baseName), [products, baseName]);
-  const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort(), [byName]);
-  const byNameColor = useMemo(() => byName.filter(p => !colors.length || p.color === color), [byName, colors, color]);
-  const sizes = useMemo(() => [...new Set(byNameColor.filter(p => p.size).map(p => p.size!))].sort(), [byNameColor]);
+  const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort() as string[], [byName]);
+  const sizes = useMemo(() => sortSizes([...new Set(byName.filter(p => p.size).map(p => p.size!))] as string[]), [byName]);
+  const hasMatrix = colors.length > 0 && sizes.length > 0;
+  const hasColors = colors.length > 0 && sizes.length === 0;
+  const hasSizes = sizes.length > 0 && colors.length === 0;
 
-  const resolveId = (name: string, col: string, sz: string): string => {
-    const byN = products.filter(p => p.name === name);
-    const cols = [...new Set(byN.filter(p => p.color).map(p => p.color!))];
-    const byNC = byN.filter(p => !cols.length || p.color === col);
-    const szs = [...new Set(byNC.filter(p => p.size).map(p => p.size!))];
-    if (!name) return '';
-    if (cols.length > 0 && !col) return '';
-    if (szs.length > 0 && !sz) return '';
-    return products.find(p =>
-      p.name === name &&
-      (!cols.length || p.color === col) &&
-      (!szs.length || p.size === sz)
-    )?.id ?? '';
-  };
+  const key = (c: string, s: string) => `${c}||${s}`;
 
-  const handleName = (name: string) => {
-    setBaseName(name); setColor(''); setSize('');
-    onChange(resolveId(name, '', ''));
-  };
-  const handleColor = (col: string) => {
-    setColor(col); setSize('');
-    onChange(resolveId(baseName, col, ''));
-  };
-  const handleSize = (sz: string) => {
-    setSize(sz);
-    onChange(resolveId(baseName, color, sz));
+  const setQty = (c: string, s: string, val: string) =>
+    setQtys(prev => ({ ...prev, [key(c, s)]: val }));
+
+  const getAvail = (c: string, s: string): number | null => {
+    if (!fromLocation || opType === 'RECEPTION') return null;
+    const prod = byName.find(p => p.color === c && p.size === s);
+    if (!prod) return null;
+    return stockLevels.filter(sl => sl.productId === prod.id && sl.locationId === fromLocation).reduce((sum, sl) => sum + sl.quantity, 0);
   };
 
-  const resolved = products.find(p => p.id === value);
-  const hasError = !!error && !value;
+  const handleCommit = () => {
+    const items: LineItem[] = [];
+    const entries = Object.entries(qtys) as [string, string][];
+    for (const [k, val] of entries) {
+      const qty = parseInt(val as string, 10);
+      if (!qty || qty <= 0) continue;
+      const [c, s] = k.split('||');
+      const prod = byName.find(p =>
+        (!colors.length || p.color === c) &&
+        (!sizes.length || p.size === s)
+      );
+      if (prod) items.push({ key: `${prod.id}_${Date.now()}`, productId: prod.id, qty: String(qty) });
+    }
+    if (items.length === 0) return;
+    onCommit(items);
+    setQtys({});
+    setBaseName('');
+  };
+
+  const qtyValues = Object.values(qtys) as string[];
+  const totalQty = qtyValues.reduce((s: number, v: string) => s + (parseInt(v, 10) || 0), 0);
+  const totalLines = qtyValues.filter((v: string) => parseInt(v, 10) > 0).length;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
+      {/* Model selector */}
       <div className="flex gap-2">
         <select
           value={baseName}
-          onChange={e => handleName(e.target.value)}
-          className={cn('input-technical flex-1 text-[11px]', hasError && 'border-red-600 bg-red-50')}
+          onChange={e => { setBaseName(e.target.value); setQtys({}); }}
+          className="input-technical flex-1 text-[11px]"
         >
-          <option value="">Seleccione producto...</option>
+          <option value="">Seleccione modelo...</option>
           {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {onScanClick && (
-          <button
-            type="button"
-            onClick={onScanClick}
-            title="Escanear QR"
-            className="shrink-0 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 flex items-center justify-center"
-          >
+          <button type="button" onClick={onScanClick} title="Escanear QR"
+            className="shrink-0 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 flex items-center justify-center">
             <ScanLine size={15} />
           </button>
         )}
       </div>
 
-      {baseName && colors.length > 0 && (
-        <select
-          value={color}
-          onChange={e => handleColor(e.target.value)}
-          className={cn('input-technical text-[11px]', hasError && !color && 'border-red-600 bg-red-50')}
-        >
-          <option value="">Color / Variante...</option>
-          {colors.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      )}
-
-      {baseName && sizes.length > 0 && (colors.length === 0 || color) && (
-        <select
-          value={size}
-          onChange={e => handleSize(e.target.value)}
-          className={cn('input-technical text-[11px]', hasError && !size && 'border-red-600 bg-red-50')}
-        >
-          <option value="">Talla / Tamaño...</option>
-          {sizes.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      )}
-
-      {resolved && (
-        <div className="flex items-center gap-1.5 font-mono text-[9px] text-green-700 font-bold tracking-wider">
-          <CheckCircle size={9} /> SKU: {resolved.code}
+      {/* Matrix: colors × sizes */}
+      {baseName && hasMatrix && (
+        <div className="overflow-x-auto">
+          <table className="border-collapse w-full text-[10px] font-mono">
+            <thead>
+              <tr>
+                <th className="border border-[#141414]/20 bg-[#141414] text-[#E4E3E0] px-2 py-1.5 text-left text-[8px] tracking-widest font-bold uppercase whitespace-nowrap">COLOR</th>
+                {sizes.map(s => (
+                  <th key={s} className="border border-[#141414]/20 bg-[#141414] text-[#E4E3E0] px-2 py-1.5 text-center text-[8px] tracking-widest font-bold uppercase whitespace-nowrap">{s}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {colors.map((c, ci) => (
+                <tr key={c} className={ci % 2 === 0 ? 'bg-white/60' : 'bg-[#f5f4f1]/60'}>
+                  <td className="border border-[#141414]/15 px-2 py-1 font-bold uppercase whitespace-nowrap text-[9px]">{c}</td>
+                  {sizes.map(s => {
+                    const prod = byName.find(p => p.color === c && p.size === s);
+                    const avail = getAvail(c, s);
+                    const v = qtys[key(c, s)] ?? '';
+                    const overStock = avail !== null && parseInt(v, 10) > avail;
+                    return (
+                      <td key={s} className="border border-[#141414]/15 p-1 text-center">
+                        {prod ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <input
+                              type="number"
+                              min="0"
+                              value={v}
+                              onChange={e => setQty(c, s, e.target.value)}
+                              className={cn(
+                                'w-14 text-center border font-bold font-mono text-[11px] px-1 py-1 outline-none transition-all',
+                                overStock ? 'border-red-500 bg-red-50' : v && parseInt(v) > 0 ? 'border-[#141414] bg-white shadow-[1px_1px_0_#141414]' : 'border-[#141414]/20 bg-white/50'
+                              )}
+                              placeholder="0"
+                            />
+                            {avail !== null && (
+                              <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>
+                                {avail}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[#141414]/15 text-[10px]">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {hasError && (
-        <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">
-          {error}
-        </span>
+      {/* Solo colores (sin tallas) */}
+      {baseName && hasColors && (
+        <div className="grid grid-cols-2 gap-2">
+          {colors.map(c => {
+            const prod = byName.find(p => p.color === c);
+            const avail = prod ? getAvail(c, '') : null;
+            const v = qtys[key(c, '')] ?? '';
+            return (
+              <div key={c} className="flex items-center gap-2 border border-[#141414]/20 bg-white/50 px-2 py-1.5">
+                <span className="font-mono text-[9px] font-bold uppercase flex-1">{c}</span>
+                {avail !== null && <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>{avail}</span>}
+                <input type="number" min="0" value={v} onChange={e => setQty(c, '', e.target.value)}
+                  className="w-14 text-center border border-[#141414]/30 font-bold font-mono text-[11px] px-1 py-1 outline-none bg-white/70 focus:border-[#141414] focus:shadow-[1px_1px_0_#141414]"
+                  placeholder="0" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Solo tallas (sin colores) */}
+      {baseName && hasSizes && (
+        <div className="flex flex-wrap gap-2">
+          {sizes.map(s => {
+            const prod = byName.find(p => p.size === s);
+            const avail = prod ? getAvail('', s) : null;
+            const v = qtys[key('', s)] ?? '';
+            return (
+              <div key={s} className="flex flex-col items-center gap-0.5 border border-[#141414]/20 bg-white/50 px-2 py-1.5 min-w-[60px]">
+                <span className="font-mono text-[8px] font-bold uppercase">{s}</span>
+                {avail !== null && <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>{avail}</span>}
+                <input type="number" min="0" value={v} onChange={e => setQty('', s, e.target.value)}
+                  className="w-14 text-center border border-[#141414]/30 font-bold font-mono text-[11px] px-1 py-1 outline-none bg-white/70 focus:border-[#141414] focus:shadow-[1px_1px_0_#141414]"
+                  placeholder="0" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sin variantes (producto único) */}
+      {baseName && !hasMatrix && !hasColors && !hasSizes && byName.length > 0 && (() => {
+        const prod = byName[0];
+        const v = qtys[key('', '')] ?? '';
+        return (
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[9px] opacity-50 uppercase">{prod.code}</span>
+            <input type="number" min="0" value={v} onChange={e => setQty('', '', e.target.value)}
+              className="w-24 text-center border border-[#141414] font-bold font-mono text-sm px-2 py-2 outline-none bg-white focus:shadow-[2px_2px_0_#141414]"
+              placeholder="0" />
+          </div>
+        );
+      })()}
+
+      {/* Commit button */}
+      {baseName && totalLines > 0 && (
+        <button
+          type="button"
+          onClick={handleCommit}
+          className="flex items-center justify-center gap-2 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
+        >
+          <Plus size={11} />
+          AGREGAR {totalLines} {totalLines === 1 ? 'LÍNEA' : 'LÍNEAS'} · {totalQty} UND
+        </button>
       )}
     </div>
   );
@@ -287,7 +382,7 @@ const PreviewRow = ({ label, value }: { label: string; value: string }) => (
 const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const { products, locations, addTransaction, stockLevels, activeBrand, contacts, currentUser, users } = useAppContext();
 
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ key: '0', productId: '', qty: '' }]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const [reference, setReference] = useState('');
@@ -318,17 +413,11 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [pendingSig, setPendingSig] = useState<string | undefined>(undefined);
 
-  const addLineItem = () =>
-    setLineItems(prev => [...prev, { key: String(Date.now()), productId: '', qty: '' }]);
+  const addLineItems = (items: LineItem[]) =>
+    setLineItems(prev => [...prev, ...items]);
 
   const removeLineItem = (key: string) =>
     setLineItems(prev => prev.filter(l => l.key !== key));
-
-  const updateLineItemProduct = (key: string, productId: string) =>
-    setLineItems(prev => prev.map(l => l.key === key ? { ...l, productId } : l));
-
-  const updateLineItemQty = (key: string, qty: string) =>
-    setLineItems(prev => prev.map(l => l.key === key ? { ...l, qty } : l));
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -342,11 +431,12 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const newLineErrors: Record<string, { productId?: string; qty?: string }> = {};
     let hasLineError = false;
 
+    if (lineItems.length === 0) {
+      newErrors.lines = 'AGREGA_AL_MENOS_UN_PRODUCTO';
+    }
+
     for (const item of lineItems) {
       const errs: { productId?: string; qty?: string } = {};
-      if (!item.productId) {
-        errs.productId = 'SELECCIONE_PRODUCTO';
-      }
       const qty = parseInt(item.qty, 10);
       if (!item.qty || isNaN(qty) || qty <= 0) {
         errs.qty = 'CANTIDAD_INVALIDA';
@@ -449,7 +539,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     });
 
     // Reset
-    setLineItems([{ key: String(Date.now()), productId: '', qty: '' }]);
+    setLineItems([]);
     setFromLocation('');
     setToLocation('');
     setReference('');
@@ -521,82 +611,63 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         </p>
       </div>
 
-      {/* ── LINE ITEMS ── */}
+      {/* ── MATRIX SELECTOR ── */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">
-            PRODUCTOS EN OPERACIÓN
-          </label>
-          <button
-            type="button"
-            onClick={addLineItem}
-            className="flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase border border-[#141414] px-2.5 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all"
-          >
-            <Plus size={10} /> AGREGAR LÍNEA
-          </button>
+        <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">
+          AGREGAR PRODUCTOS
+        </label>
+        <div className="border border-[#141414]/20 bg-white/40 p-3">
+          <MatrixProductSelector
+            products={products}
+            onCommit={addLineItems}
+            onScanClick={() => setScanningForKey('matrix')}
+            stockLevels={stockLevels}
+            fromLocation={fromLocation}
+            opType={type}
+          />
         </div>
 
-        {lineItems.map((item, idx) => {
-          const availStock = (type === 'DISPATCH' || type === 'TRANSFER') && item.productId && fromLocation
-            ? stockLevels.filter(s => s.productId === item.productId && s.locationId === fromLocation).reduce((sum, s) => sum + s.quantity, 0)
-            : null;
-          const itemErr = lineErrors[item.key];
+        {errors.lines && (
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">
+            {errors.lines}
+          </span>
+        )}
 
-          return (
-            <div key={item.key} className={cn(
-              'border p-3 flex flex-col gap-2.5',
-              itemErr ? 'border-red-300 bg-red-50/30' : 'border-[#141414]/20 bg-white/40'
-            )}>
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest font-bold">
-                  LÍNEA {idx + 1}
-                </span>
-                {lineItems.length > 1 && (
+        {/* Lista de líneas confirmadas */}
+        {lineItems.length > 0 && (
+          <div className="flex flex-col gap-0 border border-[#141414]/20 overflow-hidden">
+            <div className="bg-[#141414] text-[#E4E3E0] px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
+              <span>PRODUCTOS EN OPERACIÓN</span>
+              <span>{lineItems.length} LÍNEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+            </div>
+            {lineItems.map((item, idx) => {
+              const prod = products.find(p => p.id === item.productId);
+              const itemErr = lineErrors[item.key];
+              return (
+                <div key={item.key} className={cn(
+                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-[#141414]/10 last:border-0',
+                  idx % 2 === 0 ? 'bg-white/60' : 'bg-[#f5f4f1]/60',
+                  itemErr && 'bg-red-50 border-red-200'
+                )}>
+                  <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
+                  <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
+                  <span className="font-bold flex-1 truncate uppercase">{prod?.name} {prod?.color} {prod?.size}</span>
+                  <span className="font-black text-sm shrink-0">{item.qty}</span>
+                  {itemErr && (
+                    <span className="text-[8px] text-red-600 font-bold shrink-0">{itemErr.qty || itemErr.productId}</span>
+                  )}
                   <button
                     type="button"
                     onClick={() => removeLineItem(item.key)}
-                    className="text-red-500 hover:text-red-700 p-0.5 transition-colors"
+                    className="shrink-0 text-red-400 hover:text-red-700 transition-colors p-0.5"
                   >
-                    <Minus size={12} />
+                    <Minus size={11} />
                   </button>
-                )}
-              </div>
-
-              <CascadeProductSelector
-                key={item.key}
-                products={products}
-                value={item.productId}
-                onChange={id => updateLineItemProduct(item.key, id)}
-                error={itemErr?.productId}
-                onScanClick={() => setScanningForKey(item.key)}
-              />
-
-              <div className="flex gap-2 items-start">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="font-mono text-[8px] opacity-60 uppercase tracking-widest font-bold">CANTIDAD</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.qty}
-                    onChange={e => { updateLineItemQty(item.key, e.target.value); setLineErrors(prev => ({ ...prev, [item.key]: { ...prev[item.key], qty: undefined } })); }}
-                    className={cn('input-technical font-mono text-base', itemErr?.qty && 'border-red-600 bg-red-50')}
-                    placeholder="0"
-                  />
-                  {itemErr?.qty && (
-                    <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">
-                      {itemErr.qty}
-                    </span>
-                  )}
                 </div>
-                {availStock !== null && (
-                  <div className="shrink-0 pt-5 font-mono text-[9px] text-green-700 font-bold tracking-wider whitespace-nowrap">
-                    DISP: {availStock}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── LOCATIONS ── */}
@@ -753,7 +824,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
 
       <div className="flex justify-between items-center mt-2">
         <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
-          {lineItems.length} {lineItems.length === 1 ? 'PRODUCTO' : 'PRODUCTOS'} · {lineItems.filter(l => l.productId).length} SELECCIONADOS
+          {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
         </div>
         <button
           type="button"
@@ -846,12 +917,8 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         <QRScannerModal
           onClose={() => setScanningForKey(null)}
           onDetected={(id) => {
-            // Replace the item with a new key so CascadeProductSelector remounts with the scanned product
-            setLineItems(prev => prev.map(l =>
-              l.key === scanningForKey
-                ? { key: `${l.key}_qr_${Date.now()}`, productId: id, qty: l.qty }
-                : l
-            ));
+            // QR scan adds a single line with qty 1
+            addLineItems([{ key: `qr_${id}_${Date.now()}`, productId: id, qty: '1' }]);
             setScanningForKey(null);
           }}
         />
