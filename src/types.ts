@@ -108,6 +108,24 @@ export type NotificationSubscriber = {
   active: boolean;
 };
 
+export type ReservationStatus = 'SOLICITADA' | 'CONFIRMADA' | 'LISTA' | 'ENTREGADA' | 'CANCELADA';
+
+export type Reservation = {
+  id: string;
+  brand: string;
+  reference: string;
+  productId: string;
+  locationId?: string;
+  quantity: number;
+  client: string;
+  status: ReservationStatus;
+  notes?: string;
+  expiresAt?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE';
 
 export type AuditLogEntry = {

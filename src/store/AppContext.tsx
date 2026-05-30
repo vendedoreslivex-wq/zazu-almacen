@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, FUNCTIONS_URL } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber, AuditLogEntry } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber, AuditLogEntry, Reservation, ReservationStatus } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
-import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry } from './mappers';
+import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry, dbToReservation } from './mappers';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
 
@@ -21,6 +21,11 @@ interface AppContextType {
   users: UserWithPassword[];
   purchaseOrders: PurchaseOrder[];
   adjustments: InventoryAdjustment[];
+  reservations: Reservation[];
+  addReservation: (r: Omit<Reservation, 'id' | 'brand' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateReservationStatus: (id: string, status: ReservationStatus) => Promise<void>;
+  updateReservation: (r: Reservation) => Promise<void>;
+  deleteReservation: (id: string) => Promise<void>;
   addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }) => Promise<void>;
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (product: Product) => void;
@@ -73,6 +78,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [rolePermissions, setRolePermissions] = useState<Record<Role, Record<string, Permission>>>(DEFAULT_ROLE_PERMISSIONS);
   const [notificationSubscribers, setNotificationSubscribers] = useState<NotificationSubscriber[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const loadProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -89,7 +95,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loadBrandData = useCallback(async (brand: Brand) => {
     setLoading(true);
     try {
-      const [p, l, s, t, c, po, adj, u] = await Promise.all([
+      const [p, l, s, t, c, po, adj, u, res] = await Promise.all([
         supabase.from('products').select('*').eq('brand', brand),
         supabase.from('locations').select('*').eq('brand', brand),
         supabase.from('stock_levels').select('*').eq('brand', brand),
@@ -98,6 +104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', brand).order('date', { ascending: false }),
         supabase.from('inventory_adjustments').select('*').eq('brand', brand).order('date', { ascending: false }),
         supabase.from('profiles').select('*'),
+        supabase.from('reservations').select('*').eq('brand', brand).order('created_at', { ascending: false }),
       ]);
       const loadedProducts = (p.data || []).map(dbToProduct);
       setProducts(loadedProducts);
@@ -108,6 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPurchaseOrders((po.data || []).map(dbToPO));
       setAdjustments((adj.data || []).map(dbToAdj));
       setUsers((u.data || []).map(dbToUser));
+      setReservations((res.data || []).map(dbToReservation));
 
       if (loadedProducts.length === 0) {
         const seedProds = brand === 'OVERSHARK' ? defaultProductsOvershark : brand === 'BRAVOS' ? defaultProductsBravos : defaultProductsBoxPrime;
@@ -235,6 +243,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const entry = dbToAuditEntry(payload.new);
           setAuditLog(prev => [entry, ...prev].slice(0, 1000));
         })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `brand=eq.${activeBrand}` },
+        () => supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }).then(({ data }) => { if (data) setReservations(data.map(dbToReservation)); }))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeBrand, session]);
@@ -513,6 +523,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addReservation = async (r: Omit<Reservation, 'id' | 'brand' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+    const { data, error } = await supabase.from('reservations').insert({
+      brand: activeBrand,
+      reference: r.reference,
+      product_id: r.productId,
+      location_id: r.locationId ?? null,
+      quantity: r.quantity,
+      client: r.client,
+      status: r.status,
+      notes: r.notes ?? null,
+      expires_at: r.expiresAt ?? null,
+      created_by: r.createdBy,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    if (data) setReservations(prev => [dbToReservation(data), ...prev]);
+  };
+
+  const updateReservationStatus = async (id: string, status: ReservationStatus): Promise<void> => {
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
+    if (error) {
+      const { data } = await supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false });
+      if (data) setReservations(data.map(dbToReservation));
+      throw new Error(error.message);
+    }
+  };
+
+  const updateReservation = async (r: Reservation): Promise<void> => {
+    setReservations(prev => prev.map(x => x.id === r.id ? r : x));
+    const { error } = await supabase.from('reservations').update({
+      reference: r.reference,
+      product_id: r.productId,
+      location_id: r.locationId ?? null,
+      quantity: r.quantity,
+      client: r.client,
+      status: r.status,
+      notes: r.notes ?? null,
+      expires_at: r.expiresAt ?? null,
+    }).eq('id', r.id);
+    if (error) {
+      const { data } = await supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false });
+      if (data) setReservations(data.map(dbToReservation));
+      throw new Error(error.message);
+    }
+  };
+
+  const deleteReservation = async (id: string): Promise<void> => {
+    setReservations(prev => prev.filter(r => r.id !== id));
+    const { error } = await supabase.from('reservations').delete().eq('id', id);
+    if (error) {
+      const { data } = await supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false });
+      if (data) setReservations(data.map(dbToReservation));
+      throw new Error(error.message);
+    }
+  };
+
   const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => {
     const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: new Date().toISOString() };
     setAdjustments(prev => [tempAdj, ...prev]);
@@ -530,6 +596,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loading, activeBrand, setActiveBrand,
     products, locations, transactions, stockLevels,
     contacts, currentUser, users, purchaseOrders, adjustments,
+    reservations, addReservation, updateReservationStatus, updateReservation, deleteReservation,
     addTransaction, deleteTransaction, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
     addLocation, updateLocation, deleteLocation, deleteStockLevel,
     addContact, updateContact, deleteContact, setCurrentUser,
@@ -541,7 +608,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     auditLog, refreshAuditLog,
   }), [
     loading, activeBrand, products, locations, transactions, stockLevels,
-    contacts, currentUser, users, purchaseOrders, adjustments, rolePermissions,
+    contacts, currentUser, users, purchaseOrders, adjustments, reservations, rolePermissions,
     notificationSubscribers, auditLog, refreshAuditLog,
   ]);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../store/AppContext';
@@ -28,6 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const navItems: NavItem[] = [
+  { id: 'reservations', label: 'RESERVAS', icon: ClipboardList },
   { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
   { id: 'analysis', label: 'ANALISIS', icon: Layers },
   { id: 'inventory', label: 'INVENTARIO', icon: PackageSearch },

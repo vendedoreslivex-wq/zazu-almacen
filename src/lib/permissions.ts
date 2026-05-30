@@ -8,24 +8,28 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
     history: 'full', contacts: 'full', reports: 'full', labels: 'full',
     'warehouse-map': 'full', users: 'full', 'operation-history': 'full',
+    reservations: 'full',
   },
   CEO: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
     operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'view', 'operation-history': 'none',
+    reservations: 'full',
   },
   ADMINISTRADOR: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
     operations: 'full', adjustments: 'full', 'purchase-orders': 'full',
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'view', 'operation-history': 'none',
+    reservations: 'full',
   },
   JEFE_ALMACEN: {
     dashboard: 'view', analysis: 'view', inventory: 'full', locations: 'full',
     operations: 'full', adjustments: 'full', 'purchase-orders': 'none',
     history: 'full', contacts: 'view', reports: 'view', labels: 'none',
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
+    reservations: 'full',
   },
 };
 
