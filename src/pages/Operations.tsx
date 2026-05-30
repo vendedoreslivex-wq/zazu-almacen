@@ -96,13 +96,13 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
-// ─── MatrixProductSelector ─────────────────────────────────────────────────────
-// Selecciona un modelo y muestra una grilla colores × tallas con qty por celda.
-// Llama onCommit con los LineItems generados (solo celdas con qty > 0).
+// ─── CascadeProductSelector ────────────────────────────────────────────────────
+// Selector en cascada: modelo → color → talla → cantidad.
+// Al agregar una línea, el selector se reinicia automáticamente.
 
-interface MatrixProps {
+interface CascadeProps {
   products: { id: string; name: string; code: string; color?: string; size?: string; category: string }[];
-  onCommit: (items: LineItem[]) => void;
+  onAdd: (item: LineItem) => void;
   onScanClick?: () => void;
   stockLevels?: { productId: string; locationId: string; quantity: number }[];
   fromLocation?: string;
@@ -122,64 +122,58 @@ function sortSizes(sizes: string[]) {
   });
 }
 
-const MatrixProductSelector: React.FC<MatrixProps> = ({ products, onCommit, onScanClick, stockLevels = [], fromLocation, opType }) => {
-  const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
+const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onScanClick, stockLevels = [], fromLocation, opType }) => {
   const [baseName, setBaseName] = useState('');
-  // qty map: `${color}||${size}` → qty string
-  const [qtys, setQtys] = useState<Record<string, string>>({});
+  const [color, setColor] = useState('');
+  const [size, setSize] = useState('');
+  const [qty, setQty] = useState('');
 
+  const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
   const byName = useMemo(() => products.filter(p => p.name === baseName), [products, baseName]);
   const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort() as string[], [byName]);
   const sizes = useMemo(() => sortSizes([...new Set(byName.filter(p => p.size).map(p => p.size!))] as string[]), [byName]);
-  const hasMatrix = colors.length > 0 && sizes.length > 0;
-  const hasColors = colors.length > 0 && sizes.length === 0;
-  const hasSizes = sizes.length > 0 && colors.length === 0;
 
-  const key = (c: string, s: string) => `${c}||${s}`;
+  const selectedProd = useMemo(() => {
+    if (!baseName) return null;
+    return byName.find(p =>
+      (!colors.length || p.color === color) &&
+      (!sizes.length || p.size === size)
+    ) ?? null;
+  }, [byName, baseName, color, size, colors.length, sizes.length]);
 
-  const setQty = (c: string, s: string, val: string) =>
-    setQtys(prev => ({ ...prev, [key(c, s)]: val }));
+  const avail = useMemo(() => {
+    if (!selectedProd || !fromLocation || opType === 'RECEPTION') return null;
+    return stockLevels
+      .filter(sl => sl.productId === selectedProd.id && sl.locationId === fromLocation)
+      .reduce((sum, sl) => sum + sl.quantity, 0);
+  }, [selectedProd, fromLocation, opType, stockLevels]);
 
-  const getAvail = (c: string, s: string): number | null => {
-    if (!fromLocation || opType === 'RECEPTION') return null;
-    const prod = byName.find(p => p.color === c && p.size === s);
-    if (!prod) return null;
-    return stockLevels.filter(sl => sl.productId === prod.id && sl.locationId === fromLocation).reduce((sum, sl) => sum + sl.quantity, 0);
+  const reset = () => { setBaseName(''); setColor(''); setSize(''); setQty(''); };
+
+  const handleAdd = () => {
+    const q = parseInt(qty, 10);
+    if (!selectedProd || !q || q <= 0) return;
+    onAdd({ key: `${selectedProd.id}_${Date.now()}`, productId: selectedProd.id, qty: String(q) });
+    reset();
   };
 
-  const handleCommit = () => {
-    const items: LineItem[] = [];
-    const entries = Object.entries(qtys) as [string, string][];
-    for (const [k, val] of entries) {
-      const qty = parseInt(val as string, 10);
-      if (!qty || qty <= 0) continue;
-      const [c, s] = k.split('||');
-      const prod = byName.find(p =>
-        (!colors.length || p.color === c) &&
-        (!sizes.length || p.size === s)
-      );
-      if (prod) items.push({ key: `${prod.id}_${Date.now()}`, productId: prod.id, qty: String(qty) });
-    }
-    if (items.length === 0) return;
-    onCommit(items);
-    setQtys({});
-    setBaseName('');
-  };
-
-  const qtyValues = Object.values(qtys) as string[];
-  const totalQty = qtyValues.reduce((s: number, v: string) => s + (parseInt(v, 10) || 0), 0);
-  const totalLines = qtyValues.filter((v: string) => parseInt(v, 10) > 0).length;
+  const needsColor = colors.length > 0;
+  const needsSize = sizes.length > 0;
+  const colorReady = !needsColor || !!color;
+  const sizeReady = !needsSize || !!size;
+  const productReady = !!baseName && colorReady && sizeReady && !!selectedProd;
+  const overStock = avail !== null && parseInt(qty, 10) > avail;
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Model selector */}
+    <div className="flex flex-col gap-2">
+      {/* Modelo */}
       <div className="flex gap-2">
         <select
           value={baseName}
-          onChange={e => { setBaseName(e.target.value); setQtys({}); }}
+          onChange={e => { setBaseName(e.target.value); setColor(''); setSize(''); setQty(''); }}
           className="input-technical flex-1 text-[11px]"
         >
-          <option value="">Seleccione modelo...</option>
+          <option value="">— Seleccione modelo —</option>
           {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {onScanClick && (
@@ -190,125 +184,60 @@ const MatrixProductSelector: React.FC<MatrixProps> = ({ products, onCommit, onSc
         )}
       </div>
 
-      {/* Matrix: colors × sizes */}
-      {baseName && hasMatrix && (
-        <div className="overflow-x-auto">
-          <table className="border-collapse w-full text-[10px] font-mono">
-            <thead>
-              <tr>
-                <th className="border border-[#141414]/20 bg-[#141414] text-[#E4E3E0] px-2 py-1.5 text-left text-[8px] tracking-widest font-bold uppercase whitespace-nowrap">COLOR</th>
-                {sizes.map(s => (
-                  <th key={s} className="border border-[#141414]/20 bg-[#141414] text-[#E4E3E0] px-2 py-1.5 text-center text-[8px] tracking-widest font-bold uppercase whitespace-nowrap">{s}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {colors.map((c, ci) => (
-                <tr key={c} className={ci % 2 === 0 ? 'bg-white/60' : 'bg-[#f5f4f1]/60'}>
-                  <td className="border border-[#141414]/15 px-2 py-1 font-bold uppercase whitespace-nowrap text-[9px]">{c}</td>
-                  {sizes.map(s => {
-                    const prod = byName.find(p => p.color === c && p.size === s);
-                    const avail = getAvail(c, s);
-                    const v = qtys[key(c, s)] ?? '';
-                    const overStock = avail !== null && parseInt(v, 10) > avail;
-                    return (
-                      <td key={s} className="border border-[#141414]/15 p-1 text-center">
-                        {prod ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <input
-                              type="number"
-                              min="0"
-                              value={v}
-                              onChange={e => setQty(c, s, e.target.value)}
-                              className={cn(
-                                'w-14 text-center border font-bold font-mono text-[11px] px-1 py-1 outline-none transition-all',
-                                overStock ? 'border-red-500 bg-red-50' : v && parseInt(v) > 0 ? 'border-[#141414] bg-white shadow-[1px_1px_0_#141414]' : 'border-[#141414]/20 bg-white/50'
-                              )}
-                              placeholder="0"
-                            />
-                            {avail !== null && (
-                              <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>
-                                {avail}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[#141414]/15 text-[10px]">—</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Solo colores (sin tallas) */}
-      {baseName && hasColors && (
-        <div className="grid grid-cols-2 gap-2">
-          {colors.map(c => {
-            const prod = byName.find(p => p.color === c);
-            const avail = prod ? getAvail(c, '') : null;
-            const v = qtys[key(c, '')] ?? '';
-            return (
-              <div key={c} className="flex items-center gap-2 border border-[#141414]/20 bg-white/50 px-2 py-1.5">
-                <span className="font-mono text-[9px] font-bold uppercase flex-1">{c}</span>
-                {avail !== null && <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>{avail}</span>}
-                <input type="number" min="0" value={v} onChange={e => setQty(c, '', e.target.value)}
-                  className="w-14 text-center border border-[#141414]/30 font-bold font-mono text-[11px] px-1 py-1 outline-none bg-white/70 focus:border-[#141414] focus:shadow-[1px_1px_0_#141414]"
-                  placeholder="0" />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Solo tallas (sin colores) */}
-      {baseName && hasSizes && (
-        <div className="flex flex-wrap gap-2">
-          {sizes.map(s => {
-            const prod = byName.find(p => p.size === s);
-            const avail = prod ? getAvail('', s) : null;
-            const v = qtys[key('', s)] ?? '';
-            return (
-              <div key={s} className="flex flex-col items-center gap-0.5 border border-[#141414]/20 bg-white/50 px-2 py-1.5 min-w-[60px]">
-                <span className="font-mono text-[8px] font-bold uppercase">{s}</span>
-                {avail !== null && <span className={cn('text-[8px] font-bold', avail === 0 ? 'text-red-500' : 'text-green-700')}>{avail}</span>}
-                <input type="number" min="0" value={v} onChange={e => setQty('', s, e.target.value)}
-                  className="w-14 text-center border border-[#141414]/30 font-bold font-mono text-[11px] px-1 py-1 outline-none bg-white/70 focus:border-[#141414] focus:shadow-[1px_1px_0_#141414]"
-                  placeholder="0" />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Sin variantes (producto único) */}
-      {baseName && !hasMatrix && !hasColors && !hasSizes && byName.length > 0 && (() => {
-        const prod = byName[0];
-        const v = qtys[key('', '')] ?? '';
-        return (
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[9px] opacity-50 uppercase">{prod.code}</span>
-            <input type="number" min="0" value={v} onChange={e => setQty('', '', e.target.value)}
-              className="w-24 text-center border border-[#141414] font-bold font-mono text-sm px-2 py-2 outline-none bg-white focus:shadow-[2px_2px_0_#141414]"
-              placeholder="0" />
-          </div>
-        );
-      })()}
-
-      {/* Commit button */}
-      {baseName && totalLines > 0 && (
-        <button
-          type="button"
-          onClick={handleCommit}
-          className="flex items-center justify-center gap-2 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
+      {/* Color */}
+      {baseName && needsColor && (
+        <select
+          value={color}
+          onChange={e => { setColor(e.target.value); setSize(''); setQty(''); }}
+          className="input-technical text-[11px]"
         >
-          <Plus size={11} />
-          AGREGAR {totalLines} {totalLines === 1 ? 'LÍNEA' : 'LÍNEAS'} · {totalQty} UND
-        </button>
+          <option value="">— Seleccione color —</option>
+          {colors.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
+
+      {/* Talla */}
+      {baseName && colorReady && needsSize && (
+        <select
+          value={size}
+          onChange={e => { setSize(e.target.value); setQty(''); }}
+          className="input-technical text-[11px]"
+        >
+          <option value="">— Seleccione talla —</option>
+          {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )}
+
+      {/* Cantidad + botón agregar */}
+      {productReady && (
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col flex-1">
+            <input
+              type="number"
+              min="1"
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+              placeholder="Cantidad"
+              className={cn('input-technical text-[11px]', overStock && 'border-red-600 bg-red-50')}
+              autoFocus
+            />
+            {avail !== null && (
+              <span className={cn('font-mono text-[8px] font-bold mt-0.5', avail === 0 ? 'text-red-500' : 'text-green-700')}>
+                DISP: {avail} UND
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!qty || parseInt(qty, 10) <= 0}
+            className="shrink-0 flex items-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={11} />
+            AGREGAR
+          </button>
+        </div>
       )}
     </div>
   );
@@ -611,15 +540,15 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         </p>
       </div>
 
-      {/* ── MATRIX SELECTOR ── */}
+      {/* ── SELECTOR DE PRODUCTOS ── */}
       <div className="flex flex-col gap-3">
         <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">
           AGREGAR PRODUCTOS
         </label>
         <div className="border border-[#141414]/20 bg-white/40 p-3">
-          <MatrixProductSelector
+          <CascadeProductSelector
             products={products}
-            onCommit={addLineItems}
+            onAdd={(item) => addLineItems([item])}
             onScanClick={() => setScanningForKey('matrix')}
             stockLevels={stockLevels}
             fromLocation={fromLocation}
