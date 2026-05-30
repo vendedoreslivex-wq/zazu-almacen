@@ -225,28 +225,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const refetchAll = () => loadBrandData(activeBrand);
 
     const channel = supabase.channel(`brand_${activeBrand}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_levels', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_levels' },
         () => supabase.from('stock_levels').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setStockLevels(data.map(dbToStock)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' },
         () => supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setTransactions(data.map(dbToTx)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' },
         () => supabase.from('products').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setProducts(data.map(dbToProduct)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'locations', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' },
         () => supabase.from('locations').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setLocations(data.map(dbToLocation)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' },
         () => supabase.from('contacts').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setContacts(data.map(dbToContact)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_orders', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_orders' },
         () => supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setPurchaseOrders(data.map(dbToPO)); }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_order_items' },
         () => supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setPurchaseOrders(data.map(dbToPO)); }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_adjustments', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_adjustments' },
         () => supabase.from('inventory_adjustments').select('*').eq('brand', activeBrand).order('date', { ascending: false }).then(({ data }) => { if (data) setAdjustments(data.map(dbToAdj)); }))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log' },
         (payload) => {
           const entry = dbToAuditEntry(payload.new);
           setAuditLog(prev => [entry, ...prev].slice(0, 1000));
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `brand=eq.${activeBrand}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' },
         () => supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }).then(({ data }) => { if (data) setReservations(data.map(dbToReservation)); }))
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
