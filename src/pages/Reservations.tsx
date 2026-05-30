@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   ClipboardList, Columns, Table2, Plus, X,
   Package, MapPin, User, Calendar, AlertTriangle, CheckCircle2,
-  Clock, Ban, ArrowRight, Search, ChevronRight, Filter
+  Clock, Ban, ArrowRight, Search, ChevronRight
 } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { Reservation, ReservationStatus } from '../types';
@@ -409,87 +409,14 @@ function KanbanTab({
   onNewReservation: () => void;
 }) {
   const [showDone, setShowDone] = useState(false);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ReservationStatus | 'ALL'>('ALL');
-  const [expiryFilter, setExpiryFilter] = useState<'ALL' | 'EXPIRED' | 'EXPIRING'>('ALL');
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return reservations.filter(r => {
-      if (!showDone && (r.status === 'ENTREGADA' || r.status === 'CANCELADA')) return false;
-      if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
-      if (expiryFilter === 'EXPIRED' && !isExpired(r.expiresAt)) return false;
-      if (expiryFilter === 'EXPIRING') {
-        if (!r.expiresAt) return false;
-        const diff = (new Date(r.expiresAt).getTime() - Date.now()) / 86400000;
-        if (diff < 0 || diff > 3) return false;
-      }
-      if (q) {
-        const prod = products.find(p => p.id === r.productId);
-        const matchRef = r.reference.toLowerCase().includes(q);
-        const matchClient = r.client.toLowerCase().includes(q);
-        const matchProd = prod ? (prod.name.toLowerCase().includes(q) || prod.code.toLowerCase().includes(q)) : false;
-        if (!matchRef && !matchClient && !matchProd) return false;
-      }
-      return true;
-    });
-  }, [reservations, showDone, statusFilter, expiryFilter, search, products]);
-
+  const active = reservations.filter(r => r.status !== 'ENTREGADA' && r.status !== 'CANCELADA');
   const done = reservations.filter(r => r.status === 'ENTREGADA' || r.status === 'CANCELADA');
-  const hasActiveFilters = search || statusFilter !== 'ALL' || expiryFilter !== 'ALL';
+  const shown = showDone ? reservations : active;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Barra de filtros */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Búsqueda */}
-        <div className="relative">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#141414]/40" />
-          <input
-            type="text"
-            placeholder="Referencia, cliente o producto..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-white/60 border border-[#141414]/20 rounded-sm pl-8 pr-7 py-1.5
-                       font-mono text-[11px] text-[#141414] placeholder-[#141414]/30
-                       focus:outline-none focus:border-[#141414] w-56"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
-              <X size={11} className="text-[#141414]/40" />
-            </button>
-          )}
-        </div>
-
-        {/* Filtro por estado */}
-        <div className="flex items-center gap-1">
-          <Filter size={11} className="text-[#141414]/40 shrink-0" />
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5
-                       font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider"
-          >
-            <option value="ALL">Todos los estados</option>
-            {COLUMNS.map(c => (
-              <option key={c.status} value={c.status}>{c.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filtro por vencimiento */}
-        <select
-          value={expiryFilter}
-          onChange={e => setExpiryFilter(e.target.value as typeof expiryFilter)}
-          className="bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5
-                     font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider"
-        >
-          <option value="ALL">Todos</option>
-          <option value="EXPIRING">Por vencer (≤3 días)</option>
-          <option value="EXPIRED">Vencidos</option>
-        </select>
-
-        {/* Ver finalizadas */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <button
           onClick={() => setShowDone(!showDone)}
           className={`font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border rounded-sm transition-colors
@@ -499,33 +426,14 @@ function KanbanTab({
         >
           {showDone ? 'Ocultar finalizadas' : `Ver finalizadas (${done.length})`}
         </button>
-
-        {/* Limpiar filtros */}
-        {hasActiveFilters && (
-          <button
-            onClick={() => { setSearch(''); setStatusFilter('ALL'); setExpiryFilter('ALL'); }}
-            className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-300 text-red-500 rounded-sm hover:bg-red-50 transition-colors flex items-center gap-1"
-          >
-            <X size={10} /> Limpiar
-          </button>
-        )}
-
-        <div className="ml-auto">
-          <button
-            onClick={onNewReservation}
-            className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-3 py-1.5 border border-[#141414]
-                       font-mono text-[10px] tracking-widest uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
-          >
-            <Plus size={12} /> Nueva reserva
-          </button>
-        </div>
+        <button
+          onClick={onNewReservation}
+          className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-3 py-1.5 border border-[#141414]
+                     font-mono text-[10px] tracking-widest uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
+        >
+          <Plus size={12} /> Nueva reserva
+        </button>
       </div>
-
-      {hasActiveFilters && (
-        <p className="font-mono text-[10px] text-[#141414]/40 tracking-wider">
-          {filtered.length} resultado{filtered.length !== 1 ? 's' : ''} con los filtros aplicados
-        </p>
-      )}
 
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-3 w-max">
@@ -535,7 +443,7 @@ function KanbanTab({
               <KanbanColumn
                 key={col.status}
                 col={col}
-                cards={filtered.filter(r => r.status === col.status)}
+                cards={shown.filter(r => r.status === col.status)}
                 products={products}
                 locations={locations}
                 onAdvance={onAdvance}
@@ -559,14 +467,10 @@ function StockTab({
 }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'RESERVADO' | 'CRITICO'>('ALL');
-  const [catFilter, setCatFilter] = useState('');
-  const [colorFilter, setColorFilter] = useState('');
-  const [sizeFilter, setSizeFilter] = useState('');
+  const [modelFilter, setModelFilter] = useState('');
 
-  // Valores únicos para los dropdowns
-  const categories = useMemo(() => [...new Set(products.map(p => p.category).filter(Boolean))].sort(), [products]);
-  const colors = useMemo(() => [...new Set(products.map(p => p.color).filter(Boolean))].sort(), [products]);
-  const sizes = useMemo(() => [...new Set(products.map(p => p.size).filter(Boolean))].sort(), [products]);
+  // Modelos únicos (nombres de producto sin color/talla)
+  const models = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
 
   // Calcular unidades reservadas por producto (solo reservas activas)
   const reservedByProduct = useMemo(() => {
@@ -613,22 +517,19 @@ function StockTab({
       .filter(row => {
         const q = search.toLowerCase();
         if (q && !row.product.name.toLowerCase().includes(q) && !row.product.code.toLowerCase().includes(q)) return false;
-        if (catFilter && row.product.category !== catFilter) return false;
-        if (colorFilter && row.product.color !== colorFilter) return false;
-        if (sizeFilter && row.product.size !== sizeFilter) return false;
+        if (modelFilter && row.product.name !== modelFilter) return false;
         if (filter === 'RESERVADO') return row.reserved > 0;
         if (filter === 'CRITICO') return row.total > 0 && row.reserved / row.total >= 0.5 && row.reserved > 0;
         return true;
       });
-  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, catFilter, colorFilter, sizeFilter, filter]);
+  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, modelFilter, filter]);
 
-  const hasActiveFilters = search || catFilter || colorFilter || sizeFilter || filter !== 'ALL';
+  const hasActiveFilters = search || modelFilter || filter !== 'ALL';
 
   const selectCls = "bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider";
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Barra de filtros */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Búsqueda */}
         <div className="relative">
@@ -649,29 +550,11 @@ function StockTab({
           )}
         </div>
 
-        {/* Categoría */}
-        {categories.length > 0 && (
-          <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={selectCls}>
-            <option value="">Categoría</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
-
-        {/* Color */}
-        {colors.length > 0 && (
-          <select value={colorFilter} onChange={e => setColorFilter(e.target.value)} className={selectCls}>
-            <option value="">Color</option>
-            {colors.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
-
-        {/* Talla */}
-        {sizes.length > 0 && (
-          <select value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} className={selectCls}>
-            <option value="">Talla</option>
-            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
+        {/* Modelo */}
+        <select value={modelFilter} onChange={e => setModelFilter(e.target.value)} className={selectCls}>
+          <option value="">Modelo</option>
+          {models.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
 
         {/* Stock */}
         {(['ALL', 'RESERVADO', 'CRITICO'] as const).map(f => (
@@ -690,7 +573,7 @@ function StockTab({
         {/* Limpiar */}
         {hasActiveFilters && (
           <button
-            onClick={() => { setSearch(''); setCatFilter(''); setColorFilter(''); setSizeFilter(''); setFilter('ALL'); }}
+            onClick={() => { setSearch(''); setModelFilter(''); setFilter('ALL'); }}
             className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-300 text-red-500 rounded-sm hover:bg-red-50 transition-colors flex items-center gap-1"
           >
             <X size={10} /> Limpiar
