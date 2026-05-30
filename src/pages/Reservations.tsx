@@ -559,6 +559,14 @@ function StockTab({
 }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'RESERVADO' | 'CRITICO'>('ALL');
+  const [catFilter, setCatFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
+
+  // Valores únicos para los dropdowns
+  const categories = useMemo(() => [...new Set(products.map(p => p.category).filter(Boolean))].sort(), [products]);
+  const colors = useMemo(() => [...new Set(products.map(p => p.color).filter(Boolean))].sort(), [products]);
+  const sizes = useMemo(() => [...new Set(products.map(p => p.size).filter(Boolean))].sort(), [products]);
 
   // Calcular unidades reservadas por producto (solo reservas activas)
   const reservedByProduct = useMemo(() => {
@@ -604,49 +612,92 @@ function StockTab({
       }))
       .filter(row => {
         const q = search.toLowerCase();
-        const match = row.product.name.toLowerCase().includes(q) || row.product.code.toLowerCase().includes(q);
-        if (!match) return false;
+        if (q && !row.product.name.toLowerCase().includes(q) && !row.product.code.toLowerCase().includes(q)) return false;
+        if (catFilter && row.product.category !== catFilter) return false;
+        if (colorFilter && row.product.color !== colorFilter) return false;
+        if (sizeFilter && row.product.size !== sizeFilter) return false;
         if (filter === 'RESERVADO') return row.reserved > 0;
         if (filter === 'CRITICO') return row.total > 0 && row.reserved / row.total >= 0.5 && row.reserved > 0;
         return true;
       });
-  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, filter]);
+  }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, catFilter, colorFilter, sizeFilter, filter]);
+
+  const hasActiveFilters = search || catFilter || colorFilter || sizeFilter || filter !== 'ALL';
+
+  const selectCls = "bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider";
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 flex-wrap justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#141414]/40" />
-            <input
-              type="text"
-              placeholder="Buscar producto..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-white/60 border border-[#141414]/20 rounded-sm pl-8 pr-8 py-1.5
-                         font-mono text-[11px] text-[#141414] placeholder-[#141414]/30
-                         focus:outline-none focus:border-[#141414] w-52"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
-                <X size={11} className="text-[#141414]/40" />
-              </button>
-            )}
-          </div>
-          {(['ALL', 'RESERVADO', 'CRITICO'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border rounded-sm transition-colors
-                ${filter === f
-                  ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-                  : 'bg-white/50 text-[#141414]/60 border-[#141414]/20 hover:border-[#141414]/50'}`}
-            >
-              {f === 'ALL' ? 'Todos' : f === 'RESERVADO' ? 'Con reserva' : 'Crítico ≥50%'}
+      {/* Barra de filtros */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Búsqueda */}
+        <div className="relative">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#141414]/40" />
+          <input
+            type="text"
+            placeholder="Nombre o código..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="bg-white/60 border border-[#141414]/20 rounded-sm pl-8 pr-7 py-1.5
+                       font-mono text-[11px] text-[#141414] placeholder-[#141414]/30
+                       focus:outline-none focus:border-[#141414] w-48"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+              <X size={11} className="text-[#141414]/40" />
             </button>
-          ))}
+          )}
         </div>
-        <span className="font-mono text-[10px] text-[#141414]/40 tracking-wider">
+
+        {/* Categoría */}
+        {categories.length > 0 && (
+          <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={selectCls}>
+            <option value="">Categoría</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+
+        {/* Color */}
+        {colors.length > 0 && (
+          <select value={colorFilter} onChange={e => setColorFilter(e.target.value)} className={selectCls}>
+            <option value="">Color</option>
+            {colors.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+
+        {/* Talla */}
+        {sizes.length > 0 && (
+          <select value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} className={selectCls}>
+            <option value="">Talla</option>
+            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+
+        {/* Stock */}
+        {(['ALL', 'RESERVADO', 'CRITICO'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border rounded-sm transition-colors
+              ${filter === f
+                ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
+                : 'bg-white/50 text-[#141414]/60 border-[#141414]/20 hover:border-[#141414]/50'}`}
+          >
+            {f === 'ALL' ? 'Todos' : f === 'RESERVADO' ? 'Con reserva' : 'Crítico ≥50%'}
+          </button>
+        ))}
+
+        {/* Limpiar */}
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setSearch(''); setCatFilter(''); setColorFilter(''); setSizeFilter(''); setFilter('ALL'); }}
+            className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-300 text-red-500 rounded-sm hover:bg-red-50 transition-colors flex items-center gap-1"
+          >
+            <X size={10} /> Limpiar
+          </button>
+        )}
+
+        <span className="font-mono text-[10px] text-[#141414]/40 tracking-wider ml-auto">
           {rows.length} producto{rows.length !== 1 ? 's' : ''}
         </span>
       </div>
