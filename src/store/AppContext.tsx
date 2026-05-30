@@ -249,21 +249,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `brand=eq.${activeBrand}` },
         () => supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }).then(({ data }) => { if (data) setReservations(data.map(dbToReservation)); }))
       .subscribe((status) => {
-        // Si el canal se cierra inesperadamente, recarga todo al reconectar
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setTimeout(() => refetchAll(), 2000);
         }
       });
 
-    // Refetch al volver a la pestaña/app (cubre pérdidas de red en móvil)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refetchAll();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       supabase.removeChannel(channel);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [activeBrand, session, loadBrandData]);
 
