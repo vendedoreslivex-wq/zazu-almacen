@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, XCircle, Package } from 'lucide-react';
@@ -7,6 +7,134 @@ import { canEdit as hasPermission } from '../lib/permissions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { sendPurchaseOrderEmail } from '../lib/emailService';
+
+// ─── Tipos internos ─────────────────────────────────────────────────────────────
+type ProductRef = { id: string; name: string; code: string; color?: string; size?: string };
+
+const PO_SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA ÚNICA', '(TALLA ÚNICA)'];
+function sortPoSizes(sizes: string[]) {
+  return [...sizes].sort((a, b) => {
+    const ia = PO_SIZE_ORDER.indexOf(a.toUpperCase());
+    const ib = PO_SIZE_ORDER.indexOf(b.toUpperCase());
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+// ─── Selector cascada para PO ───────────────────────────────────────────────────
+function POCascadeSelector({ products, onAdd }: {
+  products: ProductRef[];
+  onAdd: (items: PurchaseOrderItem[]) => void;
+}) {
+  const [baseName, setBaseName] = useState('');
+  const [color, setColor] = useState('');
+  const [sizeQtys, setSizeQtys] = useState<Record<string, string>>({});
+  const [sizesCosts, setSizesCosts] = useState<Record<string, string>>({});
+  const [qty, setQty] = useState('');
+  const [cost, setCost] = useState('');
+
+  const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
+  const byName = useMemo(() => products.filter(p => p.name === baseName), [products, baseName]);
+  const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort() as string[], [byName]);
+  const byColor = useMemo(() => color ? byName.filter(p => p.color === color) : byName, [byName, color]);
+  const sizes = useMemo(() => sortPoSizes([...new Set(byColor.filter(p => p.size).map(p => p.size!))] as string[]), [byColor]);
+  const needsColor = colors.length > 0;
+  const colorReady = !needsColor || !!color;
+  const needsSize = sizes.length > 0;
+  const singleProd = !needsSize ? (byColor[0] ?? null) : null;
+
+  const reset = () => { setBaseName(''); setColor(''); setSizeQtys({}); setSizesCosts({}); setQty(''); setCost(''); };
+
+  const handleAdd = () => {
+    if (needsSize) {
+      const items: PurchaseOrderItem[] = [];
+      for (const size of sizes) {
+        const q = parseInt(sizeQtys[size] ?? '', 10);
+        if (!q || q <= 0) continue;
+        const prod = byColor.find(p => p.size === size);
+        if (!prod) continue;
+        items.push({ productId: prod.id, quantity: q, unitCost: parseFloat(sizesCosts[size] ?? '0') || 0, receivedQuantity: 0 });
+      }
+      if (items.length > 0) { onAdd(items); reset(); }
+    } else if (singleProd) {
+      const q = parseInt(qty, 10);
+      if (!q || q <= 0) return;
+      onAdd([{ productId: singleProd.id, quantity: q, unitCost: parseFloat(cost) || 0, receivedQuantity: 0 }]);
+      reset();
+    }
+  };
+
+  const anySizeQty = sizes.some(s => parseInt(sizeQtys[s] ?? '', 10) > 0);
+  const canAdd = needsSize ? anySizeQty : (!!singleProd && parseInt(qty, 10) > 0);
+
+  const selectCls = "border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none cursor-pointer w-full";
+  const inputCls = "border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none w-full text-center";
+
+  return (
+    <div className="flex flex-col gap-2 border border-[#141414]/20 bg-white/40 rounded-sm p-3">
+      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Agregar productos</span>
+
+      {/* Modelo */}
+      <select value={baseName} onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setSizesCosts({}); setQty(''); setCost(''); }} className={selectCls}>
+        <option value="">— Seleccione modelo —</option>
+        {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
+      </select>
+
+      {/* Color */}
+      {baseName && needsColor && (
+        <select value={color} onChange={e => { setColor(e.target.value); setSizeQtys({}); setSizesCosts({}); }} className={selectCls}>
+          <option value="">— Seleccione color —</option>
+          {colors.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
+
+      {/* Tallas múltiples */}
+      {baseName && colorReady && needsSize && (
+        <div className="flex flex-col gap-1">
+          <div className="grid grid-cols-[80px_1fr_1fr] gap-1 mb-0.5">
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40">TALLA</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 text-center">CANT.</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 text-center">COSTO U.</span>
+          </div>
+          {sizes.map(size => (
+            <div key={size} className="grid grid-cols-[80px_1fr_1fr] gap-1 items-center">
+              <span className="font-mono text-[10px] font-black uppercase text-[#141414]">{size}</span>
+              <input type="number" min="0" placeholder="0"
+                value={sizeQtys[size] ?? ''}
+                onChange={e => setSizeQtys(prev => ({ ...prev, [size]: e.target.value }))}
+                className={inputCls} />
+              <input type="number" min="0" step="0.01" placeholder="0.00"
+                value={sizesCosts[size] ?? ''}
+                onChange={e => setSizesCosts(prev => ({ ...prev, [size]: e.target.value }))}
+                className={inputCls} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sin tallas — cantidad y costo */}
+      {baseName && colorReady && !needsSize && singleProd && (
+        <div className="grid grid-cols-2 gap-2">
+          <input type="number" min="1" placeholder="Cantidad"
+            value={qty} onChange={e => setQty(e.target.value)}
+            className={inputCls} />
+          <input type="number" min="0" step="0.01" placeholder="Costo unit."
+            value={cost} onChange={e => setCost(e.target.value)}
+            className={inputCls} />
+        </div>
+      )}
+
+      {baseName && colorReady && (
+        <button type="button" onClick={handleAdd} disabled={!canAdd}
+          className="flex items-center justify-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest">
+          <Plus size={11} /> AGREGAR
+        </button>
+      )}
+    </div>
+  );
+}
 
 const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   DRAFT: 'BORRADOR',
@@ -46,7 +174,7 @@ export const PurchaseOrders: React.FC = () => {
   const filtered = purchaseOrders.filter(po => filterStatus === 'ALL' || po.status === filterStatus);
 
   const openAdd = () => {
-    setForm({ supplierId: suppliers[0]?.id || '', reference: `OC-${Date.now().toString().slice(-6)}`, notes: '', locationId: locations[0]?.id || '', items: [emptyItem()] });
+    setForm({ supplierId: suppliers[0]?.id || '', reference: `OC-${Date.now().toString().slice(-6)}`, notes: '', locationId: locations[0]?.id || '', items: [] });
     setShowModal(true);
   };
 
@@ -63,8 +191,9 @@ export const PurchaseOrders: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.supplierId || form.items.some(i => !i.productId)) return;
-    addPurchaseOrder({ ...form, status: 'DRAFT' });
+    const validItems = form.items.filter(i => i.productId);
+    if (!form.supplierId || validItems.length === 0) return;
+    addPurchaseOrder({ ...form, items: validItems, status: 'DRAFT' });
     setShowModal(false);
     const supplier = contacts.find(c => c.id === form.supplierId);
     sendPurchaseOrderEmail({
@@ -270,36 +399,51 @@ export const PurchaseOrders: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ítems *</label>
-                  <button type="button" onClick={addItem} className="font-mono text-[9px] font-bold uppercase text-[#141414] hover:underline">+ AGREGAR</button>
-                </div>
-                {form.items.map((item, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-5">
-                      <select value={item.productId} onChange={e => updateItem(i, 'productId', e.target.value)}
-                        className="w-full border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none cursor-pointer" required>
-                        <option value="">Producto...</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name} {p.color} {p.size}</option>)}
-                      </select>
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ítems *</label>
+
+                {/* Selector cascada con multi-talla */}
+                <POCascadeSelector
+                  products={products}
+                  onAdd={newItems => setForm(f => ({ ...f, items: [...f.items.filter(i => i.productId), ...newItems] }))}
+                />
+
+                {/* Lista de items agregados */}
+                {form.items.filter(i => i.productId).length > 0 && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <div className="grid grid-cols-12 gap-2 px-1 mb-0.5">
+                      {['PRODUCTO', 'CANT.', 'COSTO U.', ''].map(h => (
+                        <span key={h} className={`font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 ${h === 'PRODUCTO' ? 'col-span-5' : h === '' ? 'col-span-2 text-right' : 'col-span-2 text-center'}`}>{h}</span>
+                      ))}
                     </div>
-                    <div className="col-span-2">
-                      <input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                        className="w-full border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none text-center" placeholder="Qty" />
-                    </div>
-                    <div className="col-span-3">
-                      <input type="number" min="0" step="0.01" value={item.unitCost} onChange={e => updateItem(i, 'unitCost', parseFloat(e.target.value) || 0)}
-                        className="w-full border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none" placeholder="Costo" />
-                    </div>
-                    <div className="col-span-2 text-right">
-                      {form.items.length > 1 && (
-                        <button type="button" onClick={() => removeItem(i)} className="text-red-600 hover:opacity-70 p-1">
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
+                    {form.items.map((item, i) => {
+                      if (!item.productId) return null;
+                      const prod = products.find(p => p.id === item.productId);
+                      return (
+                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-white/60 border border-[#141414]/10 px-2 py-1.5 rounded-sm">
+                          <div className="col-span-5 flex flex-col">
+                            <span className="font-mono text-[10px] font-bold text-[#141414] truncate">{prod?.name ?? '—'}</span>
+                            <span className="font-mono text-[8px] text-[#141414]/50 uppercase">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <input type="number" min="1" value={item.quantity}
+                              onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                              className="w-full border border-[#141414]/20 bg-white px-2 py-1 text-[10px] font-mono focus:outline-none text-center" />
+                          </div>
+                          <div className="col-span-3">
+                            <input type="number" min="0" step="0.01" value={item.unitCost}
+                              onChange={e => updateItem(i, 'unitCost', parseFloat(e.target.value) || 0)}
+                              className="w-full border border-[#141414]/20 bg-white px-2 py-1 text-[10px] font-mono focus:outline-none" />
+                          </div>
+                          <div className="col-span-2 text-right">
+                            <button type="button" onClick={() => removeItem(i)} className="text-red-600 hover:opacity-70 p-1">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
 
               <div className="flex flex-col gap-1">

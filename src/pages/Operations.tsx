@@ -125,31 +125,51 @@ function sortSizes(sizes: string[]) {
 const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onScanClick, stockLevels = [], fromLocation, opType }) => {
   const [baseName, setBaseName] = useState('');
   const [color, setColor] = useState('');
-  const [size, setSize] = useState('');
+  // sizeQtys: { [size]: qty string } — para el modo multi-talla
+  const [sizeQtys, setSizeQtys] = useState<Record<string, string>>({});
+  // qty para modo sin tallas
   const [qty, setQty] = useState('');
 
   const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
   const byName = useMemo(() => products.filter(p => p.name === baseName), [products, baseName]);
   const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort() as string[], [byName]);
-  const sizes = useMemo(() => sortSizes([...new Set(byName.filter(p => p.size).map(p => p.size!))] as string[]), [byName]);
+  const byColor = useMemo(() => color ? byName.filter(p => p.color === color) : byName, [byName, color]);
+  const sizes = useMemo(() => sortSizes([...new Set(byColor.filter(p => p.size).map(p => p.size!))] as string[]), [byColor]);
 
+  const needsColor = colors.length > 0;
+  const colorReady = !needsColor || !!color;
+  const needsSize = sizes.length > 0;
+
+  // Producto único cuando no hay tallas
   const selectedProd = useMemo(() => {
-    if (!baseName) return null;
-    return byName.find(p =>
-      (!colors.length || p.color === color) &&
-      (!sizes.length || p.size === size)
-    ) ?? null;
-  }, [byName, baseName, color, size, colors.length, sizes.length]);
+    if (!baseName || !colorReady || needsSize) return null;
+    return byColor[0] ?? null;
+  }, [byColor, baseName, colorReady, needsSize]);
 
-  const avail = useMemo(() => {
-    if (!selectedProd || !fromLocation || opType === 'RECEPTION') return null;
+  const getAvail = (productId: string) => {
+    if (!fromLocation || opType === 'RECEPTION') return null;
     return stockLevels
-      .filter(sl => sl.productId === selectedProd.id && sl.locationId === fromLocation)
+      .filter(sl => sl.productId === productId && sl.locationId === fromLocation)
       .reduce((sum, sl) => sum + sl.quantity, 0);
-  }, [selectedProd, fromLocation, opType, stockLevels]);
+  };
 
-  const reset = () => { setBaseName(''); setColor(''); setSize(''); setQty(''); };
+  const reset = () => { setBaseName(''); setColor(''); setSizeQtys({}); setQty(''); };
 
+  // Agregar multi-talla
+  const handleAddSizes = () => {
+    let added = false;
+    for (const size of sizes) {
+      const q = parseInt(sizeQtys[size] ?? '', 10);
+      if (!q || q <= 0) continue;
+      const prod = byColor.find(p => p.size === size);
+      if (!prod) continue;
+      onAdd({ key: `${prod.id}_${Date.now()}_${size}`, productId: prod.id, qty: String(q) });
+      added = true;
+    }
+    if (added) reset();
+  };
+
+  // Agregar sin tallas
   const handleAdd = () => {
     const q = parseInt(qty, 10);
     if (!selectedProd || !q || q <= 0) return;
@@ -157,12 +177,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
     reset();
   };
 
-  const needsColor = colors.length > 0;
-  const needsSize = sizes.length > 0;
-  const colorReady = !needsColor || !!color;
-  const sizeReady = !needsSize || !!size;
-  const productReady = !!baseName && colorReady && sizeReady && !!selectedProd;
-  const overStock = avail !== null && parseInt(qty, 10) > avail;
+  const anySizeQty = sizes.some(s => parseInt(sizeQtys[s] ?? '', 10) > 0);
 
   return (
     <div className="flex flex-col gap-2">
@@ -170,7 +185,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
       <div className="flex gap-2">
         <select
           value={baseName}
-          onChange={e => { setBaseName(e.target.value); setColor(''); setSize(''); setQty(''); }}
+          onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setQty(''); }}
           className="input-technical flex-1 text-[11px]"
         >
           <option value="">— Seleccione modelo —</option>
@@ -188,7 +203,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
       {baseName && needsColor && (
         <select
           value={color}
-          onChange={e => { setColor(e.target.value); setSize(''); setQty(''); }}
+          onChange={e => { setColor(e.target.value); setSizeQtys({}); setQty(''); }}
           className="input-technical text-[11px]"
         >
           <option value="">— Seleccione color —</option>
@@ -196,20 +211,48 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
         </select>
       )}
 
-      {/* Talla */}
+      {/* Tallas múltiples con cantidad individual */}
       {baseName && colorReady && needsSize && (
-        <select
-          value={size}
-          onChange={e => { setSize(e.target.value); setQty(''); }}
-          className="input-technical text-[11px]"
-        >
-          <option value="">— Seleccione talla —</option>
-          {sizes.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div className="flex flex-col gap-1.5 border border-[#141414]/20 rounded-sm p-2 bg-white/40">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Tallas y cantidades</span>
+          {sizes.map(size => {
+            const prod = byColor.find(p => p.size === size);
+            const avail = prod ? getAvail(prod.id) : null;
+            const q = parseInt(sizeQtys[size] ?? '', 10);
+            const over = avail !== null && q > avail;
+            return (
+              <div key={size} className="flex items-center gap-2">
+                <span className="font-mono text-[10px] font-black uppercase w-16 shrink-0 text-[#141414]">{size}</span>
+                {avail !== null && (
+                  <span className={cn('font-mono text-[8px] font-bold w-16 shrink-0', avail === 0 ? 'text-red-500' : 'text-green-700')}>
+                    DISP: {avail}
+                  </span>
+                )}
+                <input
+                  type="number"
+                  min="0"
+                  value={sizeQtys[size] ?? ''}
+                  onChange={e => setSizeQtys(prev => ({ ...prev, [size]: e.target.value }))}
+                  placeholder="0"
+                  className={cn('input-technical text-[11px] flex-1 text-center', over && 'border-red-600 bg-red-50')}
+                />
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleAddSizes}
+            disabled={!anySizeQty}
+            className="mt-1 flex items-center justify-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={11} />
+            AGREGAR TALLAS
+          </button>
+        </div>
       )}
 
-      {/* Cantidad + botón agregar */}
-      {productReady && (
+      {/* Cantidad + botón agregar (sin tallas) */}
+      {baseName && colorReady && !needsSize && selectedProd && (
         <div className="flex items-center gap-2">
           <div className="flex flex-col flex-1">
             <input
@@ -219,12 +262,12 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
               onChange={e => setQty(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
               placeholder="Cantidad"
-              className={cn('input-technical text-[11px]', overStock && 'border-red-600 bg-red-50')}
+              className={cn('input-technical text-[11px]', getAvail(selectedProd.id) !== null && parseInt(qty, 10) > getAvail(selectedProd.id)! && 'border-red-600 bg-red-50')}
               autoFocus
             />
-            {avail !== null && (
-              <span className={cn('font-mono text-[8px] font-bold mt-0.5', avail === 0 ? 'text-red-500' : 'text-green-700')}>
-                DISP: {avail} UND
+            {getAvail(selectedProd.id) !== null && (
+              <span className={cn('font-mono text-[8px] font-bold mt-0.5', getAvail(selectedProd.id) === 0 ? 'text-red-500' : 'text-green-700')}>
+                DISP: {getAvail(selectedProd.id)} UND
               </span>
             )}
           </div>
