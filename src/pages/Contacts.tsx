@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, Trash2, Edit2, History, X } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, History, X, AlertTriangle } from 'lucide-react';
 import { Contact } from '../types';
 import { format } from 'date-fns';
 
@@ -13,6 +13,7 @@ export const Contacts: React.FC = () => {
   
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<{type: 'SUPPLIER'|'CLIENT', name: string, document: string, phone: string, email: string}>({
     type: 'SUPPLIER', name: '', document: '', phone: '', email: ''
@@ -124,7 +125,7 @@ export const Contacts: React.FC = () => {
                 <button onClick={() => openEdit(c)} className="p-1 hover:bg-[#141414] hover:text-white transition-colors border border-transparent hover:border-[#141414]">
                   <Edit2 size={12} />
                 </button>
-                <button onClick={() => deleteContact(c.id)} className="p-1 hover:bg-red-700 hover:text-white transition-colors border border-transparent hover:border-red-700 text-red-600">
+                <button onClick={() => setConfirmDeleteId(c.id)} className="p-1 hover:bg-red-700 hover:text-white transition-colors border border-transparent hover:border-red-700 text-red-600">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -192,6 +193,34 @@ export const Contacts: React.FC = () => {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 bg-[#E4E3E0]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-sm">
+            <div className="border-b-2 border-[#141414] p-4 flex items-center gap-3 bg-white">
+              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">CONFIRMAR ELIMINACIÓN</h2>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <p className="font-mono text-[11px] text-[#141414]">¿Estás seguro de que deseas eliminar este contacto? Esta acción no se puede deshacer.</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest opacity-70 hover:opacity-100 transition-opacity"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={() => { deleteContact(confirmDeleteId); setConfirmDeleteId(null); }}
+                  className="bg-red-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-red-800 transition-all shadow-[2px_2px_0_#141414]"
+                >
+                  ELIMINAR
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -22,6 +22,7 @@ export const Locations: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
+  const [confirmDeleteStock, setConfirmDeleteStock] = useState<{productId: string; locationId: string} | null>(null);
   
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
@@ -283,8 +284,8 @@ export const Locations: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="bg-[#141414] text-[#E4E3E0] px-1.5 py-0.5 shrink-0 transition-opacity">{lp.quantity}</span>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); if(lp.product) deleteStockLevel(lp.product.id, loc.id); }}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if(lp.product) setConfirmDeleteStock({ productId: lp.product.id, locationId: loc.id }); }}
                           className="opacity-0 group-hover/item:opacity-100 text-red-600 hover:bg-red-100 p-1"
                           title="ELIMINAR PRODUCTO DEL ESTANTE"
                         >
@@ -452,6 +453,36 @@ export const Locations: React.FC = () => {
                   className="flex-1 bg-blue-700 border border-blue-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-blue-800 transition-all shadow-[2px_2px_0_#1d4ed8]"
                 >
                   Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#E4E3E0] border-4 border-red-700 w-full max-w-sm shadow-[8px_8px_0_#b91c1c] flex flex-col">
+            <div className="p-3 border-b border-red-700 bg-red-100 flex items-center gap-2 text-red-900">
+              <AlertTriangle size={16} />
+              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">ELIMINAR STOCK</h2>
+            </div>
+            <div className="p-5 flex flex-col gap-6">
+              <p className="font-mono text-sm font-bold uppercase text-center leading-relaxed">
+                ¿Estás seguro de que deseas eliminar este producto del estante? Esta acción no se puede deshacer.
+              </p>
+              <div className="flex justify-between gap-4 mt-2">
+                <button
+                  onClick={() => setConfirmDeleteStock(null)}
+                  className="flex-1 bg-white border border-[#141414] text-[#141414] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[#141414] hover:text-white transition-all shadow-[2px_2px_0_#141414]"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={() => { deleteStockLevel(confirmDeleteStock.productId, confirmDeleteStock.locationId); setConfirmDeleteStock(null); }}
+                  className="flex-1 bg-red-700 border border-red-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-red-800 transition-all shadow-[2px_2px_0_#991b1b]"
+                >
+                  CONFIRMAR
                 </button>
               </div>
             </div>
