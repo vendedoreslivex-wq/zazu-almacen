@@ -57,6 +57,7 @@ interface AppContextType {
   deleteSubscriber: (id: string) => Promise<void>;
   auditLog: AuditLogEntry[];
   refreshAuditLog: () => Promise<void>;
+  refreshAll: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -614,6 +615,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
+  const refreshAll = useCallback(async () => {
+    const brand = activeBrand;
+    const [p, l, s, t, c, po, adj, res] = await Promise.all([
+      supabase.from('products').select('*').eq('brand', brand),
+      supabase.from('locations').select('*').eq('brand', brand),
+      supabase.from('stock_levels').select('*').eq('brand', brand),
+      supabase.from('transactions').select('*').eq('brand', brand).order('date', { ascending: false }),
+      supabase.from('contacts').select('*').eq('brand', brand),
+      supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', brand).order('date', { ascending: false }),
+      supabase.from('inventory_adjustments').select('*').eq('brand', brand).order('date', { ascending: false }),
+      supabase.from('reservations').select('*').eq('brand', brand).order('created_at', { ascending: false }),
+    ]);
+    if (p.data) setProducts(p.data.map(dbToProduct));
+    if (l.data) setLocations(l.data.map(dbToLocation));
+    if (s.data) setStockLevels(s.data.map(dbToStock));
+    if (t.data) setTransactions(t.data.map(dbToTx));
+    if (c.data) setContacts(c.data.map(dbToContact));
+    if (po.data) setPurchaseOrders(po.data.map(dbToPO));
+    if (adj.data) setAdjustments(adj.data.map(dbToAdj));
+    if (res.data) setReservations(res.data.map(dbToReservation));
+  }, [activeBrand]);
+
   const value = useMemo<AppContextType>(() => ({
     loading, activeBrand, setActiveBrand,
     products, locations, transactions, stockLevels,
@@ -627,11 +650,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAdjustment,
     rolePermissions, updateRolePermission,
     notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
-    auditLog, refreshAuditLog,
+    auditLog, refreshAuditLog, refreshAll,
   }), [
     loading, activeBrand, products, locations, transactions, stockLevels,
     contacts, currentUser, users, purchaseOrders, adjustments, reservations, rolePermissions,
-    notificationSubscribers, auditLog, refreshAuditLog,
+    notificationSubscribers, auditLog, refreshAuditLog, refreshAll,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

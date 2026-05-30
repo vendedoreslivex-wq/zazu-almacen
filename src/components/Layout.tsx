@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../store/AppContext';
@@ -51,8 +51,15 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { activeBrand, setActiveBrand, currentUser, rolePermissions } = useAppContext();
+  const [refreshing, setRefreshing] = useState(false);
+  const { activeBrand, setActiveBrand, currentUser, rolePermissions, refreshAll } = useAppContext();
   const location = useLocation();
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshAll();
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     if (window.innerWidth < 768) setSidebarOpen(false);
@@ -177,6 +184,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="font-mono font-black text-[11px] text-[#141414] uppercase tracking-wider">{currentUser.username || '—'}</span>
               <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">{ROLE_LABELS[currentUser.role] ?? currentUser.role}</span>
             </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Actualizar registros"
+              className="p-1.5 border border-transparent hover:border-[#141414] transition-colors disabled:opacity-40"
+            >
+              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            </button>
             <button
               onClick={() => supabase.auth.signOut()}
               title="Cerrar sesión"
