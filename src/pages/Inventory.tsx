@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, ChevronDown, ChevronRight, Edit2, AlertTriangle, Trash2, Download, Upload, QrCode } from 'lucide-react';
+import { Search, Plus, X, ChevronDown, ChevronRight, Edit2, AlertTriangle, Trash2, Download, Upload, QrCode, ArrowDownLeft, ArrowUpRight, Package } from 'lucide-react';
 import { Product } from '../types';
 import Papa from 'papaparse';
 import { canEdit } from '../lib/permissions';
 import { QRModal } from '../components/QRModal';
 
 export const Inventory: React.FC = () => {
-  const { products, stockLevels, locations, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
+  const { products, stockLevels, locations, transactions, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [filterColor, setFilterColor] = useState('');
@@ -34,6 +34,18 @@ export const Inventory: React.FC = () => {
   
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
+
+  const totalRecepcionado = useMemo(() =>
+    transactions.filter(t => t.type === 'RECEPTION' && t.status !== 'CANCELLED').reduce((s, t) => s + t.quantity, 0),
+  [transactions]);
+
+  const totalDisponible = useMemo(() =>
+    stockLevels.reduce((s, sl) => s + sl.quantity, 0),
+  [stockLevels]);
+
+  const totalDespachado = useMemo(() =>
+    transactions.filter(t => t.type === 'DISPATCH' && t.status !== 'CANCELLED').reduce((s, t) => s + t.quantity, 0),
+  [transactions]);
 
   const uniqueColors = Array.from(new Set(products.map(p => p.color).filter(Boolean))) as string[];
   const uniqueSizes = Array.from(new Set(products.map(p => p.size).filter(Boolean))) as string[];
@@ -235,6 +247,34 @@ export const Inventory: React.FC = () => {
         <option value="Plomo / UNI" />
         <option value="Marron / M" />
       </datalist>
+
+      {/* ── Tarjetas de resumen ── */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col gap-1.5 border border-[#141414] bg-white/50 p-3 shadow-[3px_3px_0_#141414]">
+          <div className="flex items-center gap-2">
+            <ArrowDownLeft size={14} className="text-green-700 shrink-0" />
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/50">Total Recepcionado</span>
+          </div>
+          <span className="font-mono font-black text-2xl text-[#141414] leading-none">{totalRecepcionado.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[#141414]/40 uppercase tracking-widest">unidades ingresadas</span>
+        </div>
+        <div className="flex flex-col gap-1.5 border border-[#141414] bg-[#141414] p-3 shadow-[3px_3px_0_#141414]">
+          <div className="flex items-center gap-2">
+            <Package size={14} className="text-[#E4E3E0]/70 shrink-0" />
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#E4E3E0]/50">Total Disponible</span>
+          </div>
+          <span className="font-mono font-black text-2xl text-[#E4E3E0] leading-none">{totalDisponible.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[#E4E3E0]/40 uppercase tracking-widest">en stock ahora</span>
+        </div>
+        <div className="flex flex-col gap-1.5 border border-[#141414] bg-white/50 p-3 shadow-[3px_3px_0_#141414]">
+          <div className="flex items-center gap-2">
+            <ArrowUpRight size={14} className="text-red-700 shrink-0" />
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/50">Total Despachado</span>
+          </div>
+          <span className="font-mono font-black text-2xl text-[#141414] leading-none">{totalDespachado.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[#141414]/40 uppercase tracking-widest">unidades salidas</span>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-3 border-b border-[#141414] pb-3">
         {/* Title row + primary actions */}

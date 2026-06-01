@@ -1,9 +1,10 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clock } from 'lucide-react';
+import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clock, FileSpreadsheet, FileText, ChevronDown, LayoutGrid, List } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 
 type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
@@ -16,6 +17,58 @@ const REPORT_TITLES: Record<ReportType, string> = {
   aging: 'ANTIGÜEDAD DE STOCK',
 };
 
+// ─── Menú desplegable de exportación ─────────────────────────────────────────
+
+function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () => void; onCSV: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 border border-[#141414] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-white/60 transition-all"
+      >
+        <Download size={13} /> Exportar <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 bg-[#E4E3E0] border border-[#141414] shadow-[3px_3px_0_#141414] min-w-[160px]">
+          <button
+            onClick={() => { onPDF(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+          >
+            <Printer size={12} /> PDF
+          </button>
+          <div className="border-t border-[#141414]/20" />
+          <button
+            onClick={() => { onExcel(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+          >
+            <FileSpreadsheet size={12} /> Excel (.xlsx)
+          </button>
+          <div className="border-t border-[#141414]/20" />
+          <button
+            onClick={() => { onCSV(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+          >
+            <FileText size={12} /> CSV
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Módulo principal ─────────────────────────────────────────────────────────
+
 export const Reports: React.FC = () => {
   const { products, stockLevels, transactions, contacts, adjustments, locations, activeBrand } = useAppContext();
   const [activeReport, setActiveReport] = useState<ReportType>('inventory');
@@ -23,7 +76,8 @@ export const Reports: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
-  const totalStock = (productId: string) => stockLevels.filter(s => s.productId === productId).reduce((s, l) => s + l.quantity, 0);
+  const totalStock = (productId: string) =>
+    stockLevels.filter(s => s.productId === productId).reduce((s, l) => s + l.quantity, 0);
 
   const inventoryRows = products.map(p => {
     const qty = totalStock(p.id);
@@ -55,6 +109,7 @@ export const Reports: React.FC = () => {
   });
 
   const [agingDays, setAgingDays] = useState(30);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   const abcData = useMemo(() => {
     const rows = products.map(p => {
@@ -91,80 +146,717 @@ export const Reports: React.FC = () => {
     return rows.sort((a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999));
   }, [products, transactions, stockLevels, agingDays]);
 
-  const exportCSV = () => {
-    let csv = '';
-    if (activeReport === 'inventory') {
-      csv = 'Código,Nombre,Color,Talla,Categoría,Stock,Costo Unit,Costo Total,PVP Unit,PVP Total\n';
-      csv += inventoryRows.map(r =>
-        `${r.code},"${r.name}",${r.color || ''},${r.size || ''},${r.category},${r.qty},${r.costPrice || 0},${r.totalCost.toFixed(2)},${r.sellPrice || 0},${r.totalSell.toFixed(2)}`
-      ).join('\n');
-    } else if (activeReport === 'adjustments') {
-      csv = 'Fecha,Producto,Ubicación,Antes,Después,Diferencia,Motivo,Notas,Usuario\n';
-      csv += filteredAdj.map(a => {
-        const prod = products.find(p => p.id === a.productId);
-        const loc = locations.find(l => l.id === a.locationId);
-        return `${format(new Date(a.date), 'dd/MM/yyyy HH:mm')},"${prod?.name || a.productId}","${loc?.name || a.locationId}",${a.previousQuantity},${a.newQuantity},${a.newQuantity - a.previousQuantity},${a.reason},"${a.notes || ''}",${a.user}`;
-      }).join('\n');
+  // ─── Datos planos para CSV / Excel ─────────────────────────────────────────
+
+  const getSheetData = (): { headers: string[]; rows: (string | number | null)[][] } => {
+    switch (activeReport) {
+      case 'inventory':
+        return {
+          headers: ['Código', 'Nombre', 'Color', 'Talla', 'Categoría', 'Stock', 'Costo Unit.', 'Total Costo', 'PVP Unit.', 'Total PVP'],
+          rows: inventoryRows.map(r => [
+            r.code, r.name, r.color || '', r.size || '', r.category,
+            r.qty, r.costPrice || 0, r.totalCost, r.sellPrice || 0, r.totalSell,
+          ]),
+        };
+      case 'movements':
+        return {
+          headers: ['Proveedor', 'Fecha', 'Referencia', 'Producto', 'Código', 'Color', 'Talla', 'Cantidad'],
+          rows: movementsBySupplier.flatMap(({ supplier, txs }) =>
+            txs.map(tx => {
+              const prod = products.find(p => p.id === tx.productId);
+              return [
+                supplier.name,
+                format(new Date(tx.date), 'dd/MM/yyyy HH:mm'),
+                tx.reference || '',
+                prod?.name || tx.productId,
+                prod?.code || '',
+                prod?.color || '',
+                prod?.size || '',
+                tx.quantity,
+              ];
+            })
+          ),
+        };
+      case 'valuation':
+        return {
+          headers: ['Indicador', 'Valor'],
+          rows: [
+            ['SKUs con stock', inventoryRows.length],
+            ['Unidades totales', valuationTotal.units],
+            ['Valor a costo (S/)', valuationTotal.cost],
+            ['Valor a PVP (S/)', valuationTotal.sell],
+            ['Margen bruto (S/)', valuationTotal.sell - valuationTotal.cost],
+            ['% Margen', valuationTotal.cost > 0 ? +((((valuationTotal.sell - valuationTotal.cost) / valuationTotal.cost) * 100).toFixed(2)) : 'N/A'],
+          ],
+        };
+      case 'adjustments':
+        return {
+          headers: ['Fecha', 'Producto', 'Código', 'Ubicación', 'Antes', 'Después', 'Diferencia', 'Motivo', 'Notas', 'Usuario'],
+          rows: filteredAdj.map(a => {
+            const prod = products.find(p => p.id === a.productId);
+            const loc = locations.find(l => l.id === a.locationId);
+            return [
+              format(new Date(a.date), 'dd/MM/yyyy HH:mm'),
+              prod?.name || a.productId,
+              prod?.code || '',
+              loc?.name || a.locationId,
+              a.previousQuantity,
+              a.newQuantity,
+              a.newQuantity - a.previousQuantity,
+              a.reason,
+              a.notes || '',
+              a.user,
+            ];
+          }),
+        };
+      case 'abc':
+        return {
+          headers: ['Clase', 'Código', 'Producto', 'Color', 'Talla', 'Despachos', '% Volumen'],
+          rows: abcData.map(r => [
+            r.cls, r.prod.code, r.prod.name, r.prod.color || '', r.prod.size || '',
+            r.dispatched, +r.pct.toFixed(2),
+          ]),
+        };
+      case 'aging':
+        return {
+          headers: ['Código', 'Producto', 'Color', 'Talla', 'Stock', 'Último Despacho', 'Días sin movimiento'],
+          rows: agingData.map(r => [
+            r.prod.code, r.prod.name, r.prod.color || '', r.prod.size || '',
+            r.stock,
+            r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : 'Sin despachos',
+            r.daysSince !== null ? r.daysSince : 'Sin despachos',
+          ]),
+        };
     }
+  };
+
+  // ─── Exportar CSV ───────────────────────────────────────────────────────────
+
+  const exportCSV = () => {
+    const { headers, rows } = getSheetData();
+    const escape = (v: string | number | null) => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers, ...rows].map(row => row.map(escape).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte_${activeReport}_${format(new Date(), 'yyyyMMdd')}.csv`;
+    a.download = `${activeReport}_${format(new Date(), 'yyyyMMdd')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html><head><title>Reporte — ${REPORT_TITLES[activeReport]}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Courier New', monospace; font-size: 10px; color: #141414; padding: 24px; }
-        h1 { font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
-        .meta { font-size: 9px; opacity: 0.6; margin-bottom: 16px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th { border-bottom: 2px solid #141414; padding: 4px 6px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { border-bottom: 1px solid #ccc; padding: 4px 6px; font-size: 9px; }
-        .text-right { text-align: right; }
-        .total-row td { border-top: 2px solid #141414; font-weight: bold; }
-        .brand { display: inline-block; background: #141414; color: #E4E3E0; padding: 2px 6px; font-size: 9px; font-weight: bold; margin-bottom: 8px; }
-        @media print { body { padding: 12px; } }
-      </style></head><body>
-      <div class="brand">${activeBrand.replace('_', ' ')}</div>
-      <h1>${REPORT_TITLES[activeReport]}</h1>
-      <div class="meta">Generado: ${format(new Date(), "dd 'de' MMMM yyyy 'a las' HH:mm", { locale: es })}${dateFrom ? ` | Desde: ${dateFrom}` : ''}${dateTo ? ` | Hasta: ${dateTo}` : ''}</div>
-      ${content.innerHTML}
-      </body></html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  // ─── Exportar Excel ─────────────────────────────────────────────────────────
+
+  const exportExcel = () => {
+    const { headers, rows } = getSheetData();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Ancho de columnas automático
+    const colWidths = headers.map((h, i) => {
+      const maxLen = Math.max(h.length, ...rows.map(r => String(r[i] ?? '').length));
+      return { wch: Math.min(maxLen + 2, 40) };
+    });
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, REPORT_TITLES[activeReport].slice(0, 31));
+    XLSX.writeFile(wb, `${activeReport}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
+
+  // ─── Exportar PDF ───────────────────────────────────────────────────────────
+
+  const handlePDF = () => {
+    const now = format(new Date(), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
+    const title = REPORT_TITLES[activeReport];
+    const brand = activeBrand.replace('_', ' ');
+
+    const dateRange = [
+      dateFrom && `Desde: ${format(new Date(dateFrom), 'dd/MM/yyyy')}`,
+      dateTo && `Hasta: ${format(new Date(dateTo), 'dd/MM/yyyy')}`,
+    ].filter(Boolean).join(' · ');
+
+    // ── Contenido específico por reporte ──
+    let summaryHTML = '';
+    let tableHTML = '';
+
+    if (activeReport === 'inventory') {
+      summaryHTML = `
+        <div class="summary">
+          <div class="card"><div class="label">SKUs en stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
+          <div class="card dark"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
+          <div class="card"><div class="label">Valor a costo</div><div class="value">S/ ${valuationTotal.cost.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">costo total</div></div>
+          <div class="card"><div class="label">Valor a PVP</div><div class="value">S/ ${valuationTotal.sell.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">precio venta</div></div>
+        </div>`;
+      const bodyRows = inventoryRows.map(r => `
+        <tr>
+          <td>${r.code}</td>
+          <td><strong>${r.name}</strong><br><small>${[r.color, r.size].filter(Boolean).join(' · ')}</small></td>
+          <td class="center bold">${r.qty}</td>
+          <td class="right">S/ ${(r.costPrice || 0).toFixed(2)}</td>
+          <td class="right bold">S/ ${r.totalCost.toFixed(2)}</td>
+          <td class="right">S/ ${(r.sellPrice || 0).toFixed(2)}</td>
+          <td class="right bold">S/ ${r.totalSell.toFixed(2)}</td>
+        </tr>`).join('');
+      tableHTML = `
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Producto</th><th class="center">Stock</th>
+            <th class="right">Costo U.</th><th class="right">Total Costo</th>
+            <th class="right">PVP U.</th><th class="right">Total PVP</th>
+          </tr></thead>
+          <tbody>${bodyRows}</tbody>
+          <tfoot><tr>
+            <td colspan="2" class="bold">TOTAL — ${inventoryRows.length} SKUs</td>
+            <td class="center bold">${valuationTotal.units}</td>
+            <td></td>
+            <td class="right bold">S/ ${valuationTotal.cost.toFixed(2)}</td>
+            <td></td>
+            <td class="right bold">S/ ${valuationTotal.sell.toFixed(2)}</td>
+          </tr></tfoot>
+        </table>`;
+    }
+
+    else if (activeReport === 'movements') {
+      const totalUnits = movementsBySupplier.reduce((s, m) => s + m.total, 0);
+      summaryHTML = `
+        <div class="summary">
+          <div class="card dark"><div class="label">Proveedores</div><div class="value">${movementsBySupplier.length}</div><div class="hint">con recepciones</div></div>
+          <div class="card"><div class="label">Total unidades</div><div class="value">${totalUnits.toLocaleString('es-PE')}</div><div class="hint">recepcionadas</div></div>
+          <div class="card"><div class="label">Transacciones</div><div class="value">${movementsBySupplier.reduce((s, m) => s + m.txs.length, 0)}</div><div class="hint">en el período</div></div>
+        </div>`;
+      tableHTML = movementsBySupplier.map(({ supplier, txs, total }) => `
+        <div style="margin-bottom:20px;">
+          <div class="section-header"><span>${supplier.name}</span><span>${total} uds · ${txs.length} recepciones</span></div>
+          <table>
+            <thead><tr><th>Fecha</th><th>Referencia</th><th>Producto</th><th class="right">Qty</th></tr></thead>
+            <tbody>${txs.map(tx => {
+              const prod = products.find(p => p.id === tx.productId);
+              return `<tr>
+                <td>${format(new Date(tx.date), 'dd/MM/yyyy')}</td>
+                <td style="opacity:.7">${tx.reference || '—'}</td>
+                <td>${prod ? `<strong>${prod.code}</strong> ${prod.name} ${[prod.color, prod.size].filter(Boolean).join(' ')}` : tx.productId}</td>
+                <td class="right bold">${tx.quantity}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>`).join('') || '<p style="text-align:center;padding:32px;opacity:.5;font-family:monospace;text-transform:uppercase;letter-spacing:.1em;">Sin recepciones en el período</p>';
+    }
+
+    else if (activeReport === 'valuation') {
+      const margin = valuationTotal.sell - valuationTotal.cost;
+      const marginPct = valuationTotal.cost > 0 ? ((margin / valuationTotal.cost) * 100).toFixed(1) : 'N/A';
+      summaryHTML = `
+        <div class="summary" style="grid-template-columns:repeat(3,1fr)">
+          <div class="card"><div class="label">SKUs activos</div><div class="value">${inventoryRows.length}</div><div class="hint">con stock</div></div>
+          <div class="card"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
+          <div class="card dark"><div class="label">Valor a costo</div><div class="value">S/ ${valuationTotal.cost.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">inversión total</div></div>
+          <div class="card"><div class="label">Valor a PVP</div><div class="value">S/ ${valuationTotal.sell.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">valor retail</div></div>
+          <div class="card" style="${margin > 0 ? 'border-color:#16a34a;' : ''}"><div class="label">Margen bruto</div><div class="value" style="color:${margin > 0 ? '#16a34a' : '#dc2626'}">S/ ${margin.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">PVP − Costo</div></div>
+          <div class="card"><div class="label">% Margen</div><div class="value" style="color:${margin > 0 ? '#16a34a' : '#dc2626'}">${marginPct}${typeof marginPct === 'string' && marginPct !== 'N/A' ? '%' : ''}</div><div class="hint">rentabilidad</div></div>
+        </div>`;
+      tableHTML = '';
+    }
+
+    else if (activeReport === 'adjustments') {
+      const pos = filteredAdj.filter(a => a.newQuantity > a.previousQuantity).length;
+      const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
+      summaryHTML = `
+        <div class="summary">
+          <div class="card dark"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el período</div></div>
+          <div class="card"><div class="label">Incrementos</div><div class="value" style="color:#16a34a">+${pos}</div><div class="hint">stock sumado</div></div>
+          <div class="card"><div class="label">Decrementos</div><div class="value" style="color:#dc2626">${neg}</div><div class="hint">stock reducido</div></div>
+        </div>`;
+      const bodyRows = filteredAdj.map(a => {
+        const prod = products.find(p => p.id === a.productId);
+        const loc = locations.find(l => l.id === a.locationId);
+        const diff = a.newQuantity - a.previousQuantity;
+        return `<tr>
+          <td>${format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
+          <td><strong>${prod?.code || ''}</strong> ${prod?.name || a.productId}</td>
+          <td style="opacity:.7">${loc?.name || '—'}</td>
+          <td class="center">${a.previousQuantity}</td>
+          <td class="center bold">${a.newQuantity}</td>
+          <td class="center bold" style="color:${diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#888'}">${diff > 0 ? '+' : ''}${diff}</td>
+          <td style="opacity:.7">${a.reason}</td>
+          <td style="opacity:.7">${a.user}</td>
+        </tr>`;
+      }).join('');
+      tableHTML = `
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Producto</th><th>Ubicación</th>
+            <th class="center">Antes</th><th class="center">Después</th><th class="center">Diff</th>
+            <th>Motivo</th><th>Usuario</th>
+          </tr></thead>
+          <tbody>${bodyRows || '<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el período</td></tr>'}</tbody>
+        </table>`;
+    }
+
+    else if (activeReport === 'abc') {
+      const aItems = abcData.filter(r => r.cls === 'A');
+      const bItems = abcData.filter(r => r.cls === 'B');
+      const cItems = abcData.filter(r => r.cls === 'C');
+      summaryHTML = `
+        <div class="summary">
+          <div class="card" style="border-color:#15803d;background:#f0fdf4">
+            <div class="label" style="color:#15803d">Clase A — Alta rotación</div>
+            <div class="value" style="color:#15803d">${aItems.length} SKUs</div>
+            <div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
+          </div>
+          <div class="card" style="border-color:#b45309;background:#fffbeb">
+            <div class="label" style="color:#b45309">Clase B — Rotación media</div>
+            <div class="value" style="color:#b45309">${bItems.length} SKUs</div>
+            <div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
+          </div>
+          <div class="card dark">
+            <div class="label">Clase C — Baja rotación</div>
+            <div class="value">${cItems.length} SKUs</div>
+            <div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
+          </div>
+        </div>`;
+      const clsStyle: Record<string, string> = { A: 'color:#15803d', B: 'color:#b45309', C: 'opacity:.5' };
+      const bodyRows = abcData.map(r => `
+        <tr>
+          <td class="bold" style="font-size:15px;${clsStyle[r.cls]}">${r.cls}</td>
+          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.color,r.prod.size].filter(Boolean).join(' ')}</span></td>
+          <td class="right bold">${r.dispatched}</td>
+          <td class="right">${r.pct.toFixed(1)}%</td>
+        </tr>`).join('');
+      tableHTML = `
+        <table>
+          <thead><tr><th>Clase</th><th>Producto</th><th class="right">Despachos</th><th class="right">% Volumen</th></tr></thead>
+          <tbody>${bodyRows || '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin despachos registrados</td></tr>'}</tbody>
+        </table>`;
+    }
+
+    else if (activeReport === 'aging') {
+      const critical = agingData.filter(r => r.daysSince !== null && r.daysSince >= 90).length;
+      summaryHTML = `
+        <div class="summary">
+          <div class="card dark"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">≥${agingDays} días sin movimiento</div></div>
+          <div class="card" style="${critical > 0 ? 'border-color:#dc2626;background:#fef2f2' : ''}"><div class="label">Críticos ≥90d</div><div class="value" style="color:${critical > 0 ? '#dc2626' : '#141414'}">${critical}</div><div class="hint">alta prioridad</div></div>
+          <div class="card"><div class="label">Unidades paradas</div><div class="value">${agingData.reduce((s,r)=>s+r.stock,0).toLocaleString('es-PE')}</div><div class="hint">en stock sin salida</div></div>
+        </div>`;
+      const bodyRows = agingData.map(r => {
+        const daysColor = r.daysSince !== null && r.daysSince >= 90 ? '#dc2626' : r.daysSince !== null && r.daysSince >= 30 ? '#b45309' : '#141414';
+        return `<tr>
+          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.color,r.prod.size].filter(Boolean).join(' ')}</span></td>
+          <td class="center bold">${r.stock}</td>
+          <td class="center" style="opacity:.7">${r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—'}</td>
+          <td class="center bold" style="color:${daysColor}">${r.daysSince !== null ? r.daysSince : 'Sin despachos'}</td>
+        </tr>`;
+      }).join('');
+      tableHTML = `
+        <table>
+          <thead><tr><th>Producto</th><th class="center">Stock</th><th class="center">Último despacho</th><th class="center">Días sin movimiento</th></tr></thead>
+          <tbody>${bodyRows || '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">No hay productos con ese criterio</td></tr>'}</tbody>
+        </table>`;
+    }
+
+    const html = `<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8">
+<title>${title} — LogixZazu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Mono', 'Courier New', monospace; background: white; color: #141414; padding: 32px 40px; font-size: 11px; }
+  @page { size: A4; margin: 18mm 14mm; }
+  @media print { body { padding: 0; } }
+
+  .header { border-bottom: 3px solid #141414; padding-bottom: 18px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand-name { font-size: 20px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+  .brand-sub { font-size: 8px; letter-spacing: .2em; color: #888; text-transform: uppercase; margin-top: 3px; }
+  .brand-badge { display: inline-block; background: #141414; color: #E4E3E0; padding: 2px 8px; font-size: 9px; font-weight: 700; letter-spacing: .1em; margin-top: 6px; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .doc-title .meta { font-size: 8.5px; color: #888; letter-spacing: .05em; margin-top: 5px; line-height: 1.6; }
+
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
+  .card { border: 1.5px solid #141414; padding: 11px 13px; }
+  .card.dark { background: #141414; color: #E4E3E0; }
+  .label { font-size: 7.5px; letter-spacing: .18em; text-transform: uppercase; opacity: .5; margin-bottom: 5px; }
+  .value { font-size: 22px; font-weight: 900; line-height: 1; }
+  .hint { font-size: 7.5px; opacity: .4; letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
+  thead { background: #141414; color: #E4E3E0; }
+  thead th { padding: 8px 10px; text-align: left; font-size: 7.5px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
+  th.center, td.center { text-align: center; }
+  th.right, td.right { text-align: right; }
+  tbody tr { border-bottom: 1px solid #e5e7eb; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 8px 10px; vertical-align: top; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  td.bold, th.bold { font-weight: 700; }
+  tfoot td { padding: 8px 10px; font-weight: 700; border-top: 2px solid #141414; background: #f5f5f5; font-size: 10px; }
+
+  .section-header { display: flex; justify-content: space-between; align-items: center; background: #141414; color: #E4E3E0; padding: 8px 12px; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 0; }
+
+  .legend { display: flex; gap: 18px; margin-top: 18px; padding-top: 12px; border-top: 1px solid #e5e7eb; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8px; color: #888; letter-spacing: .06em; text-transform: uppercase; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 7.5px; color: #aaa; letter-spacing: .05em; }
+  small { font-size: .85em; opacity: .6; }
+</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <div class="brand-name">LOGIXZAZU</div>
+    <div class="brand-sub">Sistema de Inventario</div>
+    <div class="brand-badge">${brand}</div>
+  </div>
+  <div class="doc-title">
+    <h1>${title}</h1>
+    <div class="meta">
+      Generado: ${now}<br>
+      ${dateRange ? dateRange + '<br>' : ''}
+      ${activeReport === 'aging' ? `Criterio: ≥${agingDays} días sin movimiento` : ''}
+    </div>
+  </div>
+</div>
+
+${summaryHTML}
+${tableHTML}
+
+${activeReport !== 'valuation' && kanbanCols.length > 0 ? `
+<div style="margin-top:28px;border-top:2px solid #141414;padding-top:18px;page-break-before:auto;">
+  ${buildKanbanHTML()}
+</div>` : ''}
+
+${activeReport === 'inventory' ? `
+<div class="legend">
+  <div class="legend-item"><span class="dot" style="background:#141414"></span>Total — ${inventoryRows.length} SKUs · ${valuationTotal.units} uds · Costo: S/ ${valuationTotal.cost.toFixed(2)} · PVP: S/ ${valuationTotal.sell.toFixed(2)}</div>
+</div>` : ''}
+
+${activeReport === 'aging' ? `
+<div class="legend">
+  <div class="legend-item"><span class="dot" style="background:#dc2626"></span>Crítico ≥90 días</div>
+  <div class="legend-item"><span class="dot" style="background:#b45309"></span>Alerta ≥30 días</div>
+  <div class="legend-item"><span class="dot" style="background:#141414"></span>Sin despachos registrados</div>
+</div>` : ''}
+
+<div class="footer">
+  <span>LOGIXZAZU · ${title}</span>
+  <span>${now}</span>
+</div>
+
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 500);
+  };
+
+  // ─── Datos Kanban por reporte ──────────────────────────────────────────────
+
+  type KanbanCol = {
+    key: string;
+    label: string;
+    sublabel: string;
+    headerBg: string;   // tailwind bg
+    headerText: string; // tailwind text
+    accentCss: string;  // inline css color for bar/badge
+    items: { id: string; code: string; name: string; sub: string; badge: string; detail: string; barPct?: number }[];
+  };
+
+  const kanbanCols = useMemo((): KanbanCol[] => {
+    if (activeReport === 'abc') {
+      const defs = [
+        { key: 'A', label: 'Clase A', sublabel: 'Alta rotación', headerBg: 'bg-[#14532d]', headerText: 'text-[#f0fdf4]', accentCss: '#16a34a' },
+        { key: 'B', label: 'Clase B', sublabel: 'Rotación media', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706' },
+        { key: 'C', label: 'Clase C', sublabel: 'Baja rotación', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99' },
+      ];
+      return defs.map(d => {
+        const rows = abcData.filter(r => r.cls === d.key);
+        const volPct = rows.reduce((s, r) => s + r.pct, 0);
+        return {
+          ...d,
+          sublabel: `${d.sublabel} · ${rows.length} SKUs · ${volPct.toFixed(1)}% vol`,
+          items: rows.map(r => ({
+            id: r.prod.id,
+            code: r.prod.code,
+            name: r.prod.name,
+            sub: [r.prod.color, r.prod.size].filter(Boolean).join(' · '),
+            badge: `${r.dispatched} uds`,
+            detail: `${r.pct.toFixed(1)}% del volumen`,
+            barPct: Math.min(r.pct * 5, 100),
+          })),
+        };
+      });
+    }
+
+    if (activeReport === 'inventory') {
+      const cats = [...new Set(inventoryRows.map(r => r.category))].sort() as string[];
+      return cats.map((cat, i) => {
+        const rows = inventoryRows.filter(r => r.category === cat);
+        const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+        const totalSell = rows.reduce((s, r) => s + r.totalSell, 0);
+        const hues = ['bg-[#141414]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]', 'bg-[#3d2b00]'];
+        return {
+          key: cat,
+          label: cat || 'Sin categoría',
+          sublabel: `${rows.length} SKUs · ${totalQty} uds · S/ ${totalSell.toFixed(0)}`,
+          headerBg: hues[i % hues.length],
+          headerText: 'text-[#E4E3E0]',
+          accentCss: '#9f9d99',
+          items: rows.map(r => ({
+            id: r.id,
+            code: r.code,
+            name: r.name,
+            sub: [r.color, r.size].filter(Boolean).join(' · '),
+            badge: `${r.qty} uds`,
+            detail: `S/ ${r.totalSell.toFixed(2)}`,
+            barPct: totalQty > 0 ? Math.min((r.qty / totalQty) * 100, 100) : 0,
+          })),
+        };
+      });
+    }
+
+    if (activeReport === 'aging') {
+      const defs = [
+        { key: 'critical', label: '≥90 días', sublabel: 'Crítico — acción inmediata', headerBg: 'bg-[#7f1d1d]', headerText: 'text-[#fef2f2]', accentCss: '#dc2626',
+          filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince >= 90 },
+        { key: 'warning', label: '30–89 días', sublabel: 'Alerta — revisar pronto', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706',
+          filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince >= 30 && r.daysSince < 90 },
+        { key: 'low', label: '<30 días', sublabel: 'Estancado — monitorear', headerBg: 'bg-[#374151]', headerText: 'text-[#f9fafb]', accentCss: '#6b7280',
+          filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince < 30 },
+        { key: 'never', label: 'Sin despachos', sublabel: 'Nunca despachado', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99',
+          filter: (r: typeof agingData[0]) => r.daysSince === null },
+      ];
+      return defs.map(d => {
+        const rows = agingData.filter(d.filter);
+        const totalStock = rows.reduce((s, r) => s + r.stock, 0);
+        return {
+          key: d.key,
+          label: d.label,
+          sublabel: `${d.sublabel} · ${rows.length} prods · ${totalStock} uds`,
+          headerBg: d.headerBg,
+          headerText: d.headerText,
+          accentCss: d.accentCss,
+          items: rows.map(r => ({
+            id: r.prod.id,
+            code: r.prod.code,
+            name: r.prod.name,
+            sub: [r.prod.color, r.prod.size].filter(Boolean).join(' · '),
+            badge: r.daysSince !== null ? `${r.daysSince}d` : '—',
+            detail: `Stock: ${r.stock} uds`,
+          })),
+        };
+      }).filter(c => c.items.length > 0);
+    }
+
+    if (activeReport === 'adjustments') {
+      const defs = [
+        { key: 'up', label: 'Incrementos', sublabel: 'Stock aumentado', headerBg: 'bg-[#14532d]', headerText: 'text-[#f0fdf4]', accentCss: '#16a34a',
+          filter: (a: typeof filteredAdj[0]) => a.newQuantity > a.previousQuantity },
+        { key: 'down', label: 'Decrementos', sublabel: 'Stock reducido', headerBg: 'bg-[#7f1d1d]', headerText: 'text-[#fef2f2]', accentCss: '#dc2626',
+          filter: (a: typeof filteredAdj[0]) => a.newQuantity < a.previousQuantity },
+        { key: 'zero', label: 'Sin cambio', sublabel: 'Misma cantidad', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99',
+          filter: (a: typeof filteredAdj[0]) => a.newQuantity === a.previousQuantity },
+      ];
+      return defs.map(d => {
+        const rows = filteredAdj.filter(d.filter);
+        return {
+          key: d.key,
+          label: d.label,
+          sublabel: `${d.sublabel} · ${rows.length} ajustes`,
+          headerBg: d.headerBg,
+          headerText: d.headerText,
+          accentCss: d.accentCss,
+          items: rows.map(a => {
+            const prod = products.find(p => p.id === a.productId);
+            const diff = a.newQuantity - a.previousQuantity;
+            return {
+              id: a.id,
+              code: prod?.code || a.productId,
+              name: prod?.name || a.productId,
+              sub: format(new Date(a.date), 'dd/MM/yy'),
+              badge: `${diff > 0 ? '+' : ''}${diff}`,
+              detail: a.reason,
+            };
+          }),
+        };
+      }).filter(c => c.items.length > 0);
+    }
+
+    if (activeReport === 'movements') {
+      return movementsBySupplier.map((m, i) => {
+        const hues = ['bg-[#141414]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]'];
+        return {
+          key: m.supplier.id,
+          label: m.supplier.name,
+          sublabel: `${m.total} uds · ${m.txs.length} recepciones`,
+          headerBg: hues[i % hues.length],
+          headerText: 'text-[#E4E3E0]',
+          accentCss: '#9f9d99',
+          items: m.txs.map(tx => {
+            const prod = products.find(p => p.id === tx.productId);
+            return {
+              id: tx.id,
+              code: prod?.code || tx.productId,
+              name: prod?.name || tx.productId,
+              sub: [prod?.color, prod?.size].filter(Boolean).join(' · '),
+              badge: `${tx.quantity} uds`,
+              detail: format(new Date(tx.date), 'dd/MM/yyyy'),
+            };
+          }),
+        };
+      });
+    }
+
+    return [];
+  }, [activeReport, abcData, inventoryRows, agingData, filteredAdj, movementsBySupplier, products]);
+
+  // ─── Vista Kanban ──────────────────────────────────────────────────────────
+
+  const renderKanban = () => {
+    if (activeReport === 'valuation') return null;
+    if (kanbanCols.length === 0)
+      return <div className="text-center font-mono text-xs opacity-40 py-16 uppercase tracking-widest">Sin datos para mostrar</div>;
+
+    const colCount = Math.min(kanbanCols.length, 4);
+
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-2" style={{ alignItems: 'flex-start' }}>
+        {kanbanCols.map(col => (
+          <div
+            key={col.key}
+            className="flex flex-col border border-[#141414] shrink-0"
+            style={{ width: `calc((100% - ${(colCount - 1) * 12}px) / ${colCount})`, minWidth: 200 }}
+          >
+            {/* Cabecera de columna */}
+            <div className={`${col.headerBg} ${col.headerText} px-3 pt-3 pb-2.5`}>
+              <div className="font-mono font-black text-sm uppercase tracking-wide leading-none">{col.label}</div>
+              <div className="font-mono text-[8.5px] opacity-70 mt-1.5 leading-tight">{col.sublabel}</div>
+              {/* Barra de conteo */}
+              <div className="mt-2 h-0.5 bg-white/20">
+                <div className="h-full bg-white/60" style={{ width: `${Math.min((col.items.length / Math.max(...kanbanCols.map(c => c.items.length), 1)) * 100, 100)}%` }} />
+              </div>
+            </div>
+
+            {/* Tarjetas */}
+            <div className="flex flex-col gap-0 divide-y divide-[#141414]/10 overflow-y-auto" style={{ maxHeight: 420 }}>
+              {col.items.length === 0
+                ? <div className="py-6 text-center font-mono text-[9px] opacity-30 uppercase">Sin items</div>
+                : col.items.map(item => (
+                  <div key={item.id} className="px-3 py-2.5 hover:bg-white/50 transition-colors bg-white/20 group">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <span className="font-mono font-bold text-[10px] leading-tight">{item.code}</span>
+                      <span
+                        className="font-mono font-black text-[9px] px-1.5 py-0.5 shrink-0 leading-none"
+                        style={{ background: col.accentCss + '22', color: col.accentCss, border: `1px solid ${col.accentCss}55` }}
+                      >
+                        {item.badge}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[9px] opacity-75 mt-0.5 leading-snug line-clamp-1">{item.name}</div>
+                    {item.sub && <div className="font-mono text-[8px] opacity-45 mt-0.5">{item.sub}</div>}
+                    <div className="font-mono text-[8px] opacity-55 mt-1">{item.detail}</div>
+                    {item.barPct !== undefined && (
+                      <div className="mt-1.5 h-0.5 bg-[#141414]/10">
+                        <div className="h-full" style={{ width: `${item.barPct}%`, background: col.accentCss }} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+
+            {/* Pie de columna con total */}
+            <div className="px-3 py-1.5 border-t border-[#141414]/20 bg-[#141414]/5">
+              <span className="font-mono text-[8.5px] opacity-50 uppercase tracking-widest">{col.items.length} {col.items.length === 1 ? 'item' : 'items'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ─── Kanban en PDF ─────────────────────────────────────────────────────────
+
+  const buildKanbanHTML = () => {
+    if (kanbanCols.length === 0) return '';
+    const colPct = Math.floor(100 / Math.min(kanbanCols.length, 4));
+    const accentMap: Record<string, string> = {
+      '#16a34a': '#16a34a', '#d97706': '#d97706', '#dc2626': '#dc2626',
+      '#6b7280': '#6b7280', '#9f9d99': '#888',
+    };
+    const colsHTML = kanbanCols.map(col => {
+      const accent = accentMap[col.accentCss] || col.accentCss;
+      const cardsHTML = col.items.slice(0, 30).map(item => `
+        <div style="padding:6px 8px;border-bottom:1px solid #e5e7eb;break-inside:avoid;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+            <span style="font-weight:700;font-size:9px;">${item.code}</span>
+            <span style="font-size:8px;font-weight:700;padding:1px 5px;border:1px solid ${accent}55;color:${accent};background:${accent}18;white-space:nowrap;">${item.badge}</span>
+          </div>
+          <div style="font-size:8px;opacity:.75;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name}</div>
+          ${item.sub ? `<div style="font-size:7px;opacity:.45;margin-top:1px;">${item.sub}</div>` : ''}
+          <div style="font-size:7px;opacity:.55;margin-top:2px;">${item.detail}</div>
+          ${item.barPct !== undefined ? `<div style="margin-top:4px;height:2px;background:#f0f0f0;"><div style="height:100%;width:${item.barPct}%;background:${accent};"></div></div>` : ''}
+        </div>`).join('');
+      const moreItems = col.items.length > 30 ? `<div style="padding:6px 8px;font-size:8px;opacity:.5;text-align:center;">+${col.items.length - 30} más…</div>` : '';
+      return `
+        <div style="width:${colPct}%;box-sizing:border-box;border:1.5px solid #141414;display:inline-block;vertical-align:top;margin-right:${kanbanCols.length > 1 ? '8px' : '0'};break-inside:avoid;">
+          <div style="background:#141414;color:#E4E3E0;padding:10px 10px 8px;">
+            <div style="font-weight:900;font-size:11px;letter-spacing:.08em;text-transform:uppercase;">${col.label}</div>
+            <div style="font-size:7px;opacity:.65;margin-top:3px;letter-spacing:.05em;">${col.sublabel}</div>
+          </div>
+          ${cardsHTML}${moreItems}
+          <div style="padding:5px 8px;border-top:1px solid #e5e7eb;font-size:7px;opacity:.4;letter-spacing:.08em;text-transform:uppercase;">${col.items.length} items</div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="section-header" style="margin-bottom:10px;">
+        <span>Vista Kanban — Segmentación por grupos</span>
+        <span>${kanbanCols.length} columnas</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start;width:100%;">
+        ${colsHTML}
+      </div>`;
+  };
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col gap-6 h-full">
       <ModuleInfo number="10" title="Reportes" description="Generación y exportación de reportes operativos: inventario actual, movimientos por período, valorización de stock y alertas de stock bajo mínimo." />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
         <div>
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">11 // REPORTES</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Exportación y visualización de datos.</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={exportCSV} className="flex items-center gap-1.5 border border-[#141414] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-white/50 transition-all">
-            <Download size={13} /> CSV
-          </button>
-          <button onClick={handlePrint} className="flex items-center gap-1.5 bg-[#141414] text-[#E4E3E0] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all border border-[#141414]">
-            <Printer size={13} /> IMPRIMIR / PDF
-          </button>
+        <div className="flex items-center gap-2">
+          {activeReport !== 'valuation' && (
+            <div className="flex border border-[#141414]">
+              <button
+                onClick={() => setViewMode('list')}
+                title="Vista lista"
+                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}
+              >
+                <List size={12} /> Lista
+              </button>
+              <button
+                onClick={() => setViewMode('kanban')}
+                title="Vista kanban"
+                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest border-l border-[#141414] transition-colors ${viewMode === 'kanban' ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}
+              >
+                <LayoutGrid size={12} /> Kanban
+              </button>
+            </div>
+          )}
+          <ExportMenu onPDF={handlePDF} onExcel={exportExcel} onCSV={exportCSV} />
         </div>
       </div>
 
-      {/* Report selector */}
+      {/* Selector de reporte */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {([
           { id: 'inventory', label: 'Inventario Valorizado', icon: Package },
@@ -182,7 +874,7 @@ export const Reports: React.FC = () => {
         ))}
       </div>
 
-      {/* Date filter */}
+      {/* Filtro de fechas */}
       {(activeReport === 'movements' || activeReport === 'adjustments') && (
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex flex-col gap-1">
@@ -196,13 +888,17 @@ export const Reports: React.FC = () => {
               className="border border-[#141414] bg-white/50 px-3 py-1.5 text-xs font-mono focus:outline-none" />
           </div>
           {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="font-mono text-[10px] opacity-60 hover:opacity-100 mt-4">✕ Limpiar</button>
+            <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="font-mono text-[10px] opacity-60 hover:opacity-100 mt-4">✕ Limpiar</button>
           )}
         </div>
       )}
 
-      {/* Report content */}
-      <div ref={printRef} className="overflow-x-auto">
+      {/* Contenido del reporte */}
+      {viewMode === 'kanban' && activeReport !== 'valuation' ? (
+        <div className="pb-4">{renderKanban()}</div>
+      ) : null}
+      <div ref={printRef} className={`overflow-x-auto${viewMode === 'kanban' && activeReport !== 'valuation' ? ' hidden' : ''}`}>
         {activeReport === 'inventory' && (
           <table className="w-full text-[10px] font-mono border-collapse">
             <thead>
@@ -237,9 +933,9 @@ export const Reports: React.FC = () => {
               <tr className="border-t-2 border-[#141414]">
                 <td colSpan={4} className="py-2 pr-3 font-bold uppercase">TOTAL ({inventoryRows.length} SKUs)</td>
                 <td className="text-right py-2 px-3 font-black">{valuationTotal.units}</td>
-                <td className="text-right py-2 px-3"></td>
+                <td />
                 <td className="text-right py-2 px-3 font-black">S/ {valuationTotal.cost.toFixed(2)}</td>
-                <td className="text-right py-2 px-3"></td>
+                <td />
                 <td className="text-right py-2 pl-3 font-black">S/ {valuationTotal.sell.toFixed(2)}</td>
               </tr>
             </tfoot>
@@ -278,8 +974,7 @@ export const Reports: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              ))
-            }
+              ))}
           </div>
         )}
 

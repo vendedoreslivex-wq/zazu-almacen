@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   ClipboardList, Columns, Table2, Plus, X,
   Package, MapPin, User, Calendar, AlertTriangle, CheckCircle2,
-  Clock, Ban, ArrowRight, Search, ChevronRight
+  Clock, Ban, ArrowRight, Search, ChevronRight, Printer
 } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { Reservation, ReservationStatus } from '../types';
@@ -471,6 +471,7 @@ function StockTab({
   const [colorFilter, setColorFilter] = useState('');
   const [sizeFilter, setSizeFilter] = useState('');
 
+
   // Modelos únicos (nombres de producto sin color/talla)
   const models = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
   const colors = useMemo(() => [...new Set(products.map(p => p.color).filter(Boolean))].sort() as string[], [products]);
@@ -531,6 +532,173 @@ function StockTab({
   }, [products, totalByProduct, reservedByProduct, mainLocationByProduct, search, modelFilter, colorFilter, sizeFilter, filter]);
 
   const hasActiveFilters = search || modelFilter || colorFilter || sizeFilter || filter !== 'ALL';
+
+  const handlePrint = () => {
+    const now = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const totalReserved = rows.reduce((s, r) => s + r.reserved, 0);
+    const totalAvailable = rows.reduce((s, r) => s + (r.total - r.reserved), 0);
+    const criticals = rows.filter(r => r.total > 0 && r.reserved / r.total >= 0.5 && r.reserved > 0).length;
+
+    const tableRows = rows.map(({ product: p, total, reserved, location }) => {
+      const available = total - reserved;
+      const pct = total > 0 ? Math.round((reserved / total) * 100) : 0;
+      const isCritical = pct >= 50 && reserved > 0;
+      const isOver = available < 0;
+      const availColor = isOver ? '#dc2626' : available === 0 ? '#d97706' : '#16a34a';
+      const reservedColor = reserved > 0 ? '#d97706' : '#aaa';
+      const rowBg = isCritical ? '#fffbeb' : 'white';
+      const barPct = Math.min(pct, 100);
+      const barColor = isCritical ? '#fbbf24' : '#60a5fa';
+
+      return `
+        <tr style="background:${rowBg}; border-bottom:1px solid #e5e7eb;">
+          <td style="padding:10px 12px; vertical-align:top;">
+            <div style="font-size:12px; font-weight:600; color:#141414; font-family:inherit;">${p.name}</div>
+            <div style="font-size:9px; color:#888; text-transform:uppercase; margin-top:2px; letter-spacing:.05em;">
+              ${[p.color, p.size].filter(Boolean).join(' · ')}
+            </div>
+            ${reserved > 0 ? `
+            <div style="margin-top:6px; height:4px; background:#e5e7eb; border-radius:2px; overflow:hidden; width:100%;">
+              <div style="width:${barPct}%; height:100%; background:${barColor}; border-radius:2px;"></div>
+            </div>
+            <div style="font-size:8px; color:#aaa; margin-top:2px;">${pct}% reservado</div>
+            ` : ''}
+          </td>
+          <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:10px; color:#555;">${p.code}</td>
+          <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:10px; color:#555;">${location}</td>
+          <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:13px; font-weight:700; color:#141414; text-align:center;">${total}</td>
+          <td style="padding:10px 12px; text-align:center;">
+            ${isCritical ? '<span style="font-size:10px;margin-right:3px;">⚠</span>' : ''}
+            <span style="font-family:\'Courier New\',monospace; font-size:13px; font-weight:700; color:${reservedColor};">${reserved}</span>
+          </td>
+          <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:13px; font-weight:700; color:${availColor}; text-align:center;">${available}</td>
+        </tr>`;
+    }).join('');
+
+    const activeFiltersText = [
+      modelFilter && `Modelo: ${modelFilter}`,
+      colorFilter && `Color: ${colorFilter}`,
+      sizeFilter && `Talla: ${sizeFilter}`,
+      filter !== 'ALL' && (filter === 'RESERVADO' ? 'Solo con reserva' : 'Crítico ≥50%'),
+      search && `Búsqueda: "${search}"`,
+    ].filter(Boolean).join(' · ');
+
+    const html = `<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8">
+<title>Stock Reservado — LogixZazu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Mono', 'Courier New', monospace; background: white; color: #141414; padding: 32px 40px; font-size: 11px; }
+  @page { size: A4; margin: 20mm 15mm; }
+  @media print { body { padding: 0; } }
+
+  .header { border-bottom: 3px solid #141414; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-size: 22px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+  .brand-sub { font-size: 9px; letter-spacing: .18em; color: #888; text-transform: uppercase; margin-top: 3px; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .doc-title p { font-size: 9px; color: #888; letter-spacing: .05em; margin-top: 4px; }
+
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  .summary-card { border: 1.5px solid #141414; padding: 12px 14px; }
+  .summary-card.dark { background: #141414; color: #E4E3E0; }
+  .summary-card .label { font-size: 7.5px; letter-spacing: .18em; text-transform: uppercase; opacity: .5; margin-bottom: 6px; }
+  .summary-card .value { font-size: 26px; font-weight: 900; line-height: 1; }
+  .summary-card .hint { font-size: 7.5px; opacity: .4; letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; }
+
+  .filter-badge { display: inline-block; background: #f3f4f6; border: 1px solid #d1d5db; padding: 3px 8px; font-size: 8px; letter-spacing: .08em; color: #555; margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead { background: #141414; color: #E4E3E0; }
+  thead th { padding: 10px 12px; text-align: left; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
+  thead th.center { text-align: center; }
+  tbody tr:last-child { border-bottom: none; }
+  tfoot td { padding: 10px 12px; font-size: 10px; font-weight: 700; border-top: 2px solid #141414; background: #f9fafb; }
+  tfoot td.center { text-align: center; }
+
+  .legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 8.5px; color: #888; letter-spacing: .05em; text-transform: uppercase; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 8px; color: #aaa; letter-spacing: .05em; }
+</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <div class="brand">LOGIXZAZU</div>
+    <div class="brand-sub">Sistema de Inventario</div>
+  </div>
+  <div class="doc-title">
+    <h1>Stock Reservado</h1>
+    <p>Generado: ${now}</p>
+    <p>${rows.length} producto${rows.length !== 1 ? 's' : ''} mostrados</p>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="summary-card">
+    <div class="label">Total Reservado</div>
+    <div class="value">${totalReserved.toLocaleString('es-PE')}</div>
+    <div class="hint">unidades apartadas</div>
+  </div>
+  <div class="summary-card dark">
+    <div class="label">Total Disponible</div>
+    <div class="value">${totalAvailable.toLocaleString('es-PE')}</div>
+    <div class="hint">libre de reservas</div>
+  </div>
+  <div class="summary-card" style="${criticals > 0 ? 'background:#fff7ed; border-color:#f97316;' : ''}">
+    <div class="label">Críticos ≥50%</div>
+    <div class="value" style="color:${criticals > 0 ? '#c2410c' : '#141414'}">${criticals}</div>
+    <div class="hint">productos en alerta</div>
+  </div>
+</div>
+
+${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFiltersText}</div><br>` : ''}
+
+<table>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Código</th>
+      <th>Ubicación</th>
+      <th class="center">Total</th>
+      <th class="center">Reservado</th>
+      <th class="center">Disponible</th>
+    </tr>
+  </thead>
+  <tbody>${tableRows}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3" style="font-size:9px; color:#888; letter-spacing:.08em;">TOTALES</td>
+      <td class="center">${rows.reduce((s, r) => s + r.total, 0)}</td>
+      <td class="center" style="color:#d97706;">${totalReserved}</td>
+      <td class="center" style="color:#16a34a;">${totalAvailable}</td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="legend">
+  <div class="legend-item"><span class="dot" style="background:#22c55e"></span>Disponible</div>
+  <div class="legend-item"><span class="dot" style="background:#fbbf24"></span>Crítico ≥50%</div>
+  <div class="legend-item"><span class="dot" style="background:#ef4444"></span>Stock negativo</div>
+</div>
+
+<div class="footer">
+  <span>LOGIXZAZU · Stock Reservado</span>
+  <span>${now}</span>
+</div>
+
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 500);
+  };
 
   const selectCls = "bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider";
 
@@ -605,6 +773,14 @@ function StockTab({
         <span className="font-mono text-[10px] text-[#141414]/40 tracking-wider ml-auto">
           {rows.length} producto{rows.length !== 1 ? 's' : ''}
         </span>
+
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 border border-[#141414] bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]
+                     px-3 py-1.5 font-mono text-[10px] tracking-widest uppercase transition-all"
+        >
+          <Printer size={11} /> PDF
+        </button>
       </div>
 
       <div className="border border-[#141414] rounded-sm overflow-hidden">

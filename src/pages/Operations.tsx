@@ -300,9 +300,27 @@ export const Operations: React.FC = () => {
       />
 
       <div className="grid grid-cols-3 gap-2 bg-[#D4D3D0] border border-[#141414] p-2 shadow-[4px_4px_0_#141414]">
-        <OptButton icon={<ArrowDownLeft size={18} />} label="RECEPCIÓN" active={activeOpt === 'RECEPTION'} onClick={() => setActiveOpt('RECEPTION')} />
-        <OptButton icon={<ArrowUpRight size={18} />} label="DESPACHO" active={activeOpt === 'DISPATCH'} onClick={() => setActiveOpt('DISPATCH')} />
-        <OptButton icon={<ArrowRightLeft size={18} />} label="TRANSLADO" active={activeOpt === 'TRANSFER'} onClick={() => setActiveOpt('TRANSFER')} />
+        <OptButton
+          icon={<ArrowDownLeft size={18} />}
+          label="RECEPCIÓN"
+          desc="Registra entrada de productos al stock. Suma al inventario total."
+          active={activeOpt === 'RECEPTION'}
+          onClick={() => setActiveOpt('RECEPTION')}
+        />
+        <OptButton
+          icon={<ArrowUpRight size={18} />}
+          label="DESPACHO"
+          desc="Registra salida de productos. Descuenta del inventario disponible."
+          active={activeOpt === 'DISPATCH'}
+          onClick={() => setActiveOpt('DISPATCH')}
+        />
+        <OptButton
+          icon={<ArrowRightLeft size={18} />}
+          label="TRANSLADO"
+          desc="Mueve productos entre almacenes. El total del inventario no cambia."
+          active={activeOpt === 'TRANSFER'}
+          onClick={() => setActiveOpt('TRANSFER')}
+        />
       </div>
 
       <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 relative overflow-visible">
@@ -319,16 +337,24 @@ export const Operations: React.FC = () => {
 
 // ─── OptButton ─────────────────────────────────────────────────────────────────
 
-const OptButton = ({ icon, label, active, onClick }: any) => (
+const OptButton = ({ icon, label, desc, active, onClick }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      'flex flex-col items-center justify-center gap-2 p-3 lg:p-4 border border-[#141414] transition-all',
+      'flex flex-col items-center gap-2 p-3 lg:p-4 border border-[#141414] transition-all',
       active ? 'bg-[#141414] text-[#E4E3E0] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]' : 'bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]'
     )}
   >
     <div className={cn(active ? '' : 'opacity-70')}>{icon}</div>
     <span className={cn('font-mono text-[9px] lg:text-[10px] tracking-widest font-bold uppercase', active ? '' : 'opacity-70')}>{label}</span>
+    {desc && (
+      <span className={cn(
+        'font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full',
+        active ? 'border-white/20 text-white/60' : 'border-[#141414]/15 text-[#141414]/50'
+      )}>
+        {desc}
+      </span>
+    )}
   </button>
 );
 
