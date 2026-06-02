@@ -4,6 +4,7 @@ import { ModuleInfo } from '../components/ModuleInfo';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
+  BarChart2, MapPin, Package, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SignaturePad from 'signature_pad';
@@ -331,6 +332,10 @@ export const Operations: React.FC = () => {
       </div>
 
       <RecentTransactions />
+
+      <div className="border border-[#141414] bg-white/30 p-5 shadow-[3px_3px_0_#141414]">
+        <OperationsReport />
+      </div>
     </div>
   );
 };
@@ -1233,6 +1238,295 @@ const RecentTransactions: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Operations Report ─────────────────────────────────────────────────────────
+
+const OperationsReport: React.FC = () => {
+  const { transactions, products, locations } = useAppContext();
+  const [reportType, setReportType] = useState<'type' | 'destination' | 'product'>('type');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const active = useMemo(
+    () => transactions.filter(tx => tx.status !== 'CANCELLED'),
+    [transactions],
+  );
+
+  const filtered = useMemo(() => {
+    return active.filter(tx => {
+      if (dateFrom) {
+        const d = new Date(tx.date); const f = new Date(dateFrom + 'T00:00:00');
+        if (d < f) return false;
+      }
+      if (dateTo) {
+        const d = new Date(tx.date); const t = new Date(dateTo + 'T23:59:59');
+        if (d > t) return false;
+      }
+      return true;
+    });
+  }, [active, dateFrom, dateTo]);
+
+  // ── By operation type ──
+  const byType = useMemo(() => {
+    const map: Record<string, { count: number; units: number }> = {
+      RECEPTION: { count: 0, units: 0 },
+      DISPATCH:  { count: 0, units: 0 },
+      TRANSFER:  { count: 0, units: 0 },
+    };
+    filtered.forEach(tx => {
+      if (!map[tx.type]) return;
+      map[tx.type].count += 1;
+      map[tx.type].units += tx.quantity;
+    });
+    return map;
+  }, [filtered]);
+
+  // ── By destination location ──
+  const byDestination = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; units: number }>();
+    filtered.forEach(tx => {
+      const locId = tx.toLocationId;
+      if (!locId) return;
+      const loc = locations.find(l => l.id === locId);
+      const name = loc?.name ?? locId;
+      if (!map.has(locId)) map.set(locId, { name, count: 0, units: 0 });
+      const entry = map.get(locId)!;
+      entry.count += 1;
+      entry.units += tx.quantity;
+    });
+    return [...map.values()].sort((a, b) => b.units - a.units);
+  }, [filtered, locations]);
+
+  // ── By product ──
+  const byProduct = useMemo(() => {
+    const map = new Map<string, { name: string; code: string; in: number; out: number; transfer: number }>();
+    filtered.forEach(tx => {
+      const prod = products.find(p => p.id === tx.productId);
+      const name = prod?.name ?? tx.productId;
+      const code = prod?.code ?? '';
+      if (!map.has(tx.productId)) map.set(tx.productId, { name, code, in: 0, out: 0, transfer: 0 });
+      const e = map.get(tx.productId)!;
+      if (tx.type === 'RECEPTION') e.in += tx.quantity;
+      else if (tx.type === 'DISPATCH') e.out += tx.quantity;
+      else e.transfer += tx.quantity;
+    });
+    return [...map.values()].sort((a, b) => (b.in + b.out + b.transfer) - (a.in + a.out + a.transfer)).slice(0, 20);
+  }, [filtered, products]);
+
+  const totalUnits = filtered.reduce((s, tx) => s + tx.quantity, 0);
+  const totalOps   = filtered.length;
+
+  const TYPE_CFG = {
+    RECEPTION: { label: 'Recepciones', icon: ArrowDownLeft, color: 'text-green-700', bg: 'bg-green-50 border-green-300' },
+    DISPATCH:  { label: 'Despachos',   icon: ArrowUpRight,  color: 'text-red-700',   bg: 'bg-red-50 border-red-300' },
+    TRANSFER:  { label: 'Traslados',   icon: ArrowRightLeft,color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-300' },
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={14} className="opacity-50" />
+          <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-60">REPORTE DE OPERACIONES</h2>
+        </div>
+        {/* Date range filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40">Período:</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] cursor-pointer"
+          />
+          <span className="font-mono text-[9px] opacity-30">→</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] cursor-pointer"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"
+            >
+              ✕ LIMPIAR
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="border border-[#141414] bg-white/60 p-3 shadow-[2px_2px_0_#141414]">
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Total Ops.</div>
+          <div className="font-mono font-black text-xl text-[#141414]">{totalOps}</div>
+          <div className="font-mono text-[8px] opacity-40 mt-0.5">operaciones</div>
+        </div>
+        <div className="border border-[#141414] bg-white/60 p-3 shadow-[2px_2px_0_#141414]">
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Unidades Mov.</div>
+          <div className="font-mono font-black text-xl text-[#141414]">{totalUnits.toLocaleString('es-PE')}</div>
+          <div className="font-mono text-[8px] opacity-40 mt-0.5">unidades</div>
+        </div>
+        {(['RECEPTION', 'DISPATCH'] as const).map(t => {
+          const cfg = TYPE_CFG[t];
+          const Icon = cfg.icon;
+          return (
+            <div key={t} className={`border p-3 ${cfg.bg}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon size={11} className={cfg.color} />
+                <span className={`font-mono text-[8px] font-bold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</span>
+              </div>
+              <div className={`font-mono font-black text-xl ${cfg.color}`}>{byType[t].units.toLocaleString('es-PE')}</div>
+              <div className="font-mono text-[8px] opacity-50 mt-0.5">{byType[t].count} operaciones</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Type breakdown bar */}
+      <div className="border border-[#141414] bg-white/40 p-3">
+        <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribución por tipo (unidades)</div>
+        <div className="flex gap-1 h-5 rounded-sm overflow-hidden">
+          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+            const pct = totalUnits > 0 ? (byType[t].units / totalUnits) * 100 : 0;
+            const colors = { RECEPTION: 'bg-green-500', DISPATCH: 'bg-red-500', TRANSFER: 'bg-blue-400' };
+            return pct > 0 ? (
+              <div key={t} className={`${colors[t]} h-full`} style={{ width: `${pct}%` }} title={`${TYPE_CFG[t].label}: ${byType[t].units} uds`} />
+            ) : null;
+          })}
+        </div>
+        <div className="flex gap-3 mt-1.5 flex-wrap">
+          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+            const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
+            const dots = { RECEPTION: 'bg-green-500', DISPATCH: 'bg-red-500', TRANSFER: 'bg-blue-400' };
+            return (
+              <div key={t} className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${dots[t]}`} />
+                <span className="font-mono text-[8px] opacity-60 uppercase">{TYPE_CFG[t].label}</span>
+                <span className="font-mono text-[8px] font-bold">{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab selector */}
+      <div className="flex border-b border-[#141414]/20">
+        {([
+          { id: 'type',        label: 'Por Tipo' },
+          { id: 'destination', label: 'Por Destino' },
+          { id: 'product',     label: 'Top Productos' },
+        ] as { id: typeof reportType; label: string }[]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setReportType(tab.id)}
+            className={`px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors ${
+              reportType === tab.id
+                ? 'border-[#141414] text-[#141414]'
+                : 'border-transparent opacity-40 hover:opacity-70'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── By Type ── */}
+      {reportType === 'type' && (
+        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+          <div className="grid grid-cols-4 bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">
+            <div>Tipo</div>
+            <div className="text-right">Operaciones</div>
+            <div className="text-right">Unidades</div>
+            <div className="text-right">% del total</div>
+          </div>
+          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+            const cfg = TYPE_CFG[t];
+            const Icon = cfg.icon;
+            const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
+            return (
+              <div key={t} className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center">
+                <div className="flex items-center gap-2">
+                  <Icon size={12} className={cfg.color} />
+                  <span className={`font-mono text-[10px] font-bold uppercase ${cfg.color}`}>{cfg.label}</span>
+                </div>
+                <div className="font-mono text-[11px] font-bold text-right text-[#141414]">{byType[t].count}</div>
+                <div className="font-mono text-[11px] font-black text-right text-[#141414]">{byType[t].units.toLocaleString('es-PE')}</div>
+                <div className="text-right">
+                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border ${cfg.bg} ${cfg.color}`}>{pct}%</span>
+                </div>
+              </div>
+            );
+          })}
+          <div className="grid grid-cols-4 px-4 py-2.5 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[10px] font-black uppercase">
+            <div className="opacity-50 text-[8px]">TOTAL</div>
+            <div className="text-right">{totalOps}</div>
+            <div className="text-right">{totalUnits.toLocaleString('es-PE')}</div>
+            <div className="text-right opacity-40">100%</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── By Destination ── */}
+      {reportType === 'destination' && (
+        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-4">
+            <div>Ubicación Destino</div>
+            <div className="text-right">Ops.</div>
+            <div className="text-right w-24">Unidades</div>
+          </div>
+          {byDestination.length === 0 ? (
+            <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin datos de destino</div>
+          ) : byDestination.map((row, i) => {
+            const barPct = byDestination[0].units > 0 ? (row.units / byDestination[0].units) * 100 : 0;
+            return (
+              <div key={i} className="px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50">
+                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin size={10} className="opacity-40 shrink-0" />
+                    <span className="font-mono text-[10px] font-bold text-[#141414] truncate uppercase">{row.name}</span>
+                  </div>
+                  <div className="font-mono text-[10px] font-bold text-right">{row.count}</div>
+                  <div className="font-mono text-[11px] font-black text-right w-24 text-green-700">{row.units.toLocaleString('es-PE')}</div>
+                </div>
+                <div className="h-1 bg-[#141414]/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#141414]/30 rounded-full" style={{ width: `${barPct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Top Products ── */}
+      {reportType === 'product' && (
+        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-3">
+            <div>Producto</div>
+            <div className="text-right text-green-400">Entradas</div>
+            <div className="text-right text-red-400">Salidas</div>
+            <div className="text-right w-16">Traslados</div>
+          </div>
+          {byProduct.length === 0 ? (
+            <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones</div>
+          ) : byProduct.map((row, i) => (
+            <div key={i} className={`grid grid-cols-[1fr_auto_auto_auto] px-4 py-2.5 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center gap-3 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
+              <div className="min-w-0">
+                <div className="font-mono text-[10px] font-bold text-[#141414] truncate uppercase">{row.name}</div>
+                {row.code && <div className="font-mono text-[8px] opacity-40">{row.code}</div>}
+              </div>
+              <div className="font-mono text-[10px] font-bold text-right text-green-700 w-16">{row.in > 0 ? row.in.toLocaleString('es-PE') : '—'}</div>
+              <div className="font-mono text-[10px] font-bold text-right text-red-600 w-16">{row.out > 0 ? row.out.toLocaleString('es-PE') : '—'}</div>
+              <div className="font-mono text-[10px] font-bold text-right text-blue-600 w-16">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : '—'}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
