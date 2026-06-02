@@ -18,6 +18,7 @@ import { Labels } from './pages/Labels';
 import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
 import { Reservations } from './pages/Reservations';
+import { OdooStock } from './pages/OdooStock';
 import { ResetPassword } from './pages/ResetPassword';
 import { supabase } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -47,6 +48,7 @@ function AppShell() {
         <Route path="/warehouse-map" element={<WarehouseMap />} />
         <Route path="/operation-history" element={<OperationHistory />} />
         <Route path="/reservations" element={<Reservations />} />
+        <Route path="/odoo-stock" element={<OdooStock />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
