@@ -172,7 +172,7 @@ export const Users: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-5 h-full relative">
+    <div className="flex flex-col gap-5 min-h-0 relative w-full overflow-x-hidden">
       <ModuleInfo number="13" title="Usuarios y Roles" description="Administración de usuarios y control de accesos por módulo." />
 
       {/* Header */}
@@ -286,18 +286,19 @@ export const Users: React.FC = () => {
               <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">
                 Haz clic en una celda para cambiar el nivel de acceso
               </span>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[10px] font-mono border-collapse">
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="text-[10px] font-mono border-collapse" style={{ minWidth: 480 }}>
                   <thead>
                     <tr>
-                      <th className="text-left pb-3 pr-4 font-mono text-[9px] tracking-widest uppercase text-[#141414]/40 w-40">
+                      <th className="text-left pb-3 pr-4 font-mono text-[9px] tracking-widest uppercase text-[#141414]/40 w-32">
                         Módulo
                       </th>
                       {roles.map(r => (
-                        <th key={r} className="pb-3 px-2 text-center min-w-[100px]">
-                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[9px] font-black tracking-wider rounded-sm ${ROLE_COLORS[r]}`}>
+                        <th key={r} className="pb-3 px-1.5 text-center min-w-[90px]">
+                          <div className={`inline-flex items-center gap-1 px-2 py-1.5 text-[8px] font-black tracking-wider rounded-sm ${ROLE_COLORS[r]}`}>
                             <RoleIcon role={r} />
-                            {ROLE_LABELS[r].toUpperCase()}
+                            <span className="hidden sm:inline">{ROLE_LABELS[r].toUpperCase()}</span>
+                            <span className="sm:hidden">{r === 'ADMIN_GENERAL' ? 'ADM' : r === 'ADMINISTRADOR' ? 'ADM' : r === 'JEFE_ALMACEN' ? 'JA' : 'CEO'}</span>
                           </div>
                         </th>
                       ))}

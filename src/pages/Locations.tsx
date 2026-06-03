@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode } from 'lucide-react';
+import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode, ChevronLeft } from 'lucide-react';
 import { QRModal } from '../components/QRModal';
 import { Location } from '../types';
 import { cn } from '../lib/utils';
@@ -28,6 +28,12 @@ export const Locations: React.FC = () => {
 
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [qrLocation, setQrLocation] = useState<Location | null>(null);
+
+  // Detail view
+  const [detailLocation, setDetailLocation] = useState<Location | null>(null);
+  const [detailFilterName, setDetailFilterName] = useState('');
+  const [detailFilterColor, setDetailFilterColor] = useState('');
+  const [detailFilterSize, setDetailFilterSize] = useState('');
 
   const toggleLocationExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -171,6 +177,41 @@ export const Locations: React.FC = () => {
     return { uniqueSKUs, totalItems, locationProducts };
   };
 
+  // Detail view derived data
+  const detailItems = useMemo(() => {
+    if (!detailLocation) return [];
+    return stockLevels
+      .filter(s => s.locationId === detailLocation.id && s.quantity > 0)
+      .map(s => ({ ...s, product: products.find(p => p.id === s.productId) }))
+      .filter(s => s.product);
+  }, [detailLocation, stockLevels, products]);
+
+  const detailNames = useMemo(() =>
+    Array.from(new Set<string>(detailItems.map(s => s.product!.name))).sort(),
+    [detailItems]);
+  const detailColors = useMemo(() =>
+    Array.from(new Set<string>(detailItems.filter(s => !detailFilterName || s.product!.name === detailFilterName).map(s => s.product!.color ?? '').filter(Boolean))).sort(),
+    [detailItems, detailFilterName]);
+  const detailSizes = useMemo(() =>
+    Array.from(new Set<string>(detailItems.filter(s => (!detailFilterName || s.product!.name === detailFilterName) && (!detailFilterColor || s.product!.color === detailFilterColor)).map(s => s.product!.size?.trim() ?? '').filter(Boolean))).sort(),
+    [detailItems, detailFilterName, detailFilterColor]);
+
+  const detailFiltered = useMemo(() =>
+    detailItems.filter(s =>
+      (!detailFilterName || s.product!.name === detailFilterName) &&
+      (!detailFilterColor || s.product!.color === detailFilterColor) &&
+      (!detailFilterSize || s.product!.size?.trim() === detailFilterSize)
+    ),
+    [detailItems, detailFilterName, detailFilterColor, detailFilterSize]);
+
+  const openDetail = (loc: Location, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDetailLocation(loc);
+    setDetailFilterName('');
+    setDetailFilterColor('');
+    setDetailFilterSize('');
+  };
+
   return (
     <div className="flex flex-col gap-6 h-full relative">
       <ModuleInfo number="04" title="Ubicaciones" description="Gestión de la estructura física del almacén: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
@@ -225,10 +266,10 @@ export const Locations: React.FC = () => {
           const isExpanded = expandedLocations.has(loc.id);
           
           return (
-            <div 
-              key={loc.id} 
+            <div
+              key={loc.id}
               className={cn("bg-white/40 border border-[#141414] p-4 flex flex-col gap-4 shadow-[4px_4px_0_rgba(20,20,20,0.1)] hover:shadow-[4px_4px_0_#141414] transition-all relative group cursor-pointer", stats.totalItems === 0 && "opacity-80 bg-gray-100/40")}
-              onClick={(e) => toggleLocationExpand(loc.id, e)}
+              onClick={(e) => stats.totalItems > 0 ? openDetail(loc, e) : toggleLocationExpand(loc.id, e)}
             >
               <div className="flex justify-between items-start">
                 <div className="flex gap-2 items-center">
@@ -298,7 +339,7 @@ export const Locations: React.FC = () => {
               )}
               {stats.locationProducts.length > 0 && (
                 <div className="text-[9px] text-[#141414] font-mono opacity-50 uppercase text-center mt-2 group-hover:opacity-100 transition-opacity">
-                  {isExpanded ? 'OCULTAR PRODUCTOS' : 'VER PRODUCTOS ALMACENADOS'}
+                  VER PRODUCTOS ALMACENADOS →
                 </div>
               )}
             </div>
@@ -485,6 +526,132 @@ export const Locations: React.FC = () => {
                   CONFIRMAR
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location detail modal */}
+      {detailLocation && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[6px_6px_0_#141414] w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setDetailLocation(null)} className="flex items-center gap-1 font-mono text-[10px] opacity-60 hover:opacity-100 transition-opacity">
+                  <ChevronLeft size={13} /> VOLVER
+                </button>
+                <span className="font-mono text-[10px] opacity-30">|</span>
+                <MapPin size={13} className="opacity-50" />
+                <span className="font-mono font-bold text-xs uppercase tracking-widest">{detailLocation.name}</span>
+                <span className="font-mono text-[9px] opacity-50 border border-[#141414]/30 px-1.5 py-0.5">{detailLocation.type}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[10px] opacity-50">{detailItems.length} SKUs · {detailItems.reduce((s, i) => s + i.quantity, 0)} uds.</span>
+                <button onClick={() => setDetailLocation(null)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="border-b border-[#141414]/20 px-5 py-3 flex flex-wrap gap-2 shrink-0 bg-white/20">
+              {/* Producto */}
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Producto</span>
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => { setDetailFilterName(''); setDetailFilterColor(''); setDetailFilterSize(''); }}
+                    className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterName ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                    TODOS
+                  </button>
+                  {detailNames.map(n => (
+                    <button key={n} onClick={() => { setDetailFilterName(detailFilterName === n ? '' : n); setDetailFilterColor(''); setDetailFilterSize(''); }}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterName === n ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {detailColors.length > 0 && (
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Color</span>
+                  <div className="flex flex-wrap gap-1">
+                    <button onClick={() => { setDetailFilterColor(''); setDetailFilterSize(''); }}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterColor ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                      TODOS
+                    </button>
+                    {detailColors.map(c => (
+                      <button key={c} onClick={() => { setDetailFilterColor(detailFilterColor === c ? '' : c); setDetailFilterSize(''); }}
+                        className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterColor === c ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {detailSizes.length > 0 && (
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Talla</span>
+                  <div className="flex flex-wrap gap-1">
+                    <button onClick={() => setDetailFilterSize('')}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterSize ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                      TODAS
+                    </button>
+                    {detailSizes.map(s => (
+                      <button key={s} onClick={() => setDetailFilterSize(detailFilterSize === s ? '' : s)}
+                        className={`min-w-[36px] px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterSize === s ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Product grid */}
+            <div className="overflow-y-auto p-5 flex-1">
+              {detailFiltered.length === 0 ? (
+                <div className="text-center font-mono text-xs opacity-40 py-12 uppercase tracking-widest">Sin productos con esos filtros</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {detailFiltered.map(item => (
+                    <div key={`${item.productId}-${item.locationId}`}
+                      className="border border-[#141414] bg-white/50 flex flex-col p-3 gap-2 hover:bg-white transition-colors">
+                      <div className="font-mono text-[8px] opacity-50 font-bold uppercase tracking-wide truncate">
+                        {item.product!.code}
+                      </div>
+                      <div className="font-mono font-black text-xs uppercase leading-tight">
+                        {item.product!.name}
+                      </div>
+                      {(item.product!.color || item.product!.size) && (
+                        <div className="flex flex-wrap gap-1">
+                          {item.product!.color && (
+                            <span className="font-mono text-[8px] border border-[#141414]/30 px-1.5 py-0.5 uppercase bg-white/60">
+                              {item.product!.color}
+                            </span>
+                          )}
+                          {item.product!.size && (
+                            <span className="font-mono text-[8px] border border-[#141414]/30 px-1.5 py-0.5 uppercase bg-white/60">
+                              {item.product!.size}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="mt-auto pt-2 border-t border-[#141414]/10 flex items-end justify-between">
+                        <span className="font-mono text-[8px] opacity-40 uppercase">uds.</span>
+                        <span className="font-mono font-black text-2xl leading-none">{item.quantity}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer count */}
+            <div className="border-t border-[#141414]/20 px-5 py-2 shrink-0 flex justify-between items-center bg-white/10">
+              <span className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
+                {detailFiltered.length} SKUs mostrados · {detailFiltered.reduce((s, i) => s + i.quantity, 0)} unidades
+              </span>
             </div>
           </div>
         </div>

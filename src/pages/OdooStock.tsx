@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, AlertTriangle, Package, TrendingUp, TrendingDown, MapPin, Search, ChevronDown, ChevronRight, Wifi, WifiOff, Clock, BarChart2, List, Grid3X3 } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Package, TrendingUp, TrendingDown, MapPin, Search, ChevronDown, ChevronRight, Wifi, WifiOff, Clock, BarChart2, List, Grid3X3, X, SlidersHorizontal } from 'lucide-react';
 import { ModuleInfo } from '../components/ModuleInfo';
 import {
   fetchOdooAll,
@@ -10,37 +10,20 @@ import {
 
 type ViewMode = 'products' | 'locations' | 'moves';
 type Status = 'idle' | 'loading' | 'ok' | 'error';
+type StockAlert = 'all' | 'over' | 'low' | 'critical';
 
 type ResolvedAttr = { attrName: string; value: string; color: string | false };
-
 type VariantWithAttrs = OdooVariant & { attrs: ResolvedAttr[] };
-
-type ProductRow = OdooProduct & {
-  variants: VariantWithAttrs[];
-  quants: OdooQuant[];
-};
-
-// ─── Companies ────────────────────────────────────────────────────────────────
-
-const COMPANIES: { id: number; label: string; sub: string }[] = [
-  { id: 5,  label: 'BOX PRIME',     sub: 'Box Prime Peru' },
-  { id: 8,  label: 'OVERSHARK',     sub: 'Overshark Peru S.A.C.' },
-  { id: 11, label: 'BRAVOS URBAN',  sub: 'Bravos Urban Co.' },
-];
+type ProductRow = OdooProduct & { variants: VariantWithAttrs[]; quants: OdooQuant[] };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtQty(n: number) {
-  return n.toLocaleString('es-PE', { maximumFractionDigits: 0 });
-}
+function fmtQty(n: number) { return n.toLocaleString('es-PE', { maximumFractionDigits: 0 }); }
 function fmtDate(d: string) {
   return new Date(d).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
-
-// Strips internal reference prefixes from product names (e.g. "[OVER-REF-001] Polo" → "Polo")
 function isColorAttr(name: string) { return /color|colour|tono|color\s*tejido/i.test(name); }
 function isSizeAttr(name: string)  { return /talla|size|talle|talla\s*tejido/i.test(name); }
-
 function cleanName(raw: string | undefined | false): string {
   if (!raw) return '';
   return raw.replace(/^\[[^\]]*\]\s*/, '').trim();
@@ -71,6 +54,35 @@ function StatCard({ label, value, sub, icon: Icon, accent }: { label: string; va
   );
 }
 
+// ─── Filter Section (colapsable) ──────────────────────────────────────────────
+
+const FilterSection: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-[#141414]/10 last:border-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#141414]/5 transition-colors"
+      >
+        <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/60">{title}</span>
+        <ChevronDown size={12} className={`opacity-40 transition-transform ${open ? '' : '-rotate-90'}`} />
+      </button>
+      {open && <div className="px-4 pb-3">{children}</div>}
+    </div>
+  );
+};
+
+// ─── Variant alert dot ────────────────────────────────────────────────────────
+
+function VariantAlertDot({ qty }: { qty: number }) {
+  const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
+  if (qty > OVER)                       return <span title="Sobre stock"  className="w-2 h-2 rounded-full bg-green-500 shrink-0" />;
+  if (qty >= LOW_MIN && qty <= LOW_MAX) return <span title="Por acabar"   className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />;
+  if (qty > 0 && qty < CRITICAL)        return <span title="Stock crítico" className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" />;
+  if (qty === 0)                         return <span title="Sin stock"    className="w-2 h-2 rounded-full bg-[#141414]/20 shrink-0" />;
+  return null;
+}
+
 // ─── Product Row ──────────────────────────────────────────────────────────────
 
 const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
@@ -89,15 +101,24 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono font-bold text-[11px] text-[#141414] truncate">{cleanName(row.name)}</span>
-            {row.default_code && (
-              <span className="font-mono text-[9px] opacity-50">[{row.default_code}]</span>
-            )}
+            {row.default_code && <span className="font-mono text-[9px] opacity-50">[{row.default_code}]</span>}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="font-mono text-[9px] opacity-50 uppercase">{row.categ_id[1]}</span>
-            {row.variants.length > 0 && (
-              <span className={badge('blue', `${row.variants.length} var.`)} />
-            )}
+            {row.variants.length > 0 && <span className={badge('blue', `${row.variants.length} var.`)} />}
+            {row.variants.length > 0 && (() => {
+              const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
+              const critical = row.variants.filter(v => v.qty_available > 0 && v.qty_available < CRITICAL).length;
+              const low      = row.variants.filter(v => v.qty_available >= LOW_MIN && v.qty_available <= LOW_MAX).length;
+              const over     = row.variants.filter(v => v.qty_available > OVER).length;
+              return (
+                <span className="flex items-center gap-1">
+                  {critical > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-red-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{critical}</span>}
+                  {low      > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-yellow-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />{low}</span>}
+                  {over     > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-green-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />{over}</span>}
+                </span>
+              );
+            })()}
           </div>
         </div>
         <div className="flex items-center gap-4 shrink-0">
@@ -106,9 +127,7 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
             <div className="font-mono text-[9px] opacity-40 uppercase">stock</div>
           </div>
           <div className="text-right hidden md:block">
-            <div className={`font-mono font-bold text-sm ${available > 0 ? 'text-green-700' : 'text-red-600'}`}>
-              {fmtQty(available)}
-            </div>
+            <div className={`font-mono font-bold text-sm ${available > 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtQty(available)}</div>
             <div className="font-mono text-[9px] opacity-40 uppercase">disponible</div>
           </div>
           {reserved > 0 && (
@@ -117,7 +136,8 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
               <div className="font-mono text-[9px] opacity-40 uppercase">reservado</div>
             </div>
           )}
-          <span className={badge(totalQty === 0 ? 'red' : available > 0 ? 'green' : 'yellow',
+          <span className={badge(
+            totalQty === 0 ? 'red' : available > 0 ? 'green' : 'yellow',
             totalQty === 0 ? 'sin stock' : available > 0 ? 'disponible' : 'reservado'
           )} />
         </div>
@@ -130,21 +150,17 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
               <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-50 mb-2">Variantes ({row.variants.length})</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {row.variants.map(v => {
-                  const colorAttr = v.attrs.find(a => isColorAttr(a.attrName));
-                  const sizeAttr  = v.attrs.find(a => isSizeAttr(a.attrName));
+                  const colorAttr  = v.attrs.find(a => isColorAttr(a.attrName));
+                  const sizeAttr   = v.attrs.find(a => isSizeAttr(a.attrName));
                   const otherAttrs = v.attrs.filter(a => a !== colorAttr && a !== sizeAttr);
                   return (
                     <div key={v.id} className={`border bg-white/60 px-3 py-2 flex items-center justify-between gap-2 ${v.qty_available > 0 ? 'border-[#141414]/20' : 'border-[#141414]/10 opacity-50'}`}>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          <VariantAlertDot qty={v.qty_available} />
                           {colorAttr && (
                             <div className="flex items-center gap-1">
-                              {colorAttr.color ? (
-                                <span
-                                  className="w-3 h-3 rounded-full border border-[#141414]/20 shrink-0"
-                                  style={{ backgroundColor: colorAttr.color }}
-                                />
-                              ) : null}
+                              {colorAttr.color && <span className="w-3 h-3 rounded-full border border-[#141414]/20 shrink-0" style={{ backgroundColor: colorAttr.color }} />}
                               <span className="font-mono text-[10px] font-bold text-[#141414]">{colorAttr.value}</span>
                             </div>
                           )}
@@ -152,19 +168,13 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
                           {sizeAttr && (
                             <span className="font-mono text-[10px] font-bold text-[#141414] border border-[#141414]/30 px-1.5 py-0.5 leading-none">{sizeAttr.value}</span>
                           )}
-                          {otherAttrs.map(a => (
-                            <span key={a.attrName} className="font-mono text-[9px] opacity-60">{a.value}</span>
-                          ))}
-                          {v.attrs.length === 0 && (
-                            <span className="font-mono text-[9px] opacity-40 italic">sin atributos</span>
-                          )}
+                          {otherAttrs.map(a => <span key={a.attrName} className="font-mono text-[9px] opacity-60">{a.value}</span>)}
+                          {v.attrs.length === 0 && <span className="font-mono text-[9px] opacity-40 italic">sin atributos</span>}
                         </div>
                         {v.default_code && <div className="font-mono text-[9px] opacity-30">{v.default_code}</div>}
                       </div>
                       <div className="text-right shrink-0">
-                        <div className={`font-mono font-black text-sm ${v.qty_available > 0 ? 'text-green-700' : 'text-red-500'}`}>
-                          {fmtQty(v.qty_available)}
-                        </div>
+                        <div className={`font-mono font-black text-sm ${v.qty_available > 0 ? 'text-green-700' : 'text-red-500'}`}>{fmtQty(v.qty_available)}</div>
                         <div className="font-mono text-[9px] opacity-40">uds</div>
                       </div>
                     </div>
@@ -199,24 +209,30 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const OdooStock: React.FC = () => {
-  const [status, setStatus] = useState<Status>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus]       = useState<Status>('idle');
+  const [error, setError]         = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
-  const [products, setProducts] = useState<OdooProduct[]>([]);
-  const [variants, setVariants] = useState<OdooVariant[]>([]);
-  const [quants, setQuants] = useState<OdooQuant[]>([]);
+  const [products,  setProducts]  = useState<OdooProduct[]>([]);
+  const [variants,  setVariants]  = useState<OdooVariant[]>([]);
+  const [quants,    setQuants]    = useState<OdooQuant[]>([]);
   const [locations, setLocations] = useState<OdooStockLocation[]>([]);
-  const [moves, setMoves] = useState<OdooStockMove[]>([]);
-  const [attrMap, setAttrMap] = useState<Map<number, OdooAttributeValue>>(new Map());
+  const [moves,     setMoves]     = useState<OdooStockMove[]>([]);
+  const [attrMap,   setAttrMap]   = useState<Map<number, OdooAttributeValue>>(new Map());
 
   const [view, setView] = useState<ViewMode>('products');
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [stockFilter, setStockFilter] = useState<'all' | 'in' | 'out'>('all');
-  const [companyFilter, setCompanyFilter] = useState<number | 'ALL'>('ALL');
-  const [colorFilter, setColorFilter] = useState('ALL');
-  const [sizeFilter, setSizeFilter] = useState('ALL');
+
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [sidebarOpen, setSidebarOpen]           = useState(true);
+  const [alertFilter, setAlertFilter]           = useState<StockAlert>('all');
+  const [companyFilter, setCompanyFilter]       = useState<Set<number>>(new Set());
+  const [productSearch, setProductSearch]       = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [colorSearch, setColorSearch]           = useState('');
+  const [selectedColors, setSelectedColors]     = useState<Set<string>>(new Set());
+  const [sizeSearch, setSizeSearch]             = useState('');
+  const [selectedSizes, setSelectedSizes]       = useState<Set<string>>(new Set());
+  const [search, setSearch]                     = useState('');
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -253,103 +269,172 @@ export const OdooStock: React.FC = () => {
           attrs: (v.product_template_attribute_value_ids ?? [])
             .map(id => attrMap.get(id))
             .filter((av): av is OdooAttributeValue => !!av)
-            .map(av => ({
-              attrName: av.attribute_id[1],
-              value: av.name,
-              color: av.html_color,
-            })),
+            .map(av => ({ attrName: av.attribute_id[1], value: av.name, color: av.html_color })),
         })),
       quants: quants.filter(q => q.product_tmpl_id[0] === p.id),
     }));
   }, [products, variants, quants, attrMap]);
 
-  const categories = useMemo(() => {
-    const cats = [...new Set(products.map(p => p.categ_id[1]))].sort();
-    return cats;
-  }, [products]);
-
-  // Collect all distinct attribute names to help debug what Odoo sends
-  const allAttrNames = useMemo(() => {
-    const set = new Set<string>();
-    productRows.forEach(r => r.variants.forEach(v => v.attrs.forEach(a => set.add(a.attrName))));
-    return [...set].sort();
+  // Unique companies from actual data
+  const allCompanies = useMemo(() => {
+    const map = new Map<number, string>();
+    productRows.forEach(r => {
+      if (r.company_id && r.company_id[0]) map.set(r.company_id[0], r.company_id[1]);
+    });
+    return [...map.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
   }, [productRows]);
+
+  // Unique product base names filtered by active company selection
+  const allProductNames = useMemo(() => {
+    const set = new Set<string>();
+    productRows.forEach(r => {
+      if (companyFilter.size > 0) {
+        const cid = r.company_id ? r.company_id[0] : null;
+        if (!cid || !companyFilter.has(cid)) return;
+      }
+      set.add(cleanName(r.name));
+    });
+    return [...set].sort();
+  }, [productRows, companyFilter]);
 
   const allColors = useMemo(() => {
     const set = new Set<string>();
-    productRows.forEach(r => r.variants.forEach(v => {
-      v.attrs.forEach(a => { if (isColorAttr(a.attrName)) set.add(a.value.trim()); });
-    }));
+    productRows.forEach(r => {
+      if (companyFilter.size > 0) {
+        const cid = r.company_id ? r.company_id[0] : null;
+        if (!cid || !companyFilter.has(cid)) return;
+      }
+      r.variants.forEach(v =>
+        v.attrs.forEach(a => { if (isColorAttr(a.attrName)) set.add(a.value.trim()); })
+      );
+    });
     return [...set].sort();
-  }, [productRows]);
+  }, [productRows, companyFilter]);
 
   const allSizes = useMemo(() => {
     const set = new Set<string>();
-    productRows.forEach(r => r.variants.forEach(v => {
-      v.attrs.forEach(a => { if (isSizeAttr(a.attrName)) set.add(a.value.trim()); });
-    }));
+    productRows.forEach(r => {
+      if (companyFilter.size > 0) {
+        const cid = r.company_id ? r.company_id[0] : null;
+        if (!cid || !companyFilter.has(cid)) return;
+      }
+      r.variants.forEach(v =>
+        v.attrs.forEach(a => { if (isSizeAttr(a.attrName)) set.add(a.value.trim()); })
+      );
+    });
     return [...set].sort();
-  }, [productRows]);
+  }, [productRows, companyFilter]);
+
+  // Alert thresholds
+  const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
+
+  function variantAlert(qty: number): StockAlert {
+    if (qty > OVER)                          return 'over';
+    if (qty >= LOW_MIN && qty <= LOW_MAX)    return 'low';
+    if (qty < CRITICAL)                      return 'critical';
+    return 'all';
+  }
 
   const filteredRows = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return productRows.filter(r => {
-      if (companyFilter !== 'ALL') {
-        const cid = r.company_id ? r.company_id[0] : null;
-        if (cid !== companyFilter) return false;
-      }
-      if (categoryFilter !== 'ALL' && r.categ_id[1] !== categoryFilter) return false;
-      if (stockFilter === 'in' && r.qty_available <= 0) return false;
-      if (stockFilter === 'out' && r.qty_available > 0) return false;
-      if (colorFilter !== 'ALL') {
-        const hasColor = r.variants.some(v =>
-          v.attrs.some(a => isColorAttr(a.attrName) && a.value.trim() === colorFilter)
-        );
-        if (!hasColor) return false;
-      }
-      if (sizeFilter !== 'ALL') {
-        const hasSize = r.variants.some(v =>
-          v.attrs.some(a => isSizeAttr(a.attrName) && a.value.trim() === sizeFilter)
-        );
-        if (!hasSize) return false;
-      }
-      if (!q) return true;
-      const name = cleanName(r.name);
-      return (
-        name.toLowerCase().includes(q) ||
-        (r.default_code ?? '').toLowerCase().includes(q) ||
-        r.categ_id[1].toLowerCase().includes(q)
-      );
-    });
-  }, [productRows, search, categoryFilter, stockFilter, companyFilter, colorFilter, sizeFilter]);
+    return productRows
+      .map(r => {
+        // Company
+        if (companyFilter.size > 0) {
+          const cid = r.company_id ? r.company_id[0] : null;
+          if (!cid || !companyFilter.has(cid)) return null;
+        }
+        // Product name checkboxes
+        if (selectedProducts.size > 0 && !selectedProducts.has(cleanName(r.name))) return null;
+        // Search
+        if (q) {
+          const name = cleanName(r.name);
+          if (!name.toLowerCase().includes(q) && !(r.default_code ?? '').toLowerCase().includes(q)) return null;
+        }
+
+        // Filter variants by color, size, and alert
+        let filteredVariants = r.variants;
+
+        if (selectedColors.size > 0) {
+          filteredVariants = filteredVariants.filter(v =>
+            v.attrs.some(a => isColorAttr(a.attrName) && selectedColors.has(a.value.trim()))
+          );
+        }
+        if (selectedSizes.size > 0) {
+          filteredVariants = filteredVariants.filter(v =>
+            v.attrs.some(a => isSizeAttr(a.attrName) && selectedSizes.has(a.value.trim()))
+          );
+        }
+        if (alertFilter !== 'all') {
+          if (r.variants.length > 0) {
+            // Filter at variant level
+            filteredVariants = filteredVariants.filter(v => variantAlert(v.qty_available) === alertFilter);
+            if (filteredVariants.length === 0) return null;
+          } else {
+            // No variants — filter at product level
+            const qty = r.qty_available;
+            if (alertFilter === 'over'     && qty <= OVER)                       return null;
+            if (alertFilter === 'low'      && (qty < LOW_MIN || qty > LOW_MAX))  return null;
+            if (alertFilter === 'critical' && qty >= CRITICAL)                   return null;
+          }
+        } else if (selectedColors.size > 0 || selectedSizes.size > 0) {
+          if (r.variants.length > 0 && filteredVariants.length === 0) return null;
+        }
+
+        return { ...r, variants: filteredVariants };
+      })
+      .filter((r): r is ProductRow => r !== null);
+  }, [productRows, companyFilter, alertFilter, selectedProducts, selectedColors, selectedSizes, search]);
 
   const stats = useMemo(() => {
-    const totalSKUs = products.length;
-    const inStock = products.filter(p => p.qty_available > 0).length;
+    const totalSKUs  = products.length;
+    const inStock    = products.filter(p => p.qty_available > 0).length;
     const outOfStock = products.filter(p => p.qty_available <= 0).length;
     const totalUnits = products.reduce((s, p) => s + p.qty_available, 0);
-    const totalValue = quants.reduce((s, q) => {
-      const prod = products.find(p => p.id === q.product_tmpl_id[0]);
-      return s + (prod?.standard_price ?? 0) * q.quantity;
-    }, 0);
-    return { totalSKUs, inStock, outOfStock, totalUnits, totalValue };
-  }, [products, quants]);
-
-  // ── Location view data ────────────────────────────────────────────────────
+    return { totalSKUs, inStock, outOfStock, totalUnits };
+  }, [products]);
 
   const locationRows = useMemo(() => {
     return locations.map(loc => {
       const locQuants = quants.filter(q => q.location_id[0] === loc.id);
-      const totalQty = locQuants.reduce((s, q) => s + q.quantity, 0);
-      const skus = new Set(locQuants.map(q => q.product_id[0])).size;
+      const totalQty  = locQuants.reduce((s, q) => s + q.quantity, 0);
+      const skus      = new Set(locQuants.map(q => q.product_id[0])).size;
       return { ...loc, totalQty, skus, quants: locQuants };
     }).filter(l => l.totalQty > 0).sort((a, b) => b.totalQty - a.totalQty);
   }, [locations, quants]);
 
+  // ── Filter helpers ────────────────────────────────────────────────────────
+
+  function toggleSet<T>(set: Set<T>, val: T): Set<T> {
+    const next = new Set(set);
+    next.has(val) ? next.delete(val) : next.add(val);
+    return next;
+  }
+
+  const activeFilterCount =
+    (alertFilter !== 'all' ? 1 : 0) +
+    companyFilter.size +
+    selectedProducts.size +
+    selectedColors.size +
+    selectedSizes.size +
+    (search ? 1 : 0);
+
+  const clearAll = () => {
+    setAlertFilter('all');
+    setCompanyFilter(new Set());
+    setSelectedProducts(new Set());
+    setSelectedColors(new Set());
+    setSelectedSizes(new Set());
+    setSearch('');
+    setProductSearch('');
+    setColorSearch('');
+    setSizeSearch('');
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <ModuleInfo
         number="17"
         title="Odoo Stock"
@@ -403,10 +488,10 @@ export const OdooStock: React.FC = () => {
       {/* Stats */}
       {status === 'ok' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard label="SKUs totales" value={stats.totalSKUs} sub={`${stats.inStock} con stock`} icon={Package} accent="text-[#141414]" />
-          <StatCard label="Unidades" value={fmtQty(stats.totalUnits)} sub="en almacén" icon={BarChart2} accent="text-blue-600" />
-          <StatCard label="Con stock" value={stats.inStock} sub={`${stats.outOfStock} sin stock`} icon={TrendingUp} accent="text-green-600" />
-          <StatCard label="Sin stock" value={stats.outOfStock} sub="productos agotados" icon={TrendingDown} accent="text-red-600" />
+          <StatCard label="SKUs totales"  value={stats.totalSKUs}        sub={`${stats.inStock} con stock`}     icon={Package}    accent="text-[#141414]" />
+          <StatCard label="Unidades"      value={fmtQty(stats.totalUnits)} sub="en almacén"                     icon={BarChart2}   accent="text-blue-600" />
+          <StatCard label="Con stock"     value={stats.inStock}           sub={`${stats.outOfStock} sin stock`}  icon={TrendingUp}  accent="text-green-600" />
+          <StatCard label="Sin stock"     value={stats.outOfStock}        sub="productos agotados"               icon={TrendingDown} accent="text-red-600" />
         </div>
       )}
 
@@ -415,17 +500,15 @@ export const OdooStock: React.FC = () => {
         <div>
           <div className="flex border-b border-[#141414] mb-4">
             {([
-              { id: 'products', label: 'Productos', icon: List },
-              { id: 'locations', label: 'Ubicaciones', icon: MapPin },
-              { id: 'moves', label: 'Movimientos', icon: Grid3X3 },
+              { id: 'products',  label: 'Productos',   icon: List },
+              { id: 'locations', label: 'Ubicaciones',  icon: MapPin },
+              { id: 'moves',     label: 'Movimientos',  icon: Grid3X3 },
             ] as { id: ViewMode; label: string; icon: React.ElementType }[]).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setView(tab.id)}
                 className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors ${
-                  view === tab.id
-                    ? 'border-[#141414] text-[#141414]'
-                    : 'border-transparent opacity-50 hover:opacity-80'
+                  view === tab.id ? 'border-[#141414] text-[#141414]' : 'border-transparent opacity-50 hover:opacity-80'
                 }`}
               >
                 <tab.icon size={11} />
@@ -436,115 +519,257 @@ export const OdooStock: React.FC = () => {
 
           {/* ── Products View ── */}
           {view === 'products' && (
-            <div className="flex flex-col gap-3">
-              {/* Company selector */}
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setCompanyFilter('ALL')}
-                  className={`px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border transition-colors shadow-[2px_2px_0_#141414] ${
-                    companyFilter === 'ALL'
-                      ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-                      : 'border-[#141414] bg-white/60 opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  Todas
-                </button>
-                {COMPANIES.map(c => (
+            <div className="flex gap-4 items-start">
+
+              {/* ── Sidebar Filters ── */}
+              <div className={`shrink-0 transition-all ${sidebarOpen ? 'w-56' : 'w-0 overflow-hidden'}`}>
+                <div className="border border-[#141414] bg-white/60 shadow-[2px_2px_0_#141414]">
+                  {/* Sidebar header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#141414] bg-[#141414] text-[#E4E3E0]">
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest">FILTROS</span>
+                    {activeFilterCount > 0 && (
+                      <button onClick={clearAll} className="font-mono text-[8px] uppercase tracking-widest opacity-70 hover:opacity-100 flex items-center gap-1">
+                        <X size={9} /> Limpiar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ALERTA */}
+                  <FilterSection title="ALERTA">
+                    <div className="flex flex-col gap-1">
+                      {([
+                        { val: 'all',      label: 'Todos',       dot: null },
+                        { val: 'over',     label: 'Sobre stock',  dot: 'bg-green-500',  sub: `> ${OVER}` },
+                        { val: 'low',      label: 'Por acabar',   dot: 'bg-yellow-400', sub: `${LOW_MIN}–${LOW_MAX}` },
+                        { val: 'critical', label: 'Stock crítico', dot: 'bg-red-500',    sub: `< ${CRITICAL}` },
+                      ] as { val: StockAlert; label: string; dot: string | null; sub?: string }[]).map(opt => (
+                        <button
+                          key={opt.val}
+                          onClick={() => setAlertFilter(opt.val)}
+                          className={`flex items-center gap-2 px-2 py-2 text-left w-full transition-colors rounded-sm ${
+                            alertFilter === opt.val
+                              ? 'bg-[#1a4730] text-white'
+                              : 'hover:bg-[#141414]/5 text-[#141414]'
+                          }`}
+                        >
+                          {opt.dot
+                            ? <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${opt.dot}`} />
+                            : <span className="w-2.5 h-2.5 shrink-0" />
+                          }
+                          <span className="font-mono text-[9px] font-bold uppercase tracking-wide flex-1">{opt.label}</span>
+                          {opt.sub && <span className="font-mono text-[8px] opacity-50">{opt.sub}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </FilterSection>
+
+                  {/* EMPRESA */}
+                  <FilterSection title="EMPRESA">
+                    <div className="flex flex-col gap-1">
+                      {allCompanies.length === 0 ? (
+                        <span className="font-mono text-[9px] opacity-40">Sin datos</span>
+                      ) : allCompanies.map(c => (
+                        <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-[#141414]/5 rounded-sm">
+                          <input
+                            type="checkbox"
+                            checked={companyFilter.has(c.id)}
+                            onChange={() => setCompanyFilter(toggleSet(companyFilter, c.id))}
+                            className="w-3.5 h-3.5 accent-[#141414] cursor-pointer"
+                          />
+                          <span className="font-mono text-[9px] font-bold uppercase tracking-wide text-[#141414]">{c.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </FilterSection>
+
+                  {/* PRODUCTO */}
+                  <FilterSection title="PRODUCTO">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center border border-[#141414]/20 bg-white px-2 gap-1">
+                        <Search size={9} className="opacity-30 shrink-0" />
+                        <input
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          placeholder="Buscar..."
+                          className="bg-transparent font-mono text-[9px] py-1 outline-none w-full placeholder:opacity-30"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto pr-1">
+                        {allProductNames
+                          .filter(n => !productSearch || n.toLowerCase().includes(productSearch.toLowerCase()))
+                          .map(name => (
+                            <label key={name} className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-[#141414]/5 rounded-sm">
+                              <input
+                                type="checkbox"
+                                checked={selectedProducts.has(name)}
+                                onChange={() => setSelectedProducts(toggleSet(selectedProducts, name))}
+                                className="w-3.5 h-3.5 accent-[#141414] cursor-pointer shrink-0"
+                              />
+                              <span className="font-mono text-[9px] uppercase tracking-wide text-[#141414] leading-tight">{name}</span>
+                            </label>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  </FilterSection>
+
+                  {/* COLOR */}
+                  <FilterSection title="COLOR" defaultOpen={false}>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center border border-[#141414]/20 bg-white px-2 gap-1">
+                        <Search size={9} className="opacity-30 shrink-0" />
+                        <input
+                          value={colorSearch}
+                          onChange={e => setColorSearch(e.target.value)}
+                          placeholder="Buscar..."
+                          className="bg-transparent font-mono text-[9px] py-1 outline-none w-full placeholder:opacity-30"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto pr-1">
+                        {allColors
+                          .filter(c => !colorSearch || c.toLowerCase().includes(colorSearch.toLowerCase()))
+                          .map(color => (
+                            <label key={color} className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-[#141414]/5 rounded-sm">
+                              <input
+                                type="checkbox"
+                                checked={selectedColors.has(color)}
+                                onChange={() => setSelectedColors(toggleSet(selectedColors, color))}
+                                className="w-3.5 h-3.5 accent-[#141414] cursor-pointer shrink-0"
+                              />
+                              <span className="font-mono text-[9px] uppercase tracking-wide text-[#141414]">{color}</span>
+                            </label>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  </FilterSection>
+
+                  {/* TALLA */}
+                  <FilterSection title="TALLA" defaultOpen={false}>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center border border-[#141414]/20 bg-white px-2 gap-1">
+                        <Search size={9} className="opacity-30 shrink-0" />
+                        <input
+                          value={sizeSearch}
+                          onChange={e => setSizeSearch(e.target.value)}
+                          placeholder="Buscar..."
+                          className="bg-transparent font-mono text-[9px] py-1 outline-none w-full placeholder:opacity-30"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto pr-1">
+                        {allSizes
+                          .filter(s => !sizeSearch || s.toLowerCase().includes(sizeSearch.toLowerCase()))
+                          .map(size => (
+                            <label key={size} className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-[#141414]/5 rounded-sm">
+                              <input
+                                type="checkbox"
+                                checked={selectedSizes.has(size)}
+                                onChange={() => setSelectedSizes(toggleSet(selectedSizes, size))}
+                                className="w-3.5 h-3.5 accent-[#141414] cursor-pointer shrink-0"
+                              />
+                              <span className="font-mono text-[9px] uppercase tracking-wide text-[#141414]">{size}</span>
+                            </label>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  </FilterSection>
+                </div>
+              </div>
+
+              {/* ── Main content ── */}
+              <div className="flex-1 min-w-0 flex flex-col gap-3">
+                {/* Toolbar row */}
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    key={c.id}
-                    onClick={() => setCompanyFilter(c.id)}
-                    className={`px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border transition-colors shadow-[2px_2px_0_#141414] ${
-                      companyFilter === c.id
-                        ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-                        : 'border-[#141414] bg-white/60 opacity-60 hover:opacity-100'
+                    onClick={() => setSidebarOpen(o => !o)}
+                    className={`flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors shadow-[2px_2px_0_#141414] shrink-0 ${
+                      sidebarOpen ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] hover:bg-[#141414]/5'
                     }`}
                   >
-                    {c.label}
+                    <SlidersHorizontal size={10} />
+                    Filtros
+                    {activeFilterCount > 0 && (
+                      <span className="bg-white text-[#141414] font-black px-1 rounded-sm text-[8px] ml-0.5">{activeFilterCount}</span>
+                    )}
                   </button>
-                ))}
-              </div>
 
-              {/* Debug: attribute names from Odoo (remove once filters are confirmed) */}
-              {allAttrNames.length > 0 && (
-                <div className="flex flex-wrap gap-1 items-center">
-                  <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest">Atributos Odoo:</span>
-                  {allAttrNames.map(n => (
-                    <span key={n} className={`font-mono text-[8px] px-1.5 py-0.5 border ${isColorAttr(n) ? 'border-blue-400 text-blue-700 bg-blue-50' : isSizeAttr(n) ? 'border-green-400 text-green-700 bg-green-50' : 'border-[#141414]/20 opacity-40'}`}>
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              )}
+                  {/* Search bar */}
+                  <div className="flex items-center border border-[#141414]/30 bg-white/60 px-2 gap-1.5 flex-1 min-w-[160px]">
+                    <Search size={11} className="opacity-40 shrink-0" />
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Buscar producto o código…"
+                      className="font-mono text-[10px] bg-transparent outline-none w-full placeholder:opacity-40 py-1.5"
+                    />
+                    {search && <button onClick={() => setSearch('')} className="opacity-40 hover:opacity-100"><X size={10} /></button>}
+                  </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex items-center gap-1.5 border border-[#141414] px-2 py-1.5 bg-white/60 flex-1 min-w-[180px] max-w-xs">
-                  <Search size={11} className="opacity-40 shrink-0" />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar producto o código…"
-                    className="font-mono text-[10px] bg-transparent outline-none w-full placeholder:opacity-40"
-                  />
+                  <span className="font-mono text-[9px] opacity-40 ml-auto shrink-0">
+                    {filteredRows.length} resultado{filteredRows.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
-                <select
-                  value={categoryFilter}
-                  onChange={e => setCategoryFilter(e.target.value)}
-                  className="border border-[#141414] px-2 py-1.5 font-mono text-[9px] font-bold uppercase bg-white/60 outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
-                >
-                  <option value="ALL">Todas las categorías</option>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select
-                  value={colorFilter}
-                  onChange={e => setColorFilter(e.target.value)}
-                  className="border border-[#141414] px-2 py-1.5 font-mono text-[9px] font-bold uppercase bg-white/60 outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
-                >
-                  <option value="ALL">Todos los colores</option>
-                  {allColors.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select
-                  value={sizeFilter}
-                  onChange={e => setSizeFilter(e.target.value)}
-                  className="border border-[#141414] px-2 py-1.5 font-mono text-[9px] font-bold uppercase bg-white/60 outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
-                >
-                  <option value="ALL">Todas las tallas</option>
-                  {allSizes.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <div className="flex border border-[#141414]">
-                  {([
-                    { val: 'all', label: 'Todos' },
-                    { val: 'in', label: 'Con stock' },
-                    { val: 'out', label: 'Sin stock' },
-                  ] as { val: typeof stockFilter; label: string }[]).map(opt => (
-                    <button
-                      key={opt.val}
-                      onClick={() => setStockFilter(opt.val)}
-                      className={`px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider transition-colors ${
-                        stockFilter === opt.val ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <span className="font-mono text-[9px] opacity-40 ml-auto">{filteredRows.length} resultado{filteredRows.length !== 1 ? 's' : ''}</span>
-              </div>
 
-              {/* Table */}
-              <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-                <div className="flex items-center px-4 py-2 bg-[#141414] text-[#E4E3E0]">
-                  <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Producto</div>
-                  <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden sm:block">Stock</div>
-                  <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden md:block">Disponible</div>
-                  <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden lg:block">Reservado</div>
-                  <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Estado</div>
-                </div>
-                {filteredRows.length === 0 ? (
-                  <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin resultados</div>
-                ) : (
-                  filteredRows.map(row => <ProductItem key={row.id} row={row} />)
+                {/* Active filter chips */}
+                {activeFilterCount > 0 && (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {alertFilter !== 'all' && (
+                      <span className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-[#141414]/10 border border-[#141414]/20">
+                        {alertFilter === 'over' ? 'Sobre stock' : alertFilter === 'low' ? 'Por acabar' : 'Stock crítico'}
+                        <button onClick={() => setAlertFilter('all')} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                      </span>
+                    )}
+                    {[...companyFilter].map(id => {
+                      const c = allCompanies.find(x => x.id === id);
+                      return c ? (
+                        <span key={id} className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-[#141414]/10 border border-[#141414]/20">
+                          {c.label}
+                          <button onClick={() => setCompanyFilter(toggleSet(companyFilter, id))} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                        </span>
+                      ) : null;
+                    })}
+                    {[...selectedProducts].map(n => (
+                      <span key={n} className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-[#141414]/10 border border-[#141414]/20">
+                        {n}
+                        <button onClick={() => setSelectedProducts(toggleSet(selectedProducts, n))} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                      </span>
+                    ))}
+                    {[...selectedColors].map(c => (
+                      <span key={c} className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700">
+                        {c}
+                        <button onClick={() => setSelectedColors(toggleSet(selectedColors, c))} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                      </span>
+                    ))}
+                    {[...selectedSizes].map(s => (
+                      <span key={s} className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-green-50 border border-green-200 text-green-700">
+                        {s}
+                        <button onClick={() => setSelectedSizes(toggleSet(selectedSizes, s))} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                      </span>
+                    ))}
+                    {activeFilterCount > 1 && (
+                      <button onClick={clearAll} className="font-mono text-[8px] uppercase font-bold px-2 py-0.5 text-[#141414]/50 hover:text-[#141414] underline">
+                        Limpiar todo
+                      </button>
+                    )}
+                  </div>
                 )}
+
+                {/* Table */}
+                <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+                  <div className="flex items-center px-4 py-2 bg-[#141414] text-[#E4E3E0]">
+                    <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Producto</div>
+                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden sm:block">Stock</div>
+                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden md:block">Disponible</div>
+                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden lg:block">Reservado</div>
+                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Estado</div>
+                  </div>
+                  {filteredRows.length === 0 ? (
+                    <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin resultados</div>
+                  ) : (
+                    filteredRows.map(row => <ProductItem key={row.id} row={row} />)
+                  )}
+                </div>
               </div>
             </div>
           )}

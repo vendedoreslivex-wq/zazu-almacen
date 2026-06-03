@@ -20,6 +20,8 @@ export const Dashboard: React.FC = () => {
     return acc + (p?.costPrice || 0) * curr.quantity;
   }, 0);
   
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
   const todayStart = new Date();
   todayStart.setHours(0,0,0,0);
   
@@ -489,27 +491,30 @@ export const Dashboard: React.FC = () => {
           value={totalItemsInStock} 
           icon={<Package size={20} />} 
         />
-        <StatCard 
-          label="RECEP. HOY" 
-          value={todaysReceptions} 
-          icon={<ArrowDownLeft size={20} className="text-[#15803d]" />} 
+        <StatCard
+          label="RECEP. HOY"
+          value={todaysReceptions}
+          icon={<ArrowDownLeft size={20} className="text-[#15803d]" />}
           trend="+ entradas"
+          onClick={() => {
+            sessionStorage.setItem('operationsLogFilter', JSON.stringify({ type: 'RECEPTION', dateFrom: todayStr, dateTo: todayStr }));
+            navigate('/operations');
+          }}
         />
-        <StatCard 
-          label="DESP. HOY" 
-          value={todaysDispatches} 
-          icon={<ArrowUpRight size={20} className="text-[#b91c1c]" />} 
+        <StatCard
+          label="DESP. HOY"
+          value={todaysDispatches}
+          icon={<ArrowUpRight size={20} className="text-[#b91c1c]" />}
           trend="- salidas"
+          onClick={() => {
+            sessionStorage.setItem('operationsLogFilter', JSON.stringify({ type: 'DISPATCH', dateFrom: todayStr, dateTo: todayStr }));
+            navigate('/operations');
+          }}
         />
-        <StatCard 
-          label="SKUs ACTIVOS" 
-          value={products.length} 
-          icon={<ArrowRightLeft size={20} />} 
-        />
-        <StatCard 
-          label="VALORIZACIÓN (COSTO)" 
-          value={`S/ ${totalInventoryValue.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`} 
-          icon={<Package size={20} />} 
+        <StatCard
+          label="SKUs ACTIVOS"
+          value={products.length}
+          icon={<ArrowRightLeft size={20} />}
         />
       </div>
 
@@ -706,8 +711,11 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-const StatCard: React.FC<{label: string, value: string | number, icon: React.ReactNode, trend?: string}> = ({label, value, icon, trend}) => (
-  <div className="bg-white/50 border border-[#141414] p-3 flex flex-col gap-3 relative group hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors shadow-[2px_2px_0_#141414]">
+const StatCard: React.FC<{label: string, value: string | number, icon: React.ReactNode, trend?: string, onClick?: () => void}> = ({label, value, icon, trend, onClick}) => (
+  <div
+    onClick={onClick}
+    className={`bg-white/50 border border-[#141414] p-3 flex flex-col gap-3 relative group hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors shadow-[2px_2px_0_#141414]${onClick ? ' cursor-pointer' : ''}`}
+  >
     <div className="flex justify-between items-start">
       <div className="font-mono text-[10px] font-bold opacity-70 tracking-widest uppercase">{label}</div>
       <div className="p-1 border border-current">{icon}</div>
@@ -716,5 +724,6 @@ const StatCard: React.FC<{label: string, value: string | number, icon: React.Rea
       <div className="font-mono text-3xl font-black tracking-tighter leading-none">{value}</div>
       {trend && <div className="font-mono text-[9px] mb-1 px-1 border border-current uppercase font-bold">{trend}</div>}
     </div>
+    {onClick && <div className="font-mono text-[7px] opacity-0 group-hover:opacity-60 uppercase tracking-widest absolute bottom-2 right-3">VER DETALLE →</div>}
   </div>
 );

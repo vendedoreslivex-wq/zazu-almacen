@@ -48,6 +48,8 @@ interface AppContextType {
   rolePermissions: Record<Role, Record<string, Permission>>;
   updateRolePermission: (role: Role, module: string, permission: Permission) => Promise<void>;
   deleteTransaction: (txId: string) => Promise<void>;
+  hardDeleteTransaction: (txId: string) => Promise<void>;
+  hardDeleteTransactions: (txIds: string[]) => Promise<void>;
   updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null }) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
   receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
@@ -315,6 +317,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...(updates.reference !== undefined ? { reference: updates.reference } : {}),
       ...('contactId' in updates ? { contactId: updates.contactId ?? undefined } : {}),
     } : t));
+  };
+
+  const hardDeleteTransaction = async (txId: string): Promise<void> => {
+    const { error } = await supabase.from('transactions').delete().eq('id', txId);
+    if (error) throw new Error(error.message);
+    setTransactions(prev => prev.filter(t => t.id !== txId));
+  };
+
+  const hardDeleteTransactions = async (txIds: string[]): Promise<void> => {
+    const { error } = await supabase.from('transactions').delete().in('id', txIds);
+    if (error) throw new Error(error.message);
+    const idSet = new Set(txIds);
+    setTransactions(prev => prev.filter(t => !idSet.has(t.id)));
   };
 
   const clearAllTransactions = async (): Promise<void> => {
@@ -642,7 +657,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     products, locations, transactions, stockLevels,
     contacts, currentUser, users, purchaseOrders, adjustments,
     reservations, addReservation, updateReservationStatus, updateReservation, deleteReservation,
-    addTransaction, deleteTransaction, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
+    addTransaction, deleteTransaction, hardDeleteTransaction, hardDeleteTransactions, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
     addLocation, updateLocation, deleteLocation, deleteStockLevel,
     addContact, updateContact, deleteContact, setCurrentUser,
     addUser, updateUser, deleteUser,
