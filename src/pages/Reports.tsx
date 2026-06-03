@@ -150,14 +150,16 @@ export const Reports: React.FC = () => {
 
   const getSheetData = (): { headers: string[]; rows: (string | number | null)[][] } => {
     switch (activeReport) {
-      case 'inventory':
+      case 'inventory': {
+        const totalUnits = inventoryRows.reduce((s, r) => s + r.qty, 0);
         return {
-          headers: ['Código', 'Nombre', 'Color', 'Talla', 'Categoría', 'Stock', 'Costo Unit.', 'Total Costo', 'PVP Unit.', 'Total PVP'],
+          headers: ['Código', 'Nombre', 'Color', 'Talla', 'Categoría', 'Stock', '% Entrada'],
           rows: inventoryRows.map(r => [
             r.code, r.name, r.color || '', r.size || '', r.category,
-            r.qty, r.costPrice || 0, r.totalCost, r.sellPrice || 0, r.totalSell,
+            r.qty, totalUnits > 0 ? +((r.qty / totalUnits) * 100).toFixed(1) : 0,
           ]),
         };
+      }
       case 'movements':
         return {
           headers: ['Proveedor', 'Fecha', 'Referencia', 'Producto', 'Código', 'Color', 'Talla', 'Cantidad'],
@@ -183,10 +185,6 @@ export const Reports: React.FC = () => {
           rows: [
             ['SKUs con stock', inventoryRows.length],
             ['Unidades totales', valuationTotal.units],
-            ['Valor a costo (S/)', valuationTotal.cost],
-            ['Valor a PVP (S/)', valuationTotal.sell],
-            ['Margen bruto (S/)', valuationTotal.sell - valuationTotal.cost],
-            ['% Margen', valuationTotal.cost > 0 ? +((((valuationTotal.sell - valuationTotal.cost) / valuationTotal.cost) * 100).toFixed(2)) : 'N/A'],
           ],
         };
       case 'adjustments':
@@ -434,11 +432,9 @@ export const Reports: React.FC = () => {
         qty: r.qty,
       }));
       const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px;">
+        <div class="summary" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px;">
           <div class="card"><div class="label">SKUs con stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
           <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
-          <div class="card dark"><div class="label">Valor a costo</div><div class="value" style="font-size:16px">S/ ${valuationTotal.cost.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">inversión</div></div>
-          <div class="card"><div class="label">Valor a PVP</div><div class="value" style="font-size:16px">S/ ${valuationTotal.sell.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">precio venta</div></div>
         </div>`;
       bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO');
     }
@@ -468,16 +464,10 @@ export const Reports: React.FC = () => {
     }
 
     else if (activeReport === 'valuation') {
-      const margin = valuationTotal.sell - valuationTotal.cost;
-      const marginPct = valuationTotal.cost > 0 ? ((margin / valuationTotal.cost) * 100).toFixed(1) : 'N/A';
       bodyHTML = `
-        <div class="summary" style="grid-template-columns:repeat(3,1fr)">
+        <div class="summary" style="grid-template-columns:repeat(2,1fr)">
           <div class="card"><div class="label">SKUs activos</div><div class="value">${inventoryRows.length}</div><div class="hint">con stock</div></div>
-          <div class="card"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
-          <div class="card purple"><div class="label">Valor a costo</div><div class="value" style="font-size:16px">S/ ${valuationTotal.cost.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">inversión total</div></div>
-          <div class="card"><div class="label">Valor a PVP</div><div class="value" style="font-size:16px">S/ ${valuationTotal.sell.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">valor retail</div></div>
-          <div class="card" style="${margin>0?'border-color:#16a34a':''};"><div class="label">Margen bruto</div><div class="value" style="font-size:16px;color:${margin>0?'#16a34a':'#dc2626'}">S/ ${margin.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">PVP − Costo</div></div>
-          <div class="card"><div class="label">% Margen</div><div class="value" style="color:${margin>0?'#16a34a':'#dc2626'}">${marginPct}%</div><div class="hint">rentabilidad</div></div>
+          <div class="card purple"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
         </div>`;
     }
 
@@ -923,48 +913,45 @@ ${footerHTML}
         <div className="pb-4">{renderKanban()}</div>
       ) : null}
       <div ref={printRef} className={`overflow-x-auto${viewMode === 'kanban' && activeReport !== 'valuation' ? ' hidden' : ''}`}>
-        {activeReport === 'inventory' && (
-          <table className="w-full text-[10px] font-mono border-collapse">
-            <thead>
-              <tr className="border-b-2 border-[#141414]">
-                <th className="text-left py-2 pr-3 font-bold uppercase">Código</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Nombre</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Color</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Talla</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Stock</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Costo U.</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Total Costo</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">PVP U.</th>
-                <th className="text-right py-2 pl-3 font-bold uppercase">Total PVP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventoryRows.map(r => (
-                <tr key={r.id} className="border-b border-[#141414]/20 hover:bg-white/40">
-                  <td className="py-1.5 pr-3">{r.code}</td>
-                  <td className="py-1.5 pr-3">{r.name}</td>
-                  <td className="py-1.5 pr-3 opacity-70">{r.color}</td>
-                  <td className="py-1.5 pr-3 opacity-70">{r.size}</td>
-                  <td className="text-right py-1.5 px-3 font-bold">{r.qty}</td>
-                  <td className="text-right py-1.5 px-3">S/ {(r.costPrice || 0).toFixed(2)}</td>
-                  <td className="text-right py-1.5 px-3 font-bold">S/ {r.totalCost.toFixed(2)}</td>
-                  <td className="text-right py-1.5 px-3">S/ {(r.sellPrice || 0).toFixed(2)}</td>
-                  <td className="text-right py-1.5 pl-3 font-bold">S/ {r.totalSell.toFixed(2)}</td>
+        {activeReport === 'inventory' && (() => {
+          const totalUnits = inventoryRows.reduce((s, r) => s + r.qty, 0);
+          return (
+            <table className="w-full text-[10px] font-mono border-collapse">
+              <thead>
+                <tr className="border-b-2 border-[#141414]">
+                  <th className="text-left py-2 pr-3 font-bold uppercase">Código</th>
+                  <th className="text-left py-2 pr-3 font-bold uppercase">Nombre</th>
+                  <th className="text-left py-2 pr-3 font-bold uppercase">Color</th>
+                  <th className="text-left py-2 pr-3 font-bold uppercase">Talla</th>
+                  <th className="text-right py-2 px-3 font-bold uppercase">Stock</th>
+                  <th className="text-right py-2 pl-3 font-bold uppercase">% Entrada</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-[#141414]">
-                <td colSpan={4} className="py-2 pr-3 font-bold uppercase">TOTAL ({inventoryRows.length} SKUs)</td>
-                <td className="text-right py-2 px-3 font-black">{valuationTotal.units}</td>
-                <td />
-                <td className="text-right py-2 px-3 font-black">S/ {valuationTotal.cost.toFixed(2)}</td>
-                <td />
-                <td className="text-right py-2 pl-3 font-black">S/ {valuationTotal.sell.toFixed(2)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {inventoryRows.map(r => {
+                  const pct = totalUnits > 0 ? (r.qty / totalUnits) * 100 : 0;
+                  return (
+                    <tr key={r.id} className="border-b border-[#141414]/20 hover:bg-white/40">
+                      <td className="py-1.5 pr-3">{r.code}</td>
+                      <td className="py-1.5 pr-3">{r.name}</td>
+                      <td className="py-1.5 pr-3 opacity-70">{r.color}</td>
+                      <td className="py-1.5 pr-3 opacity-70">{r.size}</td>
+                      <td className="text-right py-1.5 px-3 font-bold">{r.qty}</td>
+                      <td className="text-right py-1.5 pl-3 opacity-70">{pct.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-[#141414]">
+                  <td colSpan={4} className="py-2 pr-3 font-bold uppercase">TOTAL ({inventoryRows.length} SKUs)</td>
+                  <td className="text-right py-2 px-3 font-black">{valuationTotal.units}</td>
+                  <td className="text-right py-2 pl-3 font-black">100%</td>
+                </tr>
+              </tfoot>
+            </table>
+          );
+        })()}
 
         {activeReport === 'movements' && (
           <div className="flex flex-col gap-6">
@@ -1003,14 +990,10 @@ ${footerHTML}
         )}
 
         {activeReport === 'valuation' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Total SKUs con stock', value: inventoryRows.length.toString(), sub: 'productos activos' },
               { label: 'Unidades totales', value: valuationTotal.units.toLocaleString(), sub: 'unidades en almacén' },
-              { label: 'Valor a costo', value: `S/ ${valuationTotal.cost.toFixed(2)}`, sub: 'valorización al costo' },
-              { label: 'Valor a PVP', value: `S/ ${valuationTotal.sell.toFixed(2)}`, sub: 'valorización al precio venta' },
-              { label: 'Margen bruto estimado', value: `S/ ${(valuationTotal.sell - valuationTotal.cost).toFixed(2)}`, sub: 'PVP − Costo' },
-              { label: '% Margen', value: valuationTotal.cost > 0 ? `${(((valuationTotal.sell - valuationTotal.cost) / valuationTotal.cost) * 100).toFixed(1)}%` : 'N/A', sub: 'rentabilidad estimada' },
             ].map(({ label, value, sub }) => (
               <div key={label} className="border border-[#141414] bg-white/40 p-5">
                 <div className="font-mono text-[9px] uppercase tracking-widest opacity-60 mb-2">{label}</div>

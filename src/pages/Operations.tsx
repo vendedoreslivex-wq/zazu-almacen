@@ -407,7 +407,7 @@ const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      'flex flex-col items-center gap-2 p-3 lg:p-4 border transition-all',
+      'flex flex-col items-center gap-1.5 p-2.5 sm:p-3 lg:p-4 border transition-all',
       accent === 'red'
         ? active
           ? 'border-red-800 bg-red-800 text-white shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
@@ -421,7 +421,7 @@ const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
     <span className={cn('font-mono text-[9px] lg:text-[10px] tracking-widest font-bold uppercase', active ? '' : 'opacity-70')}>{label}</span>
     {desc && (
       <span className={cn(
-        'font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full',
+        'hidden sm:block font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full',
         active ? 'border-white/20 text-white/60' : accent === 'red' ? 'border-red-800/20 text-red-900/50' : 'border-[#141414]/15 text-[#141414]/50'
       )}>
         {desc}
@@ -892,14 +892,14 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         </FormGroup>
       )}
 
-      <div className="flex justify-between items-center mt-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
         <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
           {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
         </div>
         <button
           type="button"
           onClick={handleSubmit}
-          className="bg-[#141414] border border-[#141414] hover:bg-white hover:text-[#141414] text-[#E4E3E0] px-8 py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#141414] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+          className="w-full sm:w-auto bg-[#141414] border border-[#141414] hover:bg-white hover:text-[#141414] text-[#E4E3E0] px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#141414] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
         >
           EJECUTAR_{type}
         </button>
@@ -1205,14 +1205,14 @@ const WriteOffForm: React.FC = () => {
         )}
       </FormGroup>
 
-      <div className="flex justify-between items-center mt-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
         <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
           {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
         </div>
         <button
           type="button"
           onClick={handleSubmit}
-          className="bg-red-800 border border-red-800 hover:bg-white hover:text-red-800 text-white px-8 py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+          className="w-full sm:w-auto bg-red-800 border border-red-800 hover:bg-white hover:text-red-800 text-white px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
         >
           REGISTRAR BAJA
         </button>
@@ -1834,22 +1834,22 @@ const OperationsReport: React.FC = () => {
     <div className="flex flex-col gap-5">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="opacity-50" />
           <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">REPORTE DE OPERACIONES</h2>
           <span className="font-mono text-[8px] border border-[#141414]/20 px-1.5 py-0.5 bg-white/60 uppercase tracking-wider">{activeBrand}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40">Período:</span>
+          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40 hidden sm:inline">Período:</span>
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setHistPage(1); }}
-            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414]" />
+            className="border border-[#141414]/30 px-2 py-1.5 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] w-full sm:w-auto" />
           <span className="font-mono text-[9px] opacity-30">→</span>
           <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setHistPage(1); }}
-            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414]" />
+            className="border border-[#141414]/30 px-2 py-1.5 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] w-full sm:w-auto" />
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors">
+              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors whitespace-nowrap">
               ✕ LIMPIAR
             </button>
           )}
@@ -1857,9 +1857,9 @@ const OperationsReport: React.FC = () => {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {/* Total ops */}
-        <div className="border border-[#141414] bg-[#141414] text-[#E4E3E0] p-3 shadow-[3px_3px_0_#141414] md:col-span-1">
+        <div className="border border-[#141414] bg-[#141414] text-[#E4E3E0] p-3 shadow-[3px_3px_0_#141414] col-span-2 sm:col-span-1">
           <div className="font-mono text-[8px] opacity-50 uppercase tracking-widest mb-1">Total Ops</div>
           <div className="font-mono font-black text-2xl">{totalOps}</div>
           <div className="font-mono text-[8px] opacity-40 mt-0.5">operaciones</div>
@@ -1931,29 +1931,29 @@ const OperationsReport: React.FC = () => {
       )}
 
       {/* ── Tab bar + export buttons ── */}
-      <div className="flex items-center justify-between border-b border-[#141414]/20">
-        <div className="flex">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-[#141414]/20">
+        <div className="flex overflow-x-auto scrollbar-none">
           {([
             { id: 'resumen',     label: 'Resumen' },
-            { id: 'movimientos', label: 'Por Producto' },
+            { id: 'movimientos', label: 'Productos' },
             { id: 'bajas',       label: `Bajas${writeoffs.length > 0 ? ` (${writeoffs.length})` : ''}` },
             { id: 'historial',   label: 'Historial' },
           ] as { id: typeof reportTab; label: string }[]).map(tab => (
             <button key={tab.id} onClick={() => setReportTab(tab.id)}
-              className={cn('px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors',
+              className={cn('px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap',
                 reportTab === tab.id ? 'border-[#141414] text-[#141414]' : 'border-transparent opacity-40 hover:opacity-70'
               )}>
               {tab.label}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 pb-1">
+        <div className="flex items-center gap-1 pb-1 self-end sm:self-auto">
           <button onClick={exportExcel} title="Exportar Excel"
-            className="flex items-center gap-1 border border-[#141414]/30 px-2 py-1 hover:bg-green-700 hover:text-white hover:border-green-700 transition-all font-mono text-[8px] font-bold uppercase">
+            className="flex items-center gap-1 border border-[#141414]/30 px-2.5 py-1.5 hover:bg-green-700 hover:text-white hover:border-green-700 transition-all font-mono text-[8px] font-bold uppercase">
             <FileSpreadsheet size={11} /> XLS
           </button>
           <button onClick={exportPDF} title="Exportar PDF"
-            className="flex items-center gap-1 border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all font-mono text-[8px] font-bold uppercase">
+            className="flex items-center gap-1 border border-[#141414]/30 px-2.5 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all font-mono text-[8px] font-bold uppercase">
             <FileText size={11} /> PDF
           </button>
         </div>
@@ -2026,12 +2026,16 @@ const OperationsReport: React.FC = () => {
       {/* ══ POR PRODUCTO ══ */}
       {reportTab === 'movimientos' && (
         <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-          <div className="grid grid-cols-[1fr_56px_56px_56px_56px] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2">
+          {/* Header — hidden on mobile, shown on sm+ */}
+          <div className="hidden sm:grid sm:grid-cols-[1fr_56px_56px_56px_56px] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2">
             <div>Producto</div>
             <div className="text-right text-green-300">Entr.</div>
             <div className="text-right text-red-300">Sal.</div>
             <div className="text-right text-blue-300">Trasl.</div>
             <div className="text-right text-orange-300">Baja</div>
+          </div>
+          <div className="sm:hidden bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">
+            Movimientos por producto
           </div>
           {byProduct.length === 0 ? (
             <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el período</div>
@@ -2041,7 +2045,8 @@ const OperationsReport: React.FC = () => {
             const barPct = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
             return (
               <div key={i} className={cn('px-4 py-2.5 border-b border-[#141414]/10 last:border-0 hover:bg-white/60', i % 2 !== 0 && 'bg-white/30')}>
-                <div className="grid grid-cols-[1fr_56px_56px_56px_56px] items-center gap-2 mb-1">
+                {/* Desktop row */}
+                <div className="hidden sm:grid sm:grid-cols-[1fr_56px_56px_56px_56px] items-center gap-2 mb-1">
                   <div className="min-w-0">
                     <div className="font-mono text-[10px] font-bold truncate uppercase">{row.name}</div>
                     {row.code && <div className="font-mono text-[8px] opacity-40">{row.code}</div>}
@@ -2050,6 +2055,23 @@ const OperationsReport: React.FC = () => {
                   <div className="font-mono text-[10px] font-bold text-right text-red-600">{row.out > 0 ? row.out.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
                   <div className="font-mono text-[10px] font-bold text-right text-blue-600">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
                   <div className="font-mono text-[10px] font-bold text-right text-orange-600">{row.writeoff > 0 ? row.writeoff.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                </div>
+                {/* Mobile card row */}
+                <div className="sm:hidden">
+                  <div className="font-mono text-[10px] font-bold truncate uppercase mb-1">{row.name}</div>
+                  <div className="grid grid-cols-4 gap-1 mb-1">
+                    {[
+                      { label: 'Entr', val: row.in, cls: 'text-green-700' },
+                      { label: 'Sal',  val: row.out, cls: 'text-red-600' },
+                      { label: 'Tras', val: row.transfer, cls: 'text-blue-600' },
+                      { label: 'Baja', val: row.writeoff, cls: 'text-orange-600' },
+                    ].map(({ label, val, cls }) => (
+                      <div key={label} className="flex flex-col items-center border border-[#141414]/10 py-1 px-0.5 bg-white/50">
+                        <span className="font-mono text-[7px] opacity-40 uppercase">{label}</span>
+                        <span className={cn('font-mono text-[11px] font-black', val > 0 ? cls : 'opacity-20')}>{val > 0 ? val : '—'}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="h-1 bg-[#141414]/5 overflow-hidden">
                   <div className="h-full bg-[#141414]/20 transition-all" style={{ width: `${barPct}%` }} />
@@ -2147,14 +2169,14 @@ const OperationsReport: React.FC = () => {
 
           <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[auto_80px_auto_1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-3 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2 items-center">
+            <div className="grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-3 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2 items-center">
               <button onClick={() => toggleSort('date')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity whitespace-nowrap">
                 Fecha <SortIcon col="date" />
               </button>
               <button onClick={() => toggleSort('type')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity">
                 Tipo <SortIcon col="type" />
               </button>
-              <div>Código</div>
+              <div className="hidden sm:block">Código</div>
               <div>Producto</div>
               <div className="hidden md:block">Almacén</div>
               <button onClick={() => toggleSort('qty')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity justify-end">
@@ -2175,7 +2197,7 @@ const OperationsReport: React.FC = () => {
                 : locations.find(l => l.id === tx.fromLocationId)?.name;
               return (
                 <div key={tx.id} className={cn(
-                  'grid grid-cols-[auto_80px_auto_1fr_auto_auto_auto] px-3 py-2 border-b border-[#141414]/8 last:border-0 hover:bg-white/60 items-center gap-2',
+                  'grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] px-3 py-2 border-b border-[#141414]/8 last:border-0 hover:bg-white/60 items-center gap-2',
                   i % 2 !== 0 ? 'bg-white/30' : '',
                   isWO && 'bg-orange-50/30'
                 )}>
@@ -2183,7 +2205,7 @@ const OperationsReport: React.FC = () => {
                     {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
                   </div>
                   <div><span className={cn('font-mono text-[8px] font-bold border px-1 py-0.5 uppercase', typeColor)}>{typeLabel}</span></div>
-                  <div className="font-mono text-[9px] opacity-50">{prod?.code ?? '—'}</div>
+                  <div className="hidden sm:block font-mono text-[9px] opacity-50">{prod?.code ?? '—'}</div>
                   <div className="min-w-0">
                     <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? tx.productId}</div>
                     {(prod?.color || prod?.size) && <div className="font-mono text-[8px] opacity-40">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</div>}
