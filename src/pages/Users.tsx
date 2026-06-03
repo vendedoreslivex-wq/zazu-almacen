@@ -172,7 +172,7 @@ export const Users: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-5 min-h-0 relative w-full overflow-x-hidden">
+    <div className="flex flex-col gap-5 min-h-0 relative w-full max-w-full overflow-x-hidden">
       <ModuleInfo number="13" title="Usuarios y Roles" description="Administración de usuarios y control de accesos por módulo." />
 
       {/* Header */}
@@ -222,7 +222,7 @@ export const Users: React.FC = () => {
         </div>
 
         {/* Tab content */}
-        <div className="p-5">
+        <div className="p-5 overflow-hidden">
 
           {/* ── Pestaña: Usuarios ── */}
           {activeTab === 'usuarios' && (
@@ -288,7 +288,7 @@ export const Users: React.FC = () => {
               </span>
 
               {/* Vista desktop: tabla */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-[10px] font-mono border-collapse">
                   <thead>
                     <tr>
@@ -339,7 +339,7 @@ export const Users: React.FC = () => {
               </div>
 
               {/* Vista mobile: tarjetas por módulo */}
-              <div className="md:hidden flex flex-col gap-3">
+              <div className="lg:hidden flex flex-col gap-3">
                 {MODULE_GROUPS.map(group => (
                   <div key={group.label}>
                     <div className="font-mono text-[9px] font-black tracking-widest uppercase text-[#141414]/30 mb-2">— {group.label}</div>
