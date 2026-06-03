@@ -105,11 +105,9 @@ export const Analysis: React.FC = () => {
       {/* SUMMARY TAB */}
       {tab === 'summary' && (
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard icon={<Package size={18} />} label="Valor Costo" value={fmt(totals.totalCost)} sub={`${totals.totalStock.toLocaleString()} uds en stock`} dark={false} />
-            <MetricCard icon={<TrendingUp size={18} />} label="Valor Venta" value={fmt(totals.totalSell)} sub="Proyección ingresos brutos" dark={true} />
-            <MetricCard icon={<DollarSign size={18} />} label="Margen Bruto" value={fmt(totals.totalMargin)} sub={`${totals.totalMarginPct.toFixed(1)}% sobre costo`} dark={false} accent={totals.totalMargin >= 0 ? 'green' : 'red'} />
-            <MetricCard icon={<BarChart2 size={18} />} label="SKUs con Stock" value={productData.length.toString()} sub={`${totals.totalDispatched.toLocaleString()} uds despachadas`} dark={false} />
+          <div className="grid grid-cols-2 gap-3">
+            <MetricCard icon={<Package size={18} />} label="SKUs con Stock" value={productData.length.toString()} sub={`${totals.totalStock.toLocaleString()} uds en almacén`} dark={false} />
+            <MetricCard icon={<BarChart2 size={18} />} label="Uds Despachadas" value={totals.totalDispatched.toLocaleString()} sub="total salidas registradas" dark={true} />
           </div>
 
           <div className="border border-[#141414] bg-white/30 p-4">
@@ -161,43 +159,29 @@ export const Analysis: React.FC = () => {
                   <th className="text-right py-2 px-3 font-bold uppercase cursor-pointer hover:opacity-70" onClick={() => toggleSort('stock')}>
                     Stock {sortBy === 'stock' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
                   </th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">V. Costo</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase cursor-pointer hover:opacity-70" onClick={() => toggleSort('value')}>
-                    V. Venta {sortBy === 'value' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
-                  </th>
-                  <th className="text-right py-2 px-3 font-bold uppercase cursor-pointer hover:opacity-70" onClick={() => toggleSort('margin')}>
-                    Margen {sortBy === 'margin' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
-                  </th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">%</th>
+                  <th className="text-right py-2 px-3 font-bold uppercase">% Entrada</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedProducts.map(({ prod, stock, costValue, sellValue, margin, marginPct }) => (
-                  <tr key={prod.id} className="border-b border-[#141414]/15 hover:bg-white/40">
-                    <td className="py-2 px-3">
-                      <div className="font-bold">{prod.code}</div>
-                      <div className="opacity-60 text-[9px]">{prod.name} {prod.color} {prod.size}</div>
-                    </td>
-                    <td className="text-right py-2 px-3 font-bold">{stock}</td>
-                    <td className="text-right py-2 px-3 opacity-70">{fmt(costValue)}</td>
-                    <td className="text-right py-2 px-3 font-bold">{fmt(sellValue)}</td>
-                    <td className={`text-right py-2 px-3 font-bold ${margin >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmt(margin)}</td>
-                    <td className="text-right py-2 px-3">
-                      <span className={`px-1.5 py-0.5 font-bold text-[9px] ${marginPct >= 20 ? 'bg-green-100 text-green-800' : marginPct >= 0 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                        {marginPct.toFixed(1)}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {sortedProducts.map(({ prod, stock }) => {
+                  const pct = totals.totalStock > 0 ? (stock / totals.totalStock) * 100 : 0;
+                  return (
+                    <tr key={prod.id} className="border-b border-[#141414]/15 hover:bg-white/40">
+                      <td className="py-2 px-3">
+                        <div className="font-bold">{prod.code}</div>
+                        <div className="opacity-60 text-[9px]">{prod.name} {prod.color} {prod.size}</div>
+                      </td>
+                      <td className="text-right py-2 px-3 font-bold">{stock}</td>
+                      <td className="text-right py-2 px-3 opacity-70">{pct.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-[#f0efec] border-t-2 border-[#141414]">
                   <td className="py-2 px-3 font-bold uppercase text-[9px]">TOTAL ({productData.length} SKUs)</td>
                   <td className="text-right py-2 px-3 font-bold">{totals.totalStock}</td>
-                  <td className="text-right py-2 px-3 font-bold">{fmt(totals.totalCost)}</td>
-                  <td className="text-right py-2 px-3 font-bold">{fmt(totals.totalSell)}</td>
-                  <td className={`text-right py-2 px-3 font-bold ${totals.totalMargin >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmt(totals.totalMargin)}</td>
-                  <td className="text-right py-2 px-3 font-bold">{totals.totalMarginPct.toFixed(1)}%</td>
+                  <td className="text-right py-2 px-3 font-bold">100%</td>
                 </tr>
               </tfoot>
             </table>
@@ -215,28 +199,21 @@ export const Analysis: React.FC = () => {
                   <th className="text-left py-2 px-3 font-bold uppercase">Categoría</th>
                   <th className="text-right py-2 px-3 font-bold uppercase">SKUs</th>
                   <th className="text-right py-2 px-3 font-bold uppercase">Stock</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">V. Costo</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">V. Venta</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">Margen</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">%</th>
+                  <th className="text-right py-2 px-3 font-bold uppercase">% Entrada</th>
                 </tr>
               </thead>
               <tbody>
-                {categoryData.map(({ cat, count, stock, costValue, sellValue, margin, marginPct }) => (
-                  <tr key={cat} className="border-b border-[#141414]/15 hover:bg-white/40">
-                    <td className="py-2 px-3 font-bold uppercase">{cat.replace('_', ' ')}</td>
-                    <td className="text-right py-2 px-3">{count}</td>
-                    <td className="text-right py-2 px-3 font-bold">{stock}</td>
-                    <td className="text-right py-2 px-3 opacity-70">{fmt(costValue)}</td>
-                    <td className="text-right py-2 px-3 font-bold">{fmt(sellValue)}</td>
-                    <td className={`text-right py-2 px-3 font-bold ${margin >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmt(margin)}</td>
-                    <td className="text-right py-2 px-3">
-                      <span className={`px-1.5 py-0.5 font-bold text-[9px] ${marginPct >= 20 ? 'bg-green-100 text-green-800' : marginPct >= 0 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                        {marginPct.toFixed(1)}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {categoryData.map(({ cat, count, stock }) => {
+                  const pct = totals.totalStock > 0 ? (stock / totals.totalStock) * 100 : 0;
+                  return (
+                    <tr key={cat} className="border-b border-[#141414]/15 hover:bg-white/40">
+                      <td className="py-2 px-3 font-bold uppercase">{cat.replace('_', ' ')}</td>
+                      <td className="text-right py-2 px-3">{count}</td>
+                      <td className="text-right py-2 px-3 font-bold">{stock}</td>
+                      <td className="text-right py-2 px-3 opacity-70">{pct.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
