@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Package, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import { Package, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, TrendingUp, FileText, FileSpreadsheet, Printer } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { es } from 'date-fns/locale';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine } from 'recharts';
+import * as XLSX from 'xlsx';
 
 export const Dashboard: React.FC = () => {
   const { products, transactions, stockLevels } = useAppContext();
   const navigate = useNavigate();
   const [days, setDays] = useState<7 | 14 | 30>(7);
+  const [mainTab, setMainTab] = useState<'resumen' | 'producto' | 'talla'>('resumen');
 
   const totalItemsInStock = stockLevels.reduce((acc, curr) => acc + curr.quantity, 0);
   const totalInventoryValue = stockLevels.reduce((acc, curr) => {
@@ -56,6 +59,208 @@ export const Dashboard: React.FC = () => {
     .sort((a, b) => b.rotacion - a.rotacion)
     .slice(0, 5);
 
+  // ── Stock histórico acumulado ──────────────────────────────────────────────
+  // Ordenar todas las transacciones no canceladas cronológicamente
+  const sortedTxs = [...transactions]
+    .filter(t => t.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Construir running total: recepción suma, despacho resta, traslado neutro
+  let running = 0;
+  const stockHistoryMap: Record<string, { in: number; out: number; balance: number }> = {};
+  sortedTxs.forEach(tx => {
+    const day = format(new Date(tx.date), 'dd/MM/yy');
+    if (!stockHistoryMap[day]) stockHistoryMap[day] = { in: 0, out: 0, balance: 0 };
+    if (tx.type === 'RECEPTION') { running += tx.quantity; stockHistoryMap[day].in += tx.quantity; }
+    else if (tx.type === 'DISPATCH') { running -= tx.quantity; stockHistoryMap[day].out += tx.quantity; }
+    stockHistoryMap[day].balance = running;
+  });
+
+  const stockHistoryData = Object.entries(stockHistoryMap).map(([date, v]) => ({ date, ...v }));
+
+  const totalIn  = sortedTxs.filter(t => t.type === 'RECEPTION').reduce((s, t) => s + t.quantity, 0);
+  const totalOut = sortedTxs.filter(t => t.type === 'DISPATCH').reduce((s, t) => s + t.quantity, 0);
+  const netBalance = totalIn - totalOut;
+
+  // ── Por producto (agrupado por nombre base, desglose por talla, sin color) ──
+  const byProductBase: Record<string, { name: string; code: string; in: number; out: number; sizes: Record<string, { in: number; out: number }> }> = {};
+  sortedTxs.forEach(tx => {
+    const p = products.find(prod => prod.id === tx.productId);
+    if (!p) return;
+    // Clave por nombre base (ignorar color y talla en la agrupación principal)
+    const baseKey = p.name.trim();
+    if (!byProductBase[baseKey]) byProductBase[baseKey] = { name: p.name, code: p.code, in: 0, out: 0, sizes: {} };
+    const size = p.size?.trim() || 'S/T';
+    if (!byProductBase[baseKey].sizes[size]) byProductBase[baseKey].sizes[size] = { in: 0, out: 0 };
+    if (tx.type === 'RECEPTION') {
+      byProductBase[baseKey].in += tx.quantity;
+      byProductBase[baseKey].sizes[size].in += tx.quantity;
+    } else if (tx.type === 'DISPATCH') {
+      byProductBase[baseKey].out += tx.quantity;
+      byProductBase[baseKey].sizes[size].out += tx.quantity;
+    }
+  });
+  const byProductList = Object.entries(byProductBase)
+    .map(([, v]) => ({
+      ...v,
+      balance: v.in - v.out,
+      sizeList: Object.entries(v.sizes)
+        .map(([size, sv]) => ({ size, ...sv, balance: sv.in - sv.out }))
+        .sort((a, b) => b.in - a.in),
+    }))
+    .sort((a, b) => b.in - a.in);
+
+  // ── Por talla ─────────────────────────────────────────────────────────────
+  const bySize: Record<string, { in: number; out: number }> = {};
+  sortedTxs.forEach(tx => {
+    const p = products.find(prod => prod.id === tx.productId);
+    const size = p?.size?.trim() || 'S/T';
+    if (!bySize[size]) bySize[size] = { in: 0, out: 0 };
+    if (tx.type === 'RECEPTION') bySize[size].in += tx.quantity;
+    else if (tx.type === 'DISPATCH') bySize[size].out += tx.quantity;
+  });
+  const bySizeList = Object.entries(bySize)
+    .map(([size, v]) => ({ size, ...v, balance: v.in - v.out }))
+    .sort((a, b) => b.in - a.in);
+
+  // ── Exportaciones ─────────────────────────────────────────────────────────
+  const exportProductoCSV = () => {
+    const rows: string[][] = [['Producto', 'Total Ingresado', 'Total Despachado', 'Balance', 'Talla', 'Ingresado Talla', 'Despachado Talla', 'Balance Talla']];
+    byProductList.forEach(p => {
+      if (p.sizeList.length === 0) {
+        rows.push([p.name, String(p.in), String(p.out), String(p.balance), '', '', '', '']);
+      } else {
+        p.sizeList.forEach((s, i) => {
+          rows.push([i === 0 ? p.name : '', i === 0 ? String(p.in) : '', i === 0 ? String(p.out) : '', i === 0 ? String(p.balance) : '', s.size, String(s.in), String(s.out), String(s.balance)]);
+        });
+      }
+    });
+    const csv = rows.map(r => r.map(v => v.includes(',') ? `"${v}"` : v).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `stock_por_producto_${format(new Date(), 'yyyyMMdd')}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportProductoExcel = () => {
+    const rows: (string | number)[][] = [['Producto', 'Total Ingresado', 'Total Despachado', 'Balance', 'Talla', 'Ingresado', 'Despachado', 'Balance Talla']];
+    byProductList.forEach(p => {
+      if (p.sizeList.length === 0) {
+        rows.push([p.name, p.in, p.out, p.balance, '', '', '', '']);
+      } else {
+        p.sizeList.forEach((s, i) => {
+          rows.push([i === 0 ? p.name : '', i === 0 ? p.in : '', i === 0 ? p.out : '', i === 0 ? p.balance : '', s.size, s.in, s.out, s.balance]);
+        });
+      }
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [40,14,14,10,10,10,10,12].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Stock por Producto');
+    XLSX.writeFile(wb, `stock_por_producto_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  };
+
+  const exportProductoPDF = () => {
+    const now = format(new Date(), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
+    const tableRows = byProductList.map(p => {
+      const sizesHTML = p.sizeList.map(s =>
+        `<span style="display:inline-flex;flex-direction:column;align-items:center;border:1px solid #ccc;padding:3px 6px;margin:2px;font-size:8px;">
+          <b>${s.size}</b>
+          <span style="color:#15803d">+${s.in}</span>
+          <span style="color:#dc2626">−${s.out}</span>
+        </span>`).join('');
+      return `<tr>
+        <td><b>${p.name}</b></td>
+        <td style="text-align:center;color:#15803d;font-weight:700">+${p.in}</td>
+        <td style="text-align:center;color:#dc2626;font-weight:700">−${p.out}</td>
+        <td style="text-align:center;font-weight:900;color:${p.balance >= 0 ? '#141414' : '#dc2626'}">${p.balance >= 0 ? '+' : ''}${p.balance}</td>
+        <td>${sizesHTML}</td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Courier New',monospace;padding:32px 40px;font-size:10px;color:#141414}
+      @page{size:A4;margin:14mm}
+      h1{font-size:16px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+      .meta{font-size:8px;opacity:.5;margin-bottom:24px;letter-spacing:.06em}
+      table{width:100%;border-collapse:collapse;font-size:9px}
+      thead{background:#141414;color:#E4E3E0}
+      th{padding:8px 10px;text-align:left;font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+      td{padding:7px 10px;border-bottom:1px solid #e5e7eb;vertical-align:middle}
+      tr:nth-child(even) td{background:#fafafa}
+    </style></head><body>
+    <h1>Stock Acumulado — Por Producto</h1>
+    <div class="meta">Generado: ${now} · ${byProductList.length} productos</div>
+    <table>
+      <thead><tr><th>Producto</th><th>Ingresado</th><th>Despachado</th><th>Balance</th><th>Por Talla</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 500);
+  };
+
+  const exportTallaCSV = () => {
+    const rows = [['Talla', 'Ingresado', 'Despachado', 'Balance'], ...bySizeList.map(s => [s.size, String(s.in), String(s.out), String(s.balance)])];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `stock_por_talla_${format(new Date(), 'yyyyMMdd')}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTallaExcel = () => {
+    const rows = [['Talla', 'Ingresado', 'Despachado', 'Balance'], ...bySizeList.map(s => [s.size, s.in, s.out, s.balance])];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [12, 12, 12, 10].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Stock por Talla');
+    XLSX.writeFile(wb, `stock_por_talla_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  };
+
+  const exportTallaPDF = () => {
+    const now = format(new Date(), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
+    const tableRows = bySizeList.map(s => `<tr>
+      <td style="font-weight:900;font-size:14px">${s.size}</td>
+      <td style="text-align:center;color:#15803d;font-weight:700">+${s.in}</td>
+      <td style="text-align:center;color:#dc2626;font-weight:700">−${s.out}</td>
+      <td style="text-align:center;font-weight:900;color:${s.balance >= 0 ? '#141414' : '#dc2626'}">${s.balance >= 0 ? '+' : ''}${s.balance}</td>
+    </tr>`).join('');
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Courier New',monospace;padding:32px 40px;font-size:10px;color:#141414}
+      @page{size:A4;margin:14mm}
+      h1{font-size:16px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+      .meta{font-size:8px;opacity:.5;margin-bottom:24px;letter-spacing:.06em}
+      table{width:100%;border-collapse:collapse;font-size:10px}
+      thead{background:#141414;color:#E4E3E0}
+      th{padding:8px 12px;text-align:left;font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+      td{padding:10px 12px;border-bottom:1px solid #e5e7eb}
+      tr:nth-child(even) td{background:#fafafa}
+    </style></head><body>
+    <h1>Stock Acumulado — Por Talla</h1>
+    <div class="meta">Generado: ${now} · ${bySizeList.length} tallas</div>
+    <table>
+      <thead><tr><th>Talla</th><th>Ingresado</th><th>Despachado</th><th>Balance</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 500);
+  };
+
   const lowStockItems = products.map(p => {
     const productStock = stockLevels.filter(s => s.productId === p.id);
     const total = productStock.reduce((acc, curr) => acc + curr.quantity, 0);
@@ -71,6 +276,171 @@ export const Dashboard: React.FC = () => {
         <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Resumen operativo del almacén al día de hoy.</p>
       </div>
 
+      {/* Main tabs */}
+      <div className="flex border border-[#141414] bg-[#D4D3D0]">
+        {([
+          { key: 'resumen',  label: 'RESUMEN' },
+          { key: 'producto', label: 'POR PRODUCTO' },
+          { key: 'talla',    label: 'POR TALLA' },
+        ] as const).map((tab, i, arr) => (
+          <button
+            key={tab.key}
+            onClick={() => setMainTab(tab.key)}
+            className={`flex-1 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all ${i < arr.length - 1 ? 'border-r border-[#141414]' : ''} ${mainTab === tab.key ? 'bg-[#141414] text-[#E4E3E0]' : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── PESTAÑA: POR PRODUCTO ──────────────────────────────────────────────── */}
+      {mainTab === 'producto' && (
+        <div className="flex flex-col gap-4">
+          <div className="border border-[#141414] bg-[#D4D3D0] px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-widest">STOCK ACUMULADO — POR PRODUCTO</span>
+              <span className="font-mono text-[9px] opacity-50">{byProductList.length} productos</span>
+            </div>
+            <div className="flex gap-1">
+              <button onClick={exportProductoPDF} title="Exportar PDF" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><Printer size={11} /> PDF</button>
+              <button onClick={exportProductoExcel} title="Exportar Excel" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><FileSpreadsheet size={11} /> Excel</button>
+              <button onClick={exportProductoCSV} title="Exportar CSV" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><FileText size={11} /> CSV</button>
+            </div>
+          </div>
+
+          {/* Totales globales */}
+          <div className="grid grid-cols-3 border border-[#141414]">
+            <div className="p-4 border-r border-[#141414]">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">TOTAL INGRESADO</div>
+              <div className="font-mono text-2xl font-black text-green-700">+{totalIn.toLocaleString()}</div>
+            </div>
+            <div className="p-4 border-r border-[#141414]">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">TOTAL DESPACHADO</div>
+              <div className="font-mono text-2xl font-black text-red-700">−{totalOut.toLocaleString()}</div>
+            </div>
+            <div className="p-4">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">BALANCE NETO</div>
+              <div className={`font-mono text-2xl font-black ${netBalance >= 0 ? 'text-[#141414]' : 'text-red-700'}`}>
+                {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Cards por producto */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {byProductList.map(p => (
+              <div key={p.name} className="border border-[#141414] bg-white/50 flex flex-col shadow-[2px_2px_0_#141414]">
+                {/* Header */}
+                <div className="bg-[#141414] text-[#E4E3E0] px-3 py-2 flex items-center justify-between gap-2">
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-widest truncate">{p.name}</span>
+                  <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 border shrink-0 ${p.balance >= 0 ? 'border-green-400 text-green-300' : 'border-red-400 text-red-300'}`}>
+                    {p.balance >= 0 ? '+' : ''}{p.balance}
+                  </span>
+                </div>
+                {/* Totales IN / OUT */}
+                <div className="grid grid-cols-2 divide-x divide-[#141414]/20 border-b border-[#141414]/20">
+                  <div className="p-3 flex flex-col gap-0.5">
+                    <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">INGRESADO</span>
+                    <span className="font-mono text-xl font-black text-green-700">+{p.in}</span>
+                  </div>
+                  <div className="p-3 flex flex-col gap-0.5">
+                    <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">DESPACHADO</span>
+                    <span className="font-mono text-xl font-black text-red-700">−{p.out}</span>
+                  </div>
+                </div>
+                {/* Desglose por talla */}
+                <div className="px-3 py-2">
+                  <div className="font-mono text-[8px] uppercase tracking-widest opacity-40 mb-1.5">POR TALLA</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.sizeList.map(s => (
+                      <div key={s.size} className="border border-[#141414]/30 bg-[#141414]/5 px-2 py-1 flex flex-col items-center min-w-[48px]">
+                        <span className="font-mono text-[9px] font-black uppercase">{s.size}</span>
+                        <span className="font-mono text-[8px] text-green-700 font-bold">+{s.in}</span>
+                        <span className="font-mono text-[8px] text-red-700 font-bold">−{s.out}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {byProductList.length === 0 && (
+              <div className="col-span-3 p-8 text-center font-mono text-xs uppercase opacity-40 border border-[#141414] bg-white/30">
+                SIN MOVIMIENTOS REGISTRADOS
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PESTAÑA: POR TALLA ────────────────────────────────────────────────── */}
+      {mainTab === 'talla' && (
+        <div className="flex flex-col gap-4">
+          <div className="border border-[#141414] bg-[#D4D3D0] px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-widest">STOCK ACUMULADO — POR TALLA</span>
+              <span className="font-mono text-[9px] opacity-50">{bySizeList.length} tallas</span>
+            </div>
+            <div className="flex gap-1">
+              <button onClick={exportTallaPDF} title="Exportar PDF" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><Printer size={11} /> PDF</button>
+              <button onClick={exportTallaExcel} title="Exportar Excel" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><FileSpreadsheet size={11} /> Excel</button>
+              <button onClick={exportTallaCSV} title="Exportar CSV" className="flex items-center gap-1 px-2 py-1 border border-[#141414] font-mono text-[9px] uppercase font-bold hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"><FileText size={11} /> CSV</button>
+            </div>
+          </div>
+
+          {/* Totales globales */}
+          <div className="grid grid-cols-3 border border-[#141414]">
+            <div className="p-4 border-r border-[#141414]">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">TOTAL INGRESADO</div>
+              <div className="font-mono text-2xl font-black text-green-700">+{totalIn.toLocaleString()}</div>
+            </div>
+            <div className="p-4 border-r border-[#141414]">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">TOTAL DESPACHADO</div>
+              <div className="font-mono text-2xl font-black text-red-700">−{totalOut.toLocaleString()}</div>
+            </div>
+            <div className="p-4">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-1">BALANCE NETO</div>
+              <div className={`font-mono text-2xl font-black ${netBalance >= 0 ? 'text-[#141414]' : 'text-red-700'}`}>
+                {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Cards por talla */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {bySizeList.map(s => (
+              <div key={s.size} className="border border-[#141414] bg-white/50 flex flex-col shadow-[2px_2px_0_#141414]">
+                <div className="bg-[#141414] text-[#E4E3E0] px-3 py-3 text-center">
+                  <span className="font-mono text-lg font-black uppercase tracking-widest">{s.size}</span>
+                </div>
+                <div className="p-3 text-center border-b border-[#141414]/20">
+                  <div className="font-mono text-[8px] uppercase tracking-widest opacity-50 mb-0.5">BALANCE NETO</div>
+                  <div className={`font-mono text-3xl font-black ${s.balance >= 0 ? 'text-[#141414]' : 'text-red-700'}`}>
+                    {s.balance >= 0 ? '+' : ''}{s.balance}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-[#141414]/20">
+                  <div className="p-3 flex flex-col items-center gap-0.5">
+                    <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">IN</span>
+                    <span className="font-mono text-lg font-black text-green-700">+{s.in}</span>
+                  </div>
+                  <div className="p-3 flex flex-col items-center gap-0.5">
+                    <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">OUT</span>
+                    <span className="font-mono text-lg font-black text-red-700">−{s.out}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {bySizeList.length === 0 && (
+              <div className="col-span-4 p-8 text-center font-mono text-xs uppercase opacity-40 border border-[#141414] bg-white/30">
+                SIN MOVIMIENTOS REGISTRADOS
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mainTab === 'resumen' && (
+        <>
       {/* Low Stock Alert Panel */}
       {lowStockItems.length > 0 && (
         <button 
@@ -200,10 +570,102 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Stock histórico acumulado */}
+      <div className="data-table-container">
+        <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={14} />
+            <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">03 // STOCK_HISTÓRICO_ACUMULADO</h3>
+          </div>
+          <span className="font-mono text-[9px] opacity-50 uppercase">RECEP − DESPACHOS = BALANCE</span>
+        </div>
+
+        {/* Totalizadores */}
+        <div className="grid grid-cols-3 border-b border-[#141414]">
+          <div className="p-4 border-r border-[#141414] flex flex-col gap-1">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">TOTAL INGRESADO</span>
+            <span className="font-mono text-2xl font-black text-green-700">+{totalIn.toLocaleString()}</span>
+            <span className="font-mono text-[9px] opacity-40 uppercase">unidades históricas</span>
+          </div>
+          <div className="p-4 border-r border-[#141414] flex flex-col gap-1">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">TOTAL DESPACHADO</span>
+            <span className="font-mono text-2xl font-black text-red-700">−{totalOut.toLocaleString()}</span>
+            <span className="font-mono text-[9px] opacity-40 uppercase">unidades históricas</span>
+          </div>
+          <div className="p-4 flex flex-col gap-1">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">BALANCE NETO</span>
+            <span className={`font-mono text-2xl font-black ${netBalance >= 0 ? 'text-[#141414]' : 'text-red-700'}`}>
+              {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString()}
+            </span>
+            <span className="font-mono text-[9px] opacity-40 uppercase">stock acumulado total</span>
+          </div>
+        </div>
+
+        {/* Gráfica de línea acumulada */}
+        {stockHistoryData.length > 0 ? (
+          <div className="h-[280px] p-4 bg-white/50">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stockHistoryData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#141414" opacity={0.08} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold' }}
+                  dy={8}
+                  interval="preserveStartEnd"
+                />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold' }} />
+                <Tooltip
+                  cursor={{ stroke: '#141414', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  contentStyle={{ borderRadius: 0, border: '2px solid #141414', backgroundColor: '#E4E3E0', padding: '8px', boxShadow: '4px 4px 0 #141414' }}
+                  itemStyle={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold' }}
+                  labelStyle={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}
+                  formatter={(val: number, name: string) => [val.toLocaleString(), name]}
+                />
+                <ReferenceLine y={0} stroke="#b91c1c" strokeDasharray="4 4" strokeWidth={1} />
+                <Legend wrapperStyle={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 'bold' }} iconType="square" />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  name="BALANCE ACUMULADO"
+                  stroke="#141414"
+                  strokeWidth={2}
+                  dot={stockHistoryData.length <= 30}
+                  activeDot={{ r: 5, fill: '#141414' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="in"
+                  name="INGRESADO"
+                  stroke="#15803d"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="out"
+                  name="DESPACHADO"
+                  stroke="#b91c1c"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="p-8 text-center font-mono text-xs uppercase opacity-40 bg-white/30">
+            SIN MOVIMIENTOS REGISTRADOS AÚN
+          </div>
+        )}
+      </div>
+
       {/* Recents */}
       <div className="data-table-container mt-4">
         <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center">
-          <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">03 // Últimos_Movimientos</h3>
+          <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">04 // Últimos_Movimientos</h3>
           <span className="font-mono text-[10px] opacity-50">SYNC_ID: 992-RX</span>
         </div>
         <div className="grid grid-cols-[100px_minmax(120px,1fr)_120px_100px_minmax(150px,1fr)] data-header">
@@ -238,6 +700,8 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

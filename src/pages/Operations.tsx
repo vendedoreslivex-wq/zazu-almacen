@@ -4,8 +4,10 @@ import { ModuleInfo } from '../components/ModuleInfo';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
-  BarChart2, MapPin, Package, TrendingUp, TrendingDown,
+  BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
+  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import SignaturePad from 'signature_pad';
 import { TransactionType, Transaction } from '../types';
@@ -16,6 +18,8 @@ import { supabase } from '../lib/supabase';
 import { uploadSignature } from '../lib/signatureStorage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
+
+type ActiveOp = TransactionType | 'WRITEOFF';
 
 type LineItem = { key: string; productId: string; qty: string };
 
@@ -65,6 +69,17 @@ const TYPE_META: Record<TransactionType, { label: string; accentColor: string; b
   DISPATCH:  { label: 'DESPACHO',  accentColor: '#b91c1c', bgColor: '#fef2f2', icon: '↑' },
   TRANSFER:  { label: 'TRASLADO',  accentColor: '#0369a1', bgColor: '#eff6ff', icon: '⇄' },
 };
+
+const WRITEOFF_REASONS = [
+  'Prendas en mal estado',
+  'Prendas rotas',
+  'Prendas sucias / manchadas',
+  'Prendas mojadas / húmedas',
+  'Prendas con defecto de fabricación',
+  'Prendas deterioradas por almacenamiento',
+  'Merma por siniestro / robo',
+  'Otro motivo',
+];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -290,7 +305,8 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export const Operations: React.FC = () => {
-  const [activeOpt, setActiveOpt] = useState<TransactionType>('RECEPTION');
+  const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION');
+  const [mainTab, setMainTab] = useState<'operations' | 'reports'>('operations');
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
@@ -300,54 +316,105 @@ export const Operations: React.FC = () => {
         description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta múltiples productos por operación."
       />
 
-      <div className="grid grid-cols-3 gap-2 bg-[#D4D3D0] border border-[#141414] p-2 shadow-[4px_4px_0_#141414]">
-        <OptButton
-          icon={<ArrowDownLeft size={18} />}
-          label="RECEPCIÓN"
-          desc="Registra entrada de productos al stock. Suma al inventario total."
-          active={activeOpt === 'RECEPTION'}
-          onClick={() => setActiveOpt('RECEPTION')}
-        />
-        <OptButton
-          icon={<ArrowUpRight size={18} />}
-          label="DESPACHO"
-          desc="Registra salida de productos. Descuenta del inventario disponible."
-          active={activeOpt === 'DISPATCH'}
-          onClick={() => setActiveOpt('DISPATCH')}
-        />
-        <OptButton
-          icon={<ArrowRightLeft size={18} />}
-          label="TRANSLADO"
-          desc="Mueve productos entre almacenes. El total del inventario no cambia."
-          active={activeOpt === 'TRANSFER'}
-          onClick={() => setActiveOpt('TRANSFER')}
-        />
+      {/* Main tabs */}
+      <div className="flex border border-[#141414] bg-[#D4D3D0]">
+        <button
+          onClick={() => setMainTab('operations')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[#141414] transition-all',
+            mainTab === 'operations'
+              ? 'bg-[#141414] text-[#E4E3E0]'
+              : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'
+          )}
+        >
+          <ArrowRightLeft size={14} />
+          OPERACIONES
+        </button>
+        <button
+          onClick={() => setMainTab('reports')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+            mainTab === 'reports'
+              ? 'bg-[#141414] text-[#E4E3E0]'
+              : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'
+          )}
+        >
+          <BarChart2 size={14} />
+          REPORTES
+        </button>
       </div>
 
-      <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 relative overflow-visible">
-        <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
-          {activeOpt === 'RECEPTION' ? 'RX' : activeOpt === 'DISPATCH' ? 'TX' : 'MV'}
+      {mainTab === 'operations' && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-[#D4D3D0] border border-[#141414] p-2 shadow-[4px_4px_0_#141414]">
+            <OptButton
+              icon={<ArrowDownLeft size={18} />}
+              label="RECEPCIÓN"
+              desc="Registra entrada de productos al stock. Suma al inventario total."
+              active={activeOpt === 'RECEPTION'}
+              onClick={() => setActiveOpt('RECEPTION')}
+            />
+            <OptButton
+              icon={<ArrowUpRight size={18} />}
+              label="DESPACHO"
+              desc="Registra salida de productos. Descuenta del inventario disponible."
+              active={activeOpt === 'DISPATCH'}
+              onClick={() => setActiveOpt('DISPATCH')}
+            />
+            <OptButton
+              icon={<ArrowRightLeft size={18} />}
+              label="TRANSLADO"
+              desc="Mueve productos entre almacenes. El total del inventario no cambia."
+              active={activeOpt === 'TRANSFER'}
+              onClick={() => setActiveOpt('TRANSFER')}
+            />
+            <OptButton
+              icon={<ShieldOff size={18} />}
+              label="BAJA / MERMA"
+              desc="Registra prendas dadas de baja. Descuenta del inventario con motivo."
+              active={activeOpt === 'WRITEOFF'}
+              onClick={() => setActiveOpt('WRITEOFF')}
+              accent="red"
+            />
+          </div>
+
+          <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 relative overflow-visible">
+            <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
+              {activeOpt === 'RECEPTION' ? 'RX' : activeOpt === 'DISPATCH' ? 'TX' : activeOpt === 'TRANSFER' ? 'MV' : 'BJ'}
+            </div>
+            {activeOpt === 'WRITEOFF'
+              ? <WriteOffForm key="writeoff" />
+              : <OperationForm key={activeOpt} type={activeOpt as TransactionType} />
+            }
+          </div>
+
+          <RecentTransactions />
+        </>
+      )}
+
+      {mainTab === 'reports' && (
+        <div className="border border-[#141414] bg-white/30 p-5 shadow-[3px_3px_0_#141414]">
+          <OperationsReport />
         </div>
-        <OperationForm key={activeOpt} type={activeOpt} />
-      </div>
-
-      <RecentTransactions />
-
-      <div className="border border-[#141414] bg-white/30 p-5 shadow-[3px_3px_0_#141414]">
-        <OperationsReport />
-      </div>
+      )}
     </div>
   );
 };
 
 // ─── OptButton ─────────────────────────────────────────────────────────────────
 
-const OptButton = ({ icon, label, desc, active, onClick }: any) => (
+const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      'flex flex-col items-center gap-2 p-3 lg:p-4 border border-[#141414] transition-all',
-      active ? 'bg-[#141414] text-[#E4E3E0] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]' : 'bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]'
+      'flex flex-col items-center gap-2 p-3 lg:p-4 border transition-all',
+      accent === 'red'
+        ? active
+          ? 'border-red-800 bg-red-800 text-white shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
+          : 'border-red-800 bg-red-50 text-red-900 hover:bg-red-800 hover:text-white'
+        : active
+          ? 'border-[#141414] bg-[#141414] text-[#E4E3E0] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
+          : 'border-[#141414] bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]'
     )}
   >
     <div className={cn(active ? '' : 'opacity-70')}>{icon}</div>
@@ -355,7 +422,7 @@ const OptButton = ({ icon, label, desc, active, onClick }: any) => (
     {desc && (
       <span className={cn(
         'font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full',
-        active ? 'border-white/20 text-white/60' : 'border-[#141414]/15 text-[#141414]/50'
+        active ? 'border-white/20 text-white/60' : accent === 'red' ? 'border-red-800/20 text-red-900/50' : 'border-[#141414]/15 text-[#141414]/50'
       )}>
         {desc}
       </span>
@@ -930,6 +997,301 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   );
 };
 
+// ─── WriteOffForm ──────────────────────────────────────────────────────────────
+
+const WriteOffForm: React.FC = () => {
+  const { products, locations, addTransaction, stockLevels, activeBrand, currentUser } = useAppContext();
+
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [fromLocation, setFromLocation] = useState('');
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [notes, setNotes] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const resized = await resizeImage(file);
+    setPhoto(resized);
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (lineItems.length === 0) errs.lines = 'AGREGA_AL_MENOS_UN_PRODUCTO';
+    if (!fromLocation) errs.fromLocation = 'SELECCIONE_UBICACIÓN_ORIGEN';
+    if (!reason) errs.reason = 'SELECCIONE_MOTIVO_DE_BAJA';
+    if (reason === 'Otro motivo' && !customReason.trim()) errs.customReason = 'DESCRIBE_EL_MOTIVO';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const effectiveReason = reason === 'Otro motivo' ? customReason.trim() : reason;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    if (!validate()) return;
+    setShowPreview(true);
+  };
+
+  const executeWriteOff = async () => {
+    setShowPreview(false);
+    const guideNumber = await nextGuideNumber('DISPATCH', activeBrand);
+    const reference = `[BAJA] ${effectiveReason}${notes.trim() ? ' — ' + notes.trim() : ''}`;
+    try {
+      for (const item of lineItems) {
+        await addTransaction({
+          type: 'DISPATCH',
+          productId: item.productId,
+          quantity: parseInt(item.qty, 10),
+          fromLocationId: fromLocation,
+          reference,
+          user: currentUser.username,
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'ERROR AL REGISTRAR' });
+      return;
+    }
+
+    setLineItems([]);
+    setFromLocation('');
+    setReason('');
+    setCustomReason('');
+    setNotes('');
+    setPhoto(null);
+    setErrors({});
+    if (photoInputRef.current) photoInputRef.current.value = '';
+
+    setFeedback({ type: 'success', message: `¡BAJA REGISTRADA! GUÍA ${guideNumber}` });
+    setTimeout(() => setFeedback(null), 6000);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
+      {feedback && (
+        <div className={cn(
+          'p-3 border font-bold font-mono text-xs uppercase tracking-widest',
+          feedback.type === 'success' ? 'bg-green-100 border-green-700 text-green-800' : 'bg-red-100 border-red-700 text-red-800'
+        )}>
+          {feedback.message}
+        </div>
+      )}
+
+      <div className="border-b border-red-800/30 pb-3">
+        <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest text-red-900">
+          BAJA / MERMA — REGISTRO DE PRENDAS DADAS DE BAJA
+        </h3>
+        <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold text-red-800">
+          DESCUENTA INVENTARIO · REQUIERE MOTIVO OBLIGATORIO
+        </p>
+      </div>
+
+      {/* Productos */}
+      <div className="flex flex-col gap-3">
+        <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">AGREGAR PRODUCTOS A DAR DE BAJA</label>
+        <div className="border border-red-800/30 bg-red-50/40 p-3">
+          <CascadeProductSelector
+            products={products}
+            onAdd={(item) => setLineItems(prev => [...prev, item])}
+            stockLevels={stockLevels}
+            fromLocation={fromLocation}
+            opType="DISPATCH"
+          />
+        </div>
+        {errors.lines && (
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">{errors.lines}</span>
+        )}
+        {lineItems.length > 0 && (
+          <div className="flex flex-col gap-0 border border-red-800/30 overflow-hidden">
+            <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
+              <span>PRENDAS A DAR DE BAJA</span>
+              <span>{lineItems.length} LÍNEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+            </div>
+            {lineItems.map((item, idx) => {
+              const prod = products.find(p => p.id === item.productId);
+              return (
+                <div key={item.key} className={cn(
+                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-red-800/10 last:border-0',
+                  idx % 2 === 0 ? 'bg-white/60' : 'bg-red-50/40'
+                )}>
+                  <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
+                  <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
+                  <span className="font-bold flex-1 truncate uppercase">{prod?.name} {prod?.color} {prod?.size}</span>
+                  <span className="font-black text-sm shrink-0">{item.qty}</span>
+                  <button type="button" onClick={() => setLineItems(prev => prev.filter(l => l.key !== item.key))}
+                    className="shrink-0 text-red-400 hover:text-red-700 transition-colors p-0.5">
+                    <Minus size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Ubicación origen + Motivo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGroup label="UBICACIÓN ORIGEN (ALMACÉN)" error={errors.fromLocation}>
+          <select
+            value={fromLocation}
+            onChange={e => { setFromLocation(e.target.value); setErrors(prev => ({ ...prev, fromLocation: '' })); }}
+            className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-50')}
+          >
+            <option value="">Seleccione Almacén...</option>
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        </FormGroup>
+
+        <FormGroup label="MOTIVO DE BAJA" error={errors.reason}>
+          <select
+            value={reason}
+            onChange={e => { setReason(e.target.value); setErrors(prev => ({ ...prev, reason: '', customReason: '' })); }}
+            className={cn('input-technical', errors.reason && 'border-red-600 bg-red-50')}
+          >
+            <option value="">— Seleccione motivo —</option>
+            {WRITEOFF_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </FormGroup>
+
+        {reason === 'Otro motivo' && (
+          <FormGroup label="DESCRIBE EL MOTIVO" error={errors.customReason} className="md:col-span-2">
+            <input
+              type="text"
+              value={customReason}
+              onChange={e => { setCustomReason(e.target.value); setErrors(prev => ({ ...prev, customReason: '' })); }}
+              className={cn('input-technical', errors.customReason && 'border-red-600 bg-red-50')}
+              placeholder="EJ: PRENDAS VENCIDAS POR PLAZO DE ALMACENAMIENTO"
+            />
+          </FormGroup>
+        )}
+
+        <FormGroup label="OBSERVACIONES ADICIONALES (OPCIONAL)" className="md:col-span-2">
+          <input
+            type="text"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            className="input-technical"
+            placeholder="EJ: LOTE 2024-03, DETECTADO EN REVISIÓN MENSUAL"
+          />
+        </FormGroup>
+      </div>
+
+      {/* Foto evidencia */}
+      <FormGroup label="EVIDENCIA FOTOGRÁFICA (RECOMENDADO)">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => photoInputRef.current?.click()}
+            className="flex items-center gap-2 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase">
+            <Camera size={13} />
+            {photo ? 'CAMBIAR FOTO' : 'CAPTURAR / ADJUNTAR'}
+          </button>
+          {photo && (
+            <button type="button" onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+              className="text-red-500 hover:text-red-700 transition-colors">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
+        {photo && (
+          <div className="mt-2 border border-[#141414]/20 bg-white/40 p-1 w-fit">
+            <img src={photo} alt="evidencia" className="max-h-28 max-w-full object-contain" />
+          </div>
+        )}
+      </FormGroup>
+
+      <div className="flex justify-between items-center mt-2">
+        <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
+          {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
+        </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="bg-red-800 border border-red-800 hover:bg-white hover:text-red-800 text-white px-8 py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+        >
+          REGISTRAR BAJA
+        </button>
+      </div>
+
+      <style>{`
+        .input-technical {
+          width: 100%;
+          background: rgba(255,255,255,.7);
+          border: 1px solid #141414;
+          border-radius: 0;
+          padding: 10px 14px;
+          color: #141414;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          outline: none;
+          transition: all 0.1s;
+        }
+        .input-technical:focus { background: white; box-shadow: 2px 2px 0 0 #141414; }
+      `}</style>
+
+      {/* Preview modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#E4E3E0] border-2 border-red-800 shadow-[6px_6px_0_#991b1b] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-red-800 text-white px-5 py-3 flex justify-between items-center">
+              <div>
+                <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">CONFIRMAR BAJA / MERMA</div>
+                <div className="font-mono font-black text-sm uppercase tracking-widest">BAJA DE INVENTARIO</div>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <div className="bg-red-50 border border-red-800/30 p-3 font-mono text-[10px] flex flex-col gap-1">
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Motivo</span><span className="font-bold">{effectiveReason}</span></div>
+                {notes && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Notas</span><span className="font-bold">{notes}</span></div>}
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Almacén</span><span className="font-bold">{locations.find(l => l.id === fromLocation)?.name}</span></div>
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Operador</span><span className="font-bold">{currentUser.username}</span></div>
+              </div>
+              <div className="border border-red-800/30">
+                <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRENDAS A DAR DE BAJA</div>
+                {lineItems.map((item, i) => {
+                  const prod = products.find(p => p.id === item.productId);
+                  return (
+                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-white/50' : ''}`}>
+                      <div>
+                        <span className="font-bold">{prod?.code}</span>
+                        <span className="opacity-60 ml-2">{prod?.name} {prod?.color} {prod?.size}</span>
+                      </div>
+                      <span className="font-black text-sm ml-4">{item.qty} uds</span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between px-3 py-2 bg-red-100 border-t border-red-800/20 font-mono text-[10px] font-bold">
+                  <span>TOTAL A DAR DE BAJA</span>
+                  <span>{lineItems.reduce((s, l) => s + (parseInt(l.qty, 10) || 0), 0)} uds</span>
+                </div>
+              </div>
+              <p className="font-mono text-[9px] text-red-800 font-bold uppercase tracking-widest border border-red-800/30 bg-red-50 p-2">
+                ESTA ACCIÓN DESCUENTA EL INVENTARIO Y NO SE PUEDE REVERTIR DIRECTAMENTE.
+              </p>
+              <div className="flex gap-2 pt-2">
+                <button onClick={executeWriteOff} className="flex-1 bg-red-800 text-white py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#991b1b] transition-all">
+                  CONFIRMAR BAJA
+                </button>
+                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[#141414] py-2.5 text-xs font-bold font-mono uppercase hover:bg-white/50">
+                  VOLVER
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+};
+
 // ─── QR Scanner ────────────────────────────────────────────────────────────────
 
 const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: string) => void }> = ({ onClose, onDetected }) => {
@@ -1247,286 +1609,607 @@ const RecentTransactions: React.FC = () => {
 // ─── Operations Report ─────────────────────────────────────────────────────────
 
 const OperationsReport: React.FC = () => {
-  const { transactions, products, locations } = useAppContext();
-  const [reportType, setReportType] = useState<'type' | 'destination' | 'product'>('type');
+  const { transactions, products, locations, activeBrand } = useAppContext();
+  const [reportTab, setReportTab] = useState<'resumen' | 'movimientos' | 'bajas' | 'historial'>('resumen');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [searchQ, setSearchQ] = useState('');
+  const [sortCol, setSortCol] = useState<'date' | 'qty' | 'type'>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [histPage, setHistPage] = useState(1);
+  const HIST_PAGE_SIZE = 15;
 
-  const active = useMemo(
-    () => transactions.filter(tx => tx.status !== 'CANCELLED'),
-    [transactions],
-  );
+  const active = useMemo(() => transactions.filter(tx => tx.status !== 'CANCELLED'), [transactions]);
 
-  const filtered = useMemo(() => {
-    return active.filter(tx => {
-      if (dateFrom) {
-        const d = new Date(tx.date); const f = new Date(dateFrom + 'T00:00:00');
-        if (d < f) return false;
-      }
-      if (dateTo) {
-        const d = new Date(tx.date); const t = new Date(dateTo + 'T23:59:59');
-        if (d > t) return false;
-      }
-      return true;
-    });
-  }, [active, dateFrom, dateTo]);
+  const filtered = useMemo(() => active.filter(tx => {
+    if (dateFrom && new Date(tx.date) < new Date(dateFrom + 'T00:00:00')) return false;
+    if (dateTo   && new Date(tx.date) > new Date(dateTo   + 'T23:59:59')) return false;
+    return true;
+  }), [active, dateFrom, dateTo]);
 
-  // ── By operation type ──
+  const writeoffs = useMemo(() => filtered.filter(tx => tx.reference?.startsWith('[BAJA]')), [filtered]);
+  const regular   = useMemo(() => filtered.filter(tx => !tx.reference?.startsWith('[BAJA]')), [filtered]);
+
   const byType = useMemo(() => {
     const map: Record<string, { count: number; units: number }> = {
       RECEPTION: { count: 0, units: 0 },
       DISPATCH:  { count: 0, units: 0 },
       TRANSFER:  { count: 0, units: 0 },
     };
-    filtered.forEach(tx => {
-      if (!map[tx.type]) return;
-      map[tx.type].count += 1;
-      map[tx.type].units += tx.quantity;
-    });
+    regular.forEach(tx => { if (map[tx.type]) { map[tx.type].count++; map[tx.type].units += tx.quantity; } });
     return map;
-  }, [filtered]);
+  }, [regular]);
 
-  // ── By destination location ──
   const byDestination = useMemo(() => {
     const map = new Map<string, { name: string; count: number; units: number }>();
-    filtered.forEach(tx => {
-      const locId = tx.toLocationId;
-      if (!locId) return;
-      const loc = locations.find(l => l.id === locId);
-      const name = loc?.name ?? locId;
-      if (!map.has(locId)) map.set(locId, { name, count: 0, units: 0 });
-      const entry = map.get(locId)!;
-      entry.count += 1;
-      entry.units += tx.quantity;
+    regular.forEach(tx => {
+      if (!tx.toLocationId) return;
+      const name = locations.find(l => l.id === tx.toLocationId)?.name ?? tx.toLocationId;
+      if (!map.has(tx.toLocationId)) map.set(tx.toLocationId, { name, count: 0, units: 0 });
+      const e = map.get(tx.toLocationId)!; e.count++; e.units += tx.quantity;
     });
     return [...map.values()].sort((a, b) => b.units - a.units);
-  }, [filtered, locations]);
+  }, [regular, locations]);
 
-  // ── By product ──
   const byProduct = useMemo(() => {
-    const map = new Map<string, { name: string; code: string; in: number; out: number; transfer: number }>();
+    const map = new Map<string, { name: string; code: string; in: number; out: number; transfer: number; writeoff: number }>();
     filtered.forEach(tx => {
       const prod = products.find(p => p.id === tx.productId);
       const name = prod?.name ?? tx.productId;
       const code = prod?.code ?? '';
-      if (!map.has(tx.productId)) map.set(tx.productId, { name, code, in: 0, out: 0, transfer: 0 });
-      const e = map.get(tx.productId)!;
+      if (!map.has(name)) map.set(name, { name, code, in: 0, out: 0, transfer: 0, writeoff: 0 });
+      const e = map.get(name)!;
+      const isWriteoff = tx.reference?.startsWith('[BAJA]');
       if (tx.type === 'RECEPTION') e.in += tx.quantity;
-      else if (tx.type === 'DISPATCH') e.out += tx.quantity;
+      else if (tx.type === 'DISPATCH') { if (isWriteoff) e.writeoff += tx.quantity; else e.out += tx.quantity; }
       else e.transfer += tx.quantity;
     });
-    return [...map.values()].sort((a, b) => (b.in + b.out + b.transfer) - (a.in + a.out + a.transfer)).slice(0, 20);
+    return [...map.values()].sort((a, b) => (b.in + b.out + b.transfer + b.writeoff) - (a.in + a.out + a.transfer + a.writeoff)).slice(0, 25);
   }, [filtered, products]);
 
-  const totalUnits = filtered.reduce((s, tx) => s + tx.quantity, 0);
-  const totalOps   = filtered.length;
+  const byWriteoffReason = useMemo(() => {
+    const map = new Map<string, { count: number; units: number }>();
+    writeoffs.forEach(tx => {
+      const reason = tx.reference?.replace('[BAJA] ', '').split(' — ')[0] ?? 'Sin motivo';
+      if (!map.has(reason)) map.set(reason, { count: 0, units: 0 });
+      const e = map.get(reason)!; e.count++; e.units += tx.quantity;
+    });
+    return [...map.entries()].map(([reason, v]) => ({ reason, ...v })).sort((a, b) => b.units - a.units);
+  }, [writeoffs]);
+
+  const totalUnits  = regular.reduce((s, tx) => s + tx.quantity, 0);
+  const totalOps    = regular.length;
+  const writeoffUnits = writeoffs.reduce((s, tx) => s + tx.quantity, 0);
+
+  // History with search + sort + pagination
+  const histFiltered = useMemo(() => {
+    let rows = [...filtered];
+    if (searchQ.trim()) {
+      const q = searchQ.trim().toLowerCase();
+      rows = rows.filter(tx => {
+        const prod = products.find(p => p.id === tx.productId);
+        return (
+          (prod?.name ?? '').toLowerCase().includes(q) ||
+          (prod?.code ?? '').toLowerCase().includes(q) ||
+          (tx.reference ?? '').toLowerCase().includes(q) ||
+          (tx.user ?? '').toLowerCase().includes(q)
+        );
+      });
+    }
+    rows.sort((a, b) => {
+      let va: number | string, vb: number | string;
+      if (sortCol === 'date') { va = a.date; vb = b.date; }
+      else if (sortCol === 'qty') { va = a.quantity; vb = b.quantity; }
+      else { va = a.type; vb = b.type; }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }, [filtered, searchQ, sortCol, sortDir, products]);
+
+  const histPages = Math.max(1, Math.ceil(histFiltered.length / HIST_PAGE_SIZE));
+  const histRows  = histFiltered.slice((histPage - 1) * HIST_PAGE_SIZE, histPage * HIST_PAGE_SIZE);
+
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
+
+  // ── Exports ──
+  const exportExcel = () => {
+    const rows = histFiltered.map(tx => {
+      const prod = products.find(p => p.id === tx.productId);
+      const isWO = tx.reference?.startsWith('[BAJA]');
+      return {
+        Fecha: new Date(tx.date).toLocaleString('es-PE'),
+        Tipo: isWO ? 'BAJA/MERMA' : tx.type === 'RECEPTION' ? 'RECEPCIÓN' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO',
+        Código: prod?.code ?? '',
+        Producto: prod?.name ?? tx.productId,
+        Color: prod?.color ?? '',
+        Talla: prod?.size ?? '',
+        Cantidad: tx.quantity,
+        Origen: locations.find(l => l.id === tx.fromLocationId)?.name ?? '',
+        Destino: locations.find(l => l.id === tx.toLocationId)?.name ?? '',
+        Referencia: tx.reference ?? '',
+        Operador: tx.user ?? '',
+      };
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 9 }, { wch: 18 }, { wch: 18 }, { wch: 30 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Operaciones');
+    XLSX.writeFile(wb, `operaciones_${activeBrand}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const exportPDF = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const dateLabel = dateFrom || dateTo
+      ? `Del ${dateFrom || '—'} al ${dateTo || '—'}`
+      : 'Todos los períodos';
+    const rowsHTML = histFiltered.map((tx, i) => {
+      const prod = products.find(p => p.id === tx.productId);
+      const isWO = tx.reference?.startsWith('[BAJA]');
+      const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RECEPCIÓN' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO';
+      const typeColor = isWO ? '#991b1b' : tx.type === 'RECEPTION' ? '#15803d' : tx.type === 'DISPATCH' ? '#b91c1c' : '#0369a1';
+      return `<tr style="background:${i%2===0?'#f9f9f9':'#fff'}">
+        <td>${new Date(tx.date).toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</td>
+        <td><span style="color:${typeColor};font-weight:700">${typeLabel}</span></td>
+        <td>${prod?.code ?? ''}</td>
+        <td>${prod?.name ?? tx.productId}${prod?.size ? ' ' + prod.size : ''}</td>
+        <td style="text-align:right;font-weight:700">${tx.quantity}</td>
+        <td>${locations.find(l=>l.id===tx.fromLocationId)?.name ?? '—'}</td>
+        <td>${locations.find(l=>l.id===tx.toLocationId)?.name ?? '—'}</td>
+        <td>${tx.reference ?? ''}</td>
+        <td>${tx.user ?? ''}</td>
+      </tr>`;
+    }).join('');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Reporte Operaciones — ${activeBrand}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:Inter,sans-serif;font-size:10px;color:#141414;padding:24px 32px;background:#fff}
+      .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #141414;padding-bottom:12px;margin-bottom:16px}
+      .logo{width:48px;height:48px;background:#6B21A8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px;letter-spacing:1px}
+      .logo-sub{font-size:6px;letter-spacing:2px;opacity:.8}
+      .company{margin-left:12px}
+      .company h1{font-size:13px;font-weight:900;text-transform:uppercase}
+      .company p{font-size:9px;opacity:.5;margin-top:2px}
+      .meta{text-align:right;font-size:9px;opacity:.6}
+      .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+      .kpi{border:1px solid #e5e5e5;padding:10px 12px;background:#fafafa}
+      .kpi-label{font-size:8px;text-transform:uppercase;letter-spacing:.1em;opacity:.5;margin-bottom:4px}
+      .kpi-val{font-size:18px;font-weight:900}
+      .kpi-sub{font-size:8px;opacity:.4;margin-top:2px}
+      .kpi.green{border-color:#bbf7d0;background:#f0fdf4}.kpi.green .kpi-val{color:#15803d}
+      .kpi.red{border-color:#fecaca;background:#fef2f2}.kpi.red .kpi-val{color:#b91c1c}
+      .kpi.dark{border-color:#141414;background:#141414}.kpi.dark .kpi-label,.kpi.dark .kpi-sub{color:#fff;opacity:.6}.kpi.dark .kpi-val{color:#fff}
+      .section-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;opacity:.4;margin:12px 0 6px}
+      table{width:100%;border-collapse:collapse;font-size:9px}
+      thead th{background:#141414;color:#fff;padding:5px 8px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.1em}
+      tbody td{padding:4px 8px;border-bottom:1px solid #f0f0f0}
+      tfoot td{background:#f5f4f1;font-weight:700;padding:5px 8px;border-top:2px solid #141414}
+      @media print{body{padding:12px 16px}@page{size:A4 landscape;margin:1cm}}
+    </style></head><body>
+    <div class="header">
+      <div style="display:flex;align-items:center">
+        <div class="logo">zazu<span class="logo-sub">express</span></div>
+        <div class="company">
+          <h1>Reporte de Operaciones</h1>
+          <p>Tecnología y Distribución Logística del Perú S.A.C. · RUC 20614699842</p>
+          <p>Marca: ${activeBrand} · Período: ${dateLabel}</p>
+        </div>
+      </div>
+      <div class="meta">Generado: ${new Date().toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi dark"><div class="kpi-label">Total Ops</div><div class="kpi-val">${totalOps}</div><div class="kpi-sub">operaciones</div></div>
+      <div class="kpi dark"><div class="kpi-label">Unidades Mov.</div><div class="kpi-val">${totalUnits.toLocaleString('es-PE')}</div><div class="kpi-sub">unidades</div></div>
+      <div class="kpi green"><div class="kpi-label">Recepciones</div><div class="kpi-val">${byType.RECEPTION.units.toLocaleString('es-PE')}</div><div class="kpi-sub">${byType.RECEPTION.count} ops</div></div>
+      <div class="kpi red"><div class="kpi-label">Despachos</div><div class="kpi-val">${byType.DISPATCH.units.toLocaleString('es-PE')}</div><div class="kpi-sub">${byType.DISPATCH.count} ops</div></div>
+      <div class="kpi red"><div class="kpi-label">Bajas / Merma</div><div class="kpi-val">${writeoffUnits.toLocaleString('es-PE')}</div><div class="kpi-sub">${writeoffs.length} ops</div></div>
+    </div>
+    <div class="section-title">Historial de operaciones (${histFiltered.length} registros)</div>
+    <table><thead><tr>
+      <th>Fecha</th><th>Tipo</th><th>Código</th><th>Producto</th><th style="text-align:right">Cant.</th>
+      <th>Origen</th><th>Destino</th><th>Referencia</th><th>Operador</th>
+    </tr></thead><tbody>${rowsHTML}</tbody>
+    <tfoot><tr><td colspan="4">TOTAL</td><td style="text-align:right">${histFiltered.reduce((s,tx)=>s+tx.quantity,0).toLocaleString('es-PE')}</td><td colspan="4"></td></tr></tfoot>
+    </table>
+    <script>window.onload=()=>window.print()</script></body></html>`);
+    win.document.close();
+  };
 
   const TYPE_CFG = {
-    RECEPTION: { label: 'Recepciones', icon: ArrowDownLeft, color: 'text-green-700', bg: 'bg-green-50 border-green-300' },
-    DISPATCH:  { label: 'Despachos',   icon: ArrowUpRight,  color: 'text-red-700',   bg: 'bg-red-50 border-red-300' },
-    TRANSFER:  { label: 'Traslados',   icon: ArrowRightLeft,color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-300' },
+    RECEPTION: { label: 'Recepciones', icon: ArrowDownLeft, color: 'text-green-700', bg: 'bg-green-50 border-green-300', bar: 'bg-green-500' },
+    DISPATCH:  { label: 'Despachos',   icon: ArrowUpRight,  color: 'text-red-700',   bg: 'bg-red-50 border-red-300',     bar: 'bg-red-500'   },
+    TRANSFER:  { label: 'Traslados',   icon: ArrowRightLeft,color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-300',   bar: 'bg-blue-400'  },
   };
+
+  const SortIcon = ({ col }: { col: typeof sortCol }) => sortCol !== col ? null : sortDir === 'asc' ? <ChevronUp size={9} /> : <ChevronDown size={9} />;
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="opacity-50" />
-          <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-60">REPORTE DE OPERACIONES</h2>
+          <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">REPORTE DE OPERACIONES</h2>
+          <span className="font-mono text-[8px] border border-[#141414]/20 px-1.5 py-0.5 bg-white/60 uppercase tracking-wider">{activeBrand}</span>
         </div>
-        {/* Date range filter */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-[8px] uppercase tracking-widest opacity-40">Período:</span>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
-            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] cursor-pointer"
-          />
+          <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setHistPage(1); }}
+            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414]" />
           <span className="font-mono text-[9px] opacity-30">→</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
-            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] cursor-pointer"
-          />
+          <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setHistPage(1); }}
+            className="border border-[#141414]/30 px-2 py-1 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414]" />
           {(dateFrom || dateTo) && (
-            <button
-              onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors"
-            >
+            <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors">
               ✕ LIMPIAR
             </button>
           )}
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="border border-[#141414] bg-white/60 p-3 shadow-[2px_2px_0_#141414]">
-          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Total Ops.</div>
-          <div className="font-mono font-black text-xl text-[#141414]">{totalOps}</div>
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {/* Total ops */}
+        <div className="border border-[#141414] bg-[#141414] text-[#E4E3E0] p-3 shadow-[3px_3px_0_#141414] md:col-span-1">
+          <div className="font-mono text-[8px] opacity-50 uppercase tracking-widest mb-1">Total Ops</div>
+          <div className="font-mono font-black text-2xl">{totalOps}</div>
           <div className="font-mono text-[8px] opacity-40 mt-0.5">operaciones</div>
         </div>
-        <div className="border border-[#141414] bg-white/60 p-3 shadow-[2px_2px_0_#141414]">
-          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Unidades Mov.</div>
-          <div className="font-mono font-black text-xl text-[#141414]">{totalUnits.toLocaleString('es-PE')}</div>
-          <div className="font-mono text-[8px] opacity-40 mt-0.5">unidades</div>
+        {/* Unidades */}
+        <div className="border border-[#141414] bg-white/70 p-3 shadow-[3px_3px_0_#141414]">
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Unidades</div>
+          <div className="font-mono font-black text-2xl text-[#141414]">{totalUnits.toLocaleString('es-PE')}</div>
+          <div className="font-mono text-[8px] opacity-40 mt-0.5">movidas</div>
         </div>
-        {(['RECEPTION', 'DISPATCH'] as const).map(t => {
-          const cfg = TYPE_CFG[t];
-          const Icon = cfg.icon;
-          return (
-            <div key={t} className={`border p-3 ${cfg.bg}`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <Icon size={11} className={cfg.color} />
-                <span className={`font-mono text-[8px] font-bold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</span>
-              </div>
-              <div className={`font-mono font-black text-xl ${cfg.color}`}>{byType[t].units.toLocaleString('es-PE')}</div>
-              <div className="font-mono text-[8px] opacity-50 mt-0.5">{byType[t].count} operaciones</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Type breakdown bar */}
-      <div className="border border-[#141414] bg-white/40 p-3">
-        <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribución por tipo (unidades)</div>
-        <div className="flex gap-1 h-5 rounded-sm overflow-hidden">
-          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
-            const pct = totalUnits > 0 ? (byType[t].units / totalUnits) * 100 : 0;
-            const colors = { RECEPTION: 'bg-green-500', DISPATCH: 'bg-red-500', TRANSFER: 'bg-blue-400' };
-            return pct > 0 ? (
-              <div key={t} className={`${colors[t]} h-full`} style={{ width: `${pct}%` }} title={`${TYPE_CFG[t].label}: ${byType[t].units} uds`} />
-            ) : null;
-          })}
+        {/* Recepciones */}
+        <div className="border border-green-400 bg-green-50 p-3">
+          <div className="flex items-center gap-1 mb-1"><ArrowDownLeft size={10} className="text-green-700" /><span className="font-mono text-[8px] font-bold text-green-700 uppercase tracking-wide">Recepciones</span></div>
+          <div className="font-mono font-black text-xl text-green-800">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
+          <div className="font-mono text-[8px] text-green-700 opacity-60 mt-0.5">{byType.RECEPTION.count} operaciones</div>
         </div>
-        <div className="flex gap-3 mt-1.5 flex-wrap">
-          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
-            const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
-            const dots = { RECEPTION: 'bg-green-500', DISPATCH: 'bg-red-500', TRANSFER: 'bg-blue-400' };
-            return (
-              <div key={t} className="flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${dots[t]}`} />
-                <span className="font-mono text-[8px] opacity-60 uppercase">{TYPE_CFG[t].label}</span>
-                <span className="font-mono text-[8px] font-bold">{pct}%</span>
-              </div>
-            );
-          })}
+        {/* Despachos */}
+        <div className="border border-red-300 bg-red-50 p-3">
+          <div className="flex items-center gap-1 mb-1"><ArrowUpRight size={10} className="text-red-700" /><span className="font-mono text-[8px] font-bold text-red-700 uppercase tracking-wide">Despachos</span></div>
+          <div className="font-mono font-black text-xl text-red-800">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
+          <div className="font-mono text-[8px] text-red-700 opacity-60 mt-0.5">{byType.DISPATCH.count} operaciones</div>
+        </div>
+        {/* Bajas */}
+        <div className="border border-orange-400 bg-orange-50 p-3">
+          <div className="flex items-center gap-1 mb-1"><ShieldOff size={10} className="text-orange-700" /><span className="font-mono text-[8px] font-bold text-orange-700 uppercase tracking-wide">Bajas/Merma</span></div>
+          <div className="font-mono font-black text-xl text-orange-800">{writeoffUnits.toLocaleString('es-PE')}</div>
+          <div className="font-mono text-[8px] text-orange-700 opacity-60 mt-0.5">{writeoffs.length} operaciones</div>
         </div>
       </div>
 
-      {/* Tab selector */}
-      <div className="flex border-b border-[#141414]/20">
-        {([
-          { id: 'type',        label: 'Por Tipo' },
-          { id: 'destination', label: 'Por Destino' },
-          { id: 'product',     label: 'Top Productos' },
-        ] as { id: typeof reportType; label: string }[]).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setReportType(tab.id)}
-            className={`px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors ${
-              reportType === tab.id
-                ? 'border-[#141414] text-[#141414]'
-                : 'border-transparent opacity-40 hover:opacity-70'
-            }`}
-          >
-            {tab.label}
+      {/* ── Distribution bar ── */}
+      {totalUnits > 0 && (
+        <div className="border border-[#141414]/20 bg-white/40 px-4 py-3">
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribución por tipo (unidades)</div>
+          <div className="flex h-4 overflow-hidden border border-[#141414]/10">
+            {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+              const pct = (byType[t].units / totalUnits) * 100;
+              return pct > 0 ? (
+                <div key={t} className={`${TYPE_CFG[t].bar} h-full transition-all`} style={{ width: `${pct}%` }}
+                  title={`${TYPE_CFG[t].label}: ${byType[t].units} uds (${pct.toFixed(1)}%)`} />
+              ) : null;
+            })}
+            {writeoffUnits > 0 && (
+              <div className="bg-orange-500 h-full" style={{ width: `${(writeoffUnits / (totalUnits + writeoffUnits)) * 100}%` }}
+                title={`Bajas: ${writeoffUnits} uds`} />
+            )}
+          </div>
+          <div className="flex gap-4 mt-1.5 flex-wrap">
+            {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+              const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
+              const dotColors = { RECEPTION: 'bg-green-500', DISPATCH: 'bg-red-500', TRANSFER: 'bg-blue-400' };
+              return (
+                <div key={t} className="flex items-center gap-1">
+                  <span className={`w-2 h-2 shrink-0 ${dotColors[t]}`} />
+                  <span className="font-mono text-[8px] opacity-60 uppercase">{TYPE_CFG[t].label}</span>
+                  <span className="font-mono text-[8px] font-bold">{pct}%</span>
+                </div>
+              );
+            })}
+            {writeoffUnits > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-orange-500 shrink-0" />
+                <span className="font-mono text-[8px] opacity-60 uppercase">Bajas</span>
+                <span className="font-mono text-[8px] font-bold">{((writeoffUnits / (totalUnits + writeoffUnits)) * 100).toFixed(1)}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab bar + export buttons ── */}
+      <div className="flex items-center justify-between border-b border-[#141414]/20">
+        <div className="flex">
+          {([
+            { id: 'resumen',     label: 'Resumen' },
+            { id: 'movimientos', label: 'Por Producto' },
+            { id: 'bajas',       label: `Bajas${writeoffs.length > 0 ? ` (${writeoffs.length})` : ''}` },
+            { id: 'historial',   label: 'Historial' },
+          ] as { id: typeof reportTab; label: string }[]).map(tab => (
+            <button key={tab.id} onClick={() => setReportTab(tab.id)}
+              className={cn('px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors',
+                reportTab === tab.id ? 'border-[#141414] text-[#141414]' : 'border-transparent opacity-40 hover:opacity-70'
+              )}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 pb-1">
+          <button onClick={exportExcel} title="Exportar Excel"
+            className="flex items-center gap-1 border border-[#141414]/30 px-2 py-1 hover:bg-green-700 hover:text-white hover:border-green-700 transition-all font-mono text-[8px] font-bold uppercase">
+            <FileSpreadsheet size={11} /> XLS
           </button>
-        ))}
+          <button onClick={exportPDF} title="Exportar PDF"
+            className="flex items-center gap-1 border border-[#141414]/30 px-2 py-1 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all font-mono text-[8px] font-bold uppercase">
+            <FileText size={11} /> PDF
+          </button>
+        </div>
       </div>
 
-      {/* ── By Type ── */}
-      {reportType === 'type' && (
-        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-          <div className="grid grid-cols-4 bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">
-            <div>Tipo</div>
-            <div className="text-right">Operaciones</div>
-            <div className="text-right">Unidades</div>
-            <div className="text-right">% del total</div>
-          </div>
-          {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
-            const cfg = TYPE_CFG[t];
-            const Icon = cfg.icon;
-            const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
-            return (
-              <div key={t} className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center">
-                <div className="flex items-center gap-2">
-                  <Icon size={12} className={cfg.color} />
-                  <span className={`font-mono text-[10px] font-bold uppercase ${cfg.color}`}>{cfg.label}</span>
+      {/* ══ RESUMEN ══ */}
+      {reportTab === 'resumen' && (
+        <div className="flex flex-col gap-4">
+          {/* Por tipo */}
+          <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+            <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Operaciones por tipo</div>
+            <div className="grid grid-cols-4 px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[#141414]/10">
+              <div>Tipo</div><div className="text-right">Ops.</div><div className="text-right">Unidades</div><div className="text-right">% Total</div>
+            </div>
+            {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
+              const cfg = TYPE_CFG[t]; const Icon = cfg.icon;
+              const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
+              return (
+                <div key={t} className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center">
+                  <div className="flex items-center gap-2"><Icon size={12} className={cfg.color} /><span className={`font-mono text-[10px] font-bold uppercase ${cfg.color}`}>{cfg.label}</span></div>
+                  <div className="font-mono text-[11px] font-bold text-right">{byType[t].count}</div>
+                  <div className="font-mono text-[12px] font-black text-right">{byType[t].units.toLocaleString('es-PE')}</div>
+                  <div className="text-right"><span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border ${cfg.bg} ${cfg.color}`}>{pct}%</span></div>
                 </div>
-                <div className="font-mono text-[11px] font-bold text-right text-[#141414]">{byType[t].count}</div>
-                <div className="font-mono text-[11px] font-black text-right text-[#141414]">{byType[t].units.toLocaleString('es-PE')}</div>
-                <div className="text-right">
-                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border ${cfg.bg} ${cfg.color}`}>{pct}%</span>
-                </div>
+              );
+            })}
+            {writeoffs.length > 0 && (
+              <div className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 hover:bg-white/50 items-center">
+                <div className="flex items-center gap-2"><ShieldOff size={12} className="text-orange-700" /><span className="font-mono text-[10px] font-bold uppercase text-orange-700">Bajas/Merma</span></div>
+                <div className="font-mono text-[11px] font-bold text-right">{writeoffs.length}</div>
+                <div className="font-mono text-[12px] font-black text-right">{writeoffUnits.toLocaleString('es-PE')}</div>
+                <div className="text-right"><span className="font-mono text-[10px] font-bold px-1.5 py-0.5 border bg-orange-50 border-orange-400 text-orange-700">{totalUnits > 0 ? ((writeoffUnits / (totalUnits + writeoffUnits)) * 100).toFixed(1) : '0.0'}%</span></div>
               </div>
-            );
-          })}
-          <div className="grid grid-cols-4 px-4 py-2.5 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[10px] font-black uppercase">
-            <div className="opacity-50 text-[8px]">TOTAL</div>
-            <div className="text-right">{totalOps}</div>
-            <div className="text-right">{totalUnits.toLocaleString('es-PE')}</div>
-            <div className="text-right opacity-40">100%</div>
+            )}
+            <div className="grid grid-cols-4 px-4 py-2.5 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[10px] font-black uppercase">
+              <div className="opacity-40 text-[8px]">TOTAL</div>
+              <div className="text-right">{totalOps}</div>
+              <div className="text-right">{(totalUnits + writeoffUnits).toLocaleString('es-PE')}</div>
+              <div className="text-right opacity-40">100%</div>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* ── By Destination ── */}
-      {reportType === 'destination' && (
-        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-4">
-            <div>Ubicación Destino</div>
-            <div className="text-right">Ops.</div>
-            <div className="text-right w-24">Unidades</div>
-          </div>
-          {byDestination.length === 0 ? (
-            <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin datos de destino</div>
-          ) : byDestination.map((row, i) => {
-            const barPct = byDestination[0].units > 0 ? (row.units / byDestination[0].units) * 100 : 0;
-            return (
-              <div key={i} className="px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50">
-                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MapPin size={10} className="opacity-40 shrink-0" />
-                    <span className="font-mono text-[10px] font-bold text-[#141414] truncate uppercase">{row.name}</span>
+          {/* Por destino */}
+          {byDestination.length > 0 && (
+            <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+              <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Entradas por almacén destino</div>
+              {byDestination.map((row, i) => {
+                const barPct = byDestination[0].units > 0 ? (row.units / byDestination[0].units) * 100 : 0;
+                return (
+                  <div key={i} className="px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MapPin size={10} className="opacity-40 shrink-0" />
+                        <span className="font-mono text-[10px] font-bold truncate uppercase">{row.name}</span>
+                        <span className="font-mono text-[8px] opacity-40">{row.count} ops</span>
+                      </div>
+                      <span className="font-mono text-[12px] font-black text-green-700 shrink-0 ml-4">{row.units.toLocaleString('es-PE')} uds</span>
+                    </div>
+                    <div className="h-1.5 bg-[#141414]/5 overflow-hidden">
+                      <div className="h-full bg-green-500/60 transition-all" style={{ width: `${barPct}%` }} />
+                    </div>
                   </div>
-                  <div className="font-mono text-[10px] font-bold text-right">{row.count}</div>
-                  <div className="font-mono text-[11px] font-black text-right w-24 text-green-700">{row.units.toLocaleString('es-PE')}</div>
-                </div>
-                <div className="h-1 bg-[#141414]/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#141414]/30 rounded-full" style={{ width: `${barPct}%` }} />
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Top Products ── */}
-      {reportType === 'product' && (
+      {/* ══ POR PRODUCTO ══ */}
+      {reportTab === 'movimientos' && (
         <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-3">
+          <div className="grid grid-cols-[1fr_56px_56px_56px_56px] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2">
             <div>Producto</div>
-            <div className="text-right text-green-400">Entradas</div>
-            <div className="text-right text-red-400">Salidas</div>
-            <div className="text-right w-16">Traslados</div>
+            <div className="text-right text-green-300">Entr.</div>
+            <div className="text-right text-red-300">Sal.</div>
+            <div className="text-right text-blue-300">Trasl.</div>
+            <div className="text-right text-orange-300">Baja</div>
           </div>
           {byProduct.length === 0 ? (
-            <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones</div>
-          ) : byProduct.map((row, i) => (
-            <div key={i} className={`grid grid-cols-[1fr_auto_auto_auto] px-4 py-2.5 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center gap-3 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
-              <div className="min-w-0">
-                <div className="font-mono text-[10px] font-bold text-[#141414] truncate uppercase">{row.name}</div>
-                {row.code && <div className="font-mono text-[8px] opacity-40">{row.code}</div>}
+            <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el período</div>
+          ) : byProduct.map((row, i) => {
+            const total = row.in + row.out + row.transfer + row.writeoff;
+            const maxTotal = byProduct[0] ? byProduct[0].in + byProduct[0].out + byProduct[0].transfer + byProduct[0].writeoff : 1;
+            const barPct = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+            return (
+              <div key={i} className={cn('px-4 py-2.5 border-b border-[#141414]/10 last:border-0 hover:bg-white/60', i % 2 !== 0 && 'bg-white/30')}>
+                <div className="grid grid-cols-[1fr_56px_56px_56px_56px] items-center gap-2 mb-1">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] font-bold truncate uppercase">{row.name}</div>
+                    {row.code && <div className="font-mono text-[8px] opacity-40">{row.code}</div>}
+                  </div>
+                  <div className="font-mono text-[10px] font-bold text-right text-green-700">{row.in > 0 ? row.in.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-red-600">{row.out > 0 ? row.out.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-blue-600">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-orange-600">{row.writeoff > 0 ? row.writeoff.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                </div>
+                <div className="h-1 bg-[#141414]/5 overflow-hidden">
+                  <div className="h-full bg-[#141414]/20 transition-all" style={{ width: `${barPct}%` }} />
+                </div>
               </div>
-              <div className="font-mono text-[10px] font-bold text-right text-green-700 w-16">{row.in > 0 ? row.in.toLocaleString('es-PE') : '—'}</div>
-              <div className="font-mono text-[10px] font-bold text-right text-red-600 w-16">{row.out > 0 ? row.out.toLocaleString('es-PE') : '—'}</div>
-              <div className="font-mono text-[10px] font-bold text-right text-blue-600 w-16">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : '—'}</div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ══ BAJAS / MERMA ══ */}
+      {reportTab === 'bajas' && (
+        <div className="flex flex-col gap-4">
+          {writeoffs.length === 0 ? (
+            <div className="border border-[#141414]/20 px-4 py-12 text-center font-mono text-[10px] opacity-40 uppercase">
+              No hay bajas registradas en este período
             </div>
-          ))}
+          ) : (
+            <>
+              {/* Por motivo */}
+              <div className="border border-orange-400/50 shadow-[3px_3px_0_#c2410c30] overflow-hidden">
+                <div className="bg-orange-800 text-white px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Bajas por motivo</div>
+                {byWriteoffReason.map((row, i) => {
+                  const barPct = byWriteoffReason[0].units > 0 ? (row.units / byWriteoffReason[0].units) * 100 : 0;
+                  return (
+                    <div key={i} className="px-4 py-3 border-b border-orange-800/10 last:border-0 hover:bg-orange-50/60">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ShieldOff size={10} className="text-orange-600 shrink-0 opacity-60" />
+                          <span className="font-mono text-[10px] font-bold truncate">{row.reason}</span>
+                          <span className="font-mono text-[8px] opacity-40 shrink-0">{row.count} ops</span>
+                        </div>
+                        <span className="font-mono text-[12px] font-black text-orange-700 shrink-0 ml-4">{row.units.toLocaleString('es-PE')} uds</span>
+                      </div>
+                      <div className="h-1.5 bg-orange-800/5 overflow-hidden">
+                        <div className="h-full bg-orange-500/50 transition-all" style={{ width: `${barPct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Detalle de bajas */}
+              <div className="border border-[#141414]/20 shadow-[2px_2px_0_#14141430] overflow-hidden">
+                <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Detalle de bajas ({writeoffs.length})</div>
+                <div className="grid grid-cols-[auto_1fr_auto_auto] px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[#141414]/10 gap-3">
+                  <div>Fecha</div><div>Producto / Motivo</div><div className="text-right">Almacén</div><div className="text-right w-12">Cant.</div>
+                </div>
+                {writeoffs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx, i) => {
+                  const prod = products.find(p => p.id === tx.productId);
+                  const reason = tx.reference?.replace('[BAJA] ', '').split(' — ')[0] ?? '';
+                  const notes  = tx.reference?.includes(' — ') ? tx.reference.split(' — ').slice(1).join(' — ') : '';
+                  const fromLoc = locations.find(l => l.id === tx.fromLocationId);
+                  return (
+                    <div key={tx.id} className={cn('grid grid-cols-[auto_1fr_auto_auto] px-4 py-2.5 border-b border-[#141414]/8 last:border-0 hover:bg-orange-50/50 items-start gap-3', i % 2 !== 0 && 'bg-white/30')}>
+                      <div className="font-mono text-[9px] opacity-50 shrink-0 whitespace-nowrap">
+                        {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? '—'}{prod?.size ? ` · ${prod.size}` : ''}</div>
+                        <div className="font-mono text-[8px] text-orange-700 font-bold">{reason}</div>
+                        {notes && <div className="font-mono text-[8px] opacity-40">{notes}</div>}
+                        <div className="font-mono text-[8px] opacity-30">{tx.user}</div>
+                      </div>
+                      <div className="font-mono text-[9px] opacity-50 text-right shrink-0 whitespace-nowrap">{fromLoc?.name ?? '—'}</div>
+                      <div className="font-mono text-[12px] font-black text-orange-700 text-right w-12 shrink-0">{tx.quantity}</div>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between px-4 py-2.5 bg-orange-50 border-t border-orange-800/20 font-mono text-[10px] font-black">
+                  <span className="opacity-50 text-[8px]">TOTAL DADO DE BAJA</span>
+                  <span className="text-orange-700">{writeoffUnits.toLocaleString('es-PE')} uds</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ══ HISTORIAL ══ */}
+      {reportTab === 'historial' && (
+        <div className="flex flex-col gap-3">
+          {/* Search */}
+          <div className="flex items-center gap-2 border border-[#141414]/20 bg-white/60 px-3 py-1.5">
+            <Search size={11} className="opacity-30 shrink-0" />
+            <input
+              type="text"
+              value={searchQ}
+              onChange={e => { setSearchQ(e.target.value); setHistPage(1); }}
+              placeholder="Buscar producto, código, referencia, operador..."
+              className="flex-1 bg-transparent outline-none font-mono text-[10px] placeholder:opacity-30"
+            />
+            {searchQ && <button onClick={() => setSearchQ('')} className="text-[#141414]/40 hover:text-[#141414]"><X size={11} /></button>}
+          </div>
+
+          <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[auto_80px_auto_1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-3 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2 items-center">
+              <button onClick={() => toggleSort('date')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity whitespace-nowrap">
+                Fecha <SortIcon col="date" />
+              </button>
+              <button onClick={() => toggleSort('type')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity">
+                Tipo <SortIcon col="type" />
+              </button>
+              <div>Código</div>
+              <div>Producto</div>
+              <div className="hidden md:block">Almacén</div>
+              <button onClick={() => toggleSort('qty')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity justify-end">
+                <SortIcon col="qty" /> Cant.
+              </button>
+              <div className="hidden md:block">Operador</div>
+            </div>
+
+            {histRows.length === 0 ? (
+              <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin resultados</div>
+            ) : histRows.map((tx, i) => {
+              const prod = products.find(p => p.id === tx.productId);
+              const isWO = tx.reference?.startsWith('[BAJA]');
+              const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RX' : tx.type === 'DISPATCH' ? 'TX' : 'MV';
+              const typeColor = isWO ? 'text-orange-700 bg-orange-50 border-orange-400' : tx.type === 'RECEPTION' ? 'text-green-700 bg-green-50 border-green-400' : tx.type === 'DISPATCH' ? 'text-red-700 bg-red-50 border-red-400' : 'text-blue-700 bg-blue-50 border-blue-400';
+              const locName = tx.type === 'RECEPTION'
+                ? locations.find(l => l.id === tx.toLocationId)?.name
+                : locations.find(l => l.id === tx.fromLocationId)?.name;
+              return (
+                <div key={tx.id} className={cn(
+                  'grid grid-cols-[auto_80px_auto_1fr_auto_auto_auto] px-3 py-2 border-b border-[#141414]/8 last:border-0 hover:bg-white/60 items-center gap-2',
+                  i % 2 !== 0 ? 'bg-white/30' : '',
+                  isWO && 'bg-orange-50/30'
+                )}>
+                  <div className="font-mono text-[9px] opacity-50 whitespace-nowrap">
+                    {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
+                  </div>
+                  <div><span className={cn('font-mono text-[8px] font-bold border px-1 py-0.5 uppercase', typeColor)}>{typeLabel}</span></div>
+                  <div className="font-mono text-[9px] opacity-50">{prod?.code ?? '—'}</div>
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? tx.productId}</div>
+                    {(prod?.color || prod?.size) && <div className="font-mono text-[8px] opacity-40">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</div>}
+                    {isWO && tx.reference && <div className="font-mono text-[8px] text-orange-700">{tx.reference.replace('[BAJA] ', '').split(' — ')[0]}</div>}
+                  </div>
+                  <div className="hidden md:block font-mono text-[9px] opacity-40 text-right whitespace-nowrap">{locName ?? '—'}</div>
+                  <div className={cn('font-mono text-[11px] font-black text-right', tx.type === 'RECEPTION' ? 'text-green-700' : isWO ? 'text-orange-700' : 'text-red-700')}>{tx.quantity}</div>
+                  <div className="hidden md:block font-mono text-[8px] opacity-30 text-right truncate max-w-[80px]">{tx.user}</div>
+                </div>
+              );
+            })}
+
+            {/* Footer totals */}
+            <div className="flex justify-between items-center px-3 py-2 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[9px]">
+              <span className="opacity-40 uppercase tracking-widest text-[8px]">{histFiltered.length} registros · {histFiltered.reduce((s,tx)=>s+tx.quantity,0).toLocaleString('es-PE')} uds</span>
+              {histPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setHistPage(p => Math.max(1, p-1))} disabled={histPage === 1}
+                    className="border border-[#141414]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-white/60 font-bold">‹</button>
+                  <span className="px-2 opacity-60">{histPage} / {histPages}</span>
+                  <button onClick={() => setHistPage(p => Math.min(histPages, p+1))} disabled={histPage === histPages}
+                    className="border border-[#141414]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-white/60 font-bold">›</button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

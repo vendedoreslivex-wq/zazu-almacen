@@ -273,99 +273,220 @@ export const Reports: React.FC = () => {
     const title = REPORT_TITLES[activeReport];
     const brand = activeBrand.replace('_', ' ');
 
-    const dateRange = [
-      dateFrom && `Desde: ${format(new Date(dateFrom), 'dd/MM/yyyy')}`,
-      dateTo && `Hasta: ${format(new Date(dateTo), 'dd/MM/yyyy')}`,
-    ].filter(Boolean).join(' · ');
+    const dateRangeLabel = (() => {
+      if (dateFrom && dateTo)
+        return `Del ${format(new Date(dateFrom), "d 'de' MMMM", { locale: es })} al ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (dateFrom)
+        return `Desde el ${format(new Date(dateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (dateTo)
+        return `Hasta el ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      return '';
+    })();
+
+    // Logo SVG inline Zazu Express (purple square)
+    const logoSVG = `<svg width="90" height="60" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg">
+      <rect width="90" height="60" fill="#6B21A8" rx="4"/>
+      <text x="45" y="32" font-family="Arial Black,sans-serif" font-size="22" font-weight="900" fill="white" text-anchor="middle" letter-spacing="1">zazu</text>
+      <text x="45" y="47" font-family="Arial,sans-serif" font-size="9" fill="#e9d5ff" text-anchor="middle" letter-spacing="3">express</text>
+    </svg>`;
+
+    // CSS compartido para todos los reportes
+    const sharedCSS = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Inter, Arial, sans-serif; background: white; color: #111; padding: 36px 44px; font-size: 11px; }
+      @page { size: A4; margin: 14mm 12mm; }
+      @media print { body { padding: 0; } }
+
+      /* ── Header ── */
+      .doc-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }
+      .doc-logo { flex-shrink: 0; }
+      .doc-company { flex: 1; padding-top: 4px; }
+      .doc-company .name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; line-height: 1.3; }
+      .doc-company .ruc { font-size: 11px; font-weight: 700; margin-top: 4px; }
+      .doc-meta { text-align: right; font-size: 9px; color: #666; line-height: 1.7; }
+      .doc-brand { display: inline-block; background: #6B21A8; color: white; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 3px; margin-top: 4px; letter-spacing: .08em; }
+
+      /* ── Título ── */
+      .doc-title { text-align: center; margin: 20px 0 10px; }
+      .doc-title h1 { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
+      .doc-date { text-align: center; font-size: 11px; font-weight: 700; margin-bottom: 22px; }
+
+      /* ── Tabla pivote (modelo × talla) ── */
+      table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+      thead th { background: #e8e8e8; padding: 7px 10px; text-align: center; font-weight: 700; font-size: 10px; text-transform: uppercase; border: 1px solid #ccc; }
+      thead th.col-model { text-align: left; min-width: 160px; }
+      tbody td { padding: 6px 10px; border: 1px solid #ddd; text-align: center; }
+      tbody td.col-model { text-align: left; font-weight: 600; }
+      tbody tr:nth-child(even) td { background: #f9f9f9; }
+      tbody td.col-total { font-weight: 700; background: #f0f0f0; }
+      tfoot td { padding: 7px 10px; border: 1px solid #ccc; text-align: center; font-weight: 900; background: #e0e0e0; font-size: 11px; }
+      tfoot td.col-model { text-align: left; }
+
+      /* ── Summary cards ── */
+      .summary { display: grid; gap: 10px; margin-bottom: 22px; }
+      .card { border: 1.5px solid #ddd; padding: 11px 14px; border-radius: 4px; }
+      .card.dark { background: #111; color: white; }
+      .card.purple { background: #6B21A8; color: white; }
+      .card .label { font-size: 8px; text-transform: uppercase; letter-spacing: .15em; opacity: .6; margin-bottom: 4px; }
+      .card .value { font-size: 22px; font-weight: 900; line-height: 1; }
+      .card .hint { font-size: 8px; opacity: .45; text-transform: uppercase; margin-top: 3px; }
+
+      /* ── Tabla estándar ── */
+      .std-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
+      .std-table thead th { background: #111; color: white; padding: 8px 10px; text-align: left; font-size: 8px; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; }
+      .std-table th.c, .std-table td.c { text-align: center; }
+      .std-table th.r, .std-table td.r { text-align: right; }
+      .std-table tbody tr { border-bottom: 1px solid #e5e7eb; }
+      .std-table tbody td { padding: 7px 10px; vertical-align: top; }
+      .std-table tbody tr:nth-child(even) td { background: #fafafa; }
+      .std-table tfoot td { padding: 8px 10px; font-weight: 700; border-top: 2px solid #111; background: #f5f5f5; }
+
+      /* ── ABC chips ── */
+      .cls-a { color: #15803d; font-weight: 900; }
+      .cls-b { color: #b45309; font-weight: 900; }
+      .cls-c { opacity: .55; }
+
+      /* ── Footer ── */
+      .doc-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 8px; color: #aaa; }
+    `;
+
+    const headerHTML = `
+      <div class="doc-header">
+        <div class="doc-logo">${logoSVG}</div>
+        <div class="doc-company">
+          <div class="name">Tecnología y Distribución Logística<br>del Perú S.A.C.</div>
+          <div class="ruc">RUC: 20614699842</div>
+        </div>
+        <div class="doc-meta">
+          Generado: ${now}<br>
+          Marca: <span class="doc-brand">${brand}</span>
+        </div>
+      </div>
+      <div class="doc-title"><h1>${title}</h1></div>
+      ${dateRangeLabel ? `<div class="doc-date">${dateRangeLabel}</div>` : `<div style="margin-bottom:16px"></div>`}
+    `;
+
+    const footerHTML = `<div class="doc-footer"><span>LOGIXZAZU · ${title}</span><span>${now}</span></div>`;
+
+    const dateRange = dateRangeLabel;
 
     // ── Contenido específico por reporte ──
-    let summaryHTML = '';
-    let tableHTML = '';
+    let bodyHTML = '';
+
+    // Helper: construye tabla pivote MODELO × TALLA con totales
+    const buildPivotTable = (
+      rows: { model: string; size: string; qty: number }[],
+      rowLabel = 'MODELO'
+    ) => {
+      const allSizes = [...new Set(rows.map(r => r.size))].sort();
+      const models = [...new Set(rows.map(r => r.model))].sort();
+      const pivot: Record<string, Record<string, number>> = {};
+      rows.forEach(({ model, size, qty }) => {
+        if (!pivot[model]) pivot[model] = {};
+        pivot[model][size] = (pivot[model][size] || 0) + qty;
+      });
+      const colTotals: Record<string, number> = {};
+      allSizes.forEach(s => { colTotals[s] = models.reduce((acc, m) => acc + (pivot[m]?.[s] || 0), 0); });
+      const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
+
+      const thCols = allSizes.map(s => `<th>${s}</th>`).join('');
+      const tbodyRows = models.map(m => {
+        const rowTotal = allSizes.reduce((a, s) => a + (pivot[m]?.[s] || 0), 0);
+        const tds = allSizes.map(s => `<td>${pivot[m]?.[s] || 0}</td>`).join('');
+        return `<tr><td class="col-model">${m}</td>${tds}<td class="col-total">${rowTotal}</td></tr>`;
+      }).join('');
+      const tfootTds = allSizes.map(s => `<td><strong>${colTotals[s]}</strong></td>`).join('');
+
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th class="col-model">${rowLabel}</th>
+              ${thCols}
+              <th>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>${tbodyRows}</tbody>
+          <tfoot>
+            <tr>
+              <td class="col-model"><strong>Total general</strong></td>
+              ${tfootTds}
+              <td><strong>${grandTotal}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+        <table style="width:auto;margin-top:10px;">
+          <tbody>
+            <tr>
+              <td class="col-model" style="background:#e0e0e0;font-weight:900;padding:7px 14px;">TOTAL</td>
+              <td style="background:#e0e0e0;font-weight:900;padding:7px 20px;">${grandTotal}</td>
+            </tr>
+          </tbody>
+        </table>`;
+    };
 
     if (activeReport === 'inventory') {
-      summaryHTML = `
-        <div class="summary">
-          <div class="card"><div class="label">SKUs en stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
-          <div class="card dark"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
-          <div class="card"><div class="label">Valor a costo</div><div class="value">S/ ${valuationTotal.cost.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">costo total</div></div>
-          <div class="card"><div class="label">Valor a PVP</div><div class="value">S/ ${valuationTotal.sell.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">precio venta</div></div>
+      // Tabla pivote: modelo × talla, cantidad en stock
+      const pivotRows = inventoryRows.map(r => ({
+        model: r.name,
+        size: r.size?.trim() || 'S/T',
+        qty: r.qty,
+      }));
+      const summaryCards = `
+        <div class="summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px;">
+          <div class="card"><div class="label">SKUs con stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
+          <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
+          <div class="card dark"><div class="label">Valor a costo</div><div class="value" style="font-size:16px">S/ ${valuationTotal.cost.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">inversión</div></div>
+          <div class="card"><div class="label">Valor a PVP</div><div class="value" style="font-size:16px">S/ ${valuationTotal.sell.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">precio venta</div></div>
         </div>`;
-      const bodyRows = inventoryRows.map(r => `
-        <tr>
-          <td>${r.code}</td>
-          <td><strong>${r.name}</strong><br><small>${[r.color, r.size].filter(Boolean).join(' · ')}</small></td>
-          <td class="center bold">${r.qty}</td>
-          <td class="right">S/ ${(r.costPrice || 0).toFixed(2)}</td>
-          <td class="right bold">S/ ${r.totalCost.toFixed(2)}</td>
-          <td class="right">S/ ${(r.sellPrice || 0).toFixed(2)}</td>
-          <td class="right bold">S/ ${r.totalSell.toFixed(2)}</td>
-        </tr>`).join('');
-      tableHTML = `
-        <table>
-          <thead><tr>
-            <th>Código</th><th>Producto</th><th class="center">Stock</th>
-            <th class="right">Costo U.</th><th class="right">Total Costo</th>
-            <th class="right">PVP U.</th><th class="right">Total PVP</th>
-          </tr></thead>
-          <tbody>${bodyRows}</tbody>
-          <tfoot><tr>
-            <td colspan="2" class="bold">TOTAL — ${inventoryRows.length} SKUs</td>
-            <td class="center bold">${valuationTotal.units}</td>
-            <td></td>
-            <td class="right bold">S/ ${valuationTotal.cost.toFixed(2)}</td>
-            <td></td>
-            <td class="right bold">S/ ${valuationTotal.sell.toFixed(2)}</td>
-          </tr></tfoot>
-        </table>`;
+      bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO');
     }
 
     else if (activeReport === 'movements') {
       const totalUnits = movementsBySupplier.reduce((s, m) => s + m.total, 0);
-      summaryHTML = `
-        <div class="summary">
-          <div class="card dark"><div class="label">Proveedores</div><div class="value">${movementsBySupplier.length}</div><div class="hint">con recepciones</div></div>
-          <div class="card"><div class="label">Total unidades</div><div class="value">${totalUnits.toLocaleString('es-PE')}</div><div class="hint">recepcionadas</div></div>
+      const summaryCards = `
+        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+          <div class="card purple"><div class="label">Proveedores</div><div class="value">${movementsBySupplier.length}</div><div class="hint">con recepciones</div></div>
+          <div class="card dark"><div class="label">Total unidades</div><div class="value">${totalUnits.toLocaleString('es-PE')}</div><div class="hint">recepcionadas</div></div>
           <div class="card"><div class="label">Transacciones</div><div class="value">${movementsBySupplier.reduce((s, m) => s + m.txs.length, 0)}</div><div class="hint">en el período</div></div>
         </div>`;
-      tableHTML = movementsBySupplier.map(({ supplier, txs, total }) => `
-        <div style="margin-bottom:20px;">
-          <div class="section-header"><span>${supplier.name}</span><span>${total} uds · ${txs.length} recepciones</span></div>
-          <table>
-            <thead><tr><th>Fecha</th><th>Referencia</th><th>Producto</th><th class="right">Qty</th></tr></thead>
-            <tbody>${txs.map(tx => {
-              const prod = products.find(p => p.id === tx.productId);
-              return `<tr>
-                <td>${format(new Date(tx.date), 'dd/MM/yyyy')}</td>
-                <td style="opacity:.7">${tx.reference || '—'}</td>
-                <td>${prod ? `<strong>${prod.code}</strong> ${prod.name} ${[prod.color, prod.size].filter(Boolean).join(' ')}` : tx.productId}</td>
-                <td class="right bold">${tx.quantity}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>
-        </div>`).join('') || '<p style="text-align:center;padding:32px;opacity:.5;font-family:monospace;text-transform:uppercase;letter-spacing:.1em;">Sin recepciones en el período</p>';
+      const tablesHTML = movementsBySupplier.map(({ supplier, txs, total }) => {
+        const pivotRows = txs.map(tx => {
+          const prod = products.find(p => p.id === tx.productId);
+          return { model: prod?.name || tx.productId, size: prod?.size?.trim() || 'S/T', qty: tx.quantity };
+        });
+        return `
+          <div style="margin-bottom:24px;">
+            <div style="background:#6B21A8;color:white;padding:8px 12px;font-weight:700;font-size:11px;display:flex;justify-content:space-between;">
+              <span>${supplier.name}</span><span>${total} uds · ${txs.length} recepciones</span>
+            </div>
+            ${buildPivotTable(pivotRows, 'MODELO')}
+          </div>`;
+      }).join('') || '<p style="text-align:center;padding:32px;opacity:.5;">Sin recepciones en el período</p>';
+      bodyHTML = summaryCards + tablesHTML;
     }
 
     else if (activeReport === 'valuation') {
       const margin = valuationTotal.sell - valuationTotal.cost;
       const marginPct = valuationTotal.cost > 0 ? ((margin / valuationTotal.cost) * 100).toFixed(1) : 'N/A';
-      summaryHTML = `
+      bodyHTML = `
         <div class="summary" style="grid-template-columns:repeat(3,1fr)">
           <div class="card"><div class="label">SKUs activos</div><div class="value">${inventoryRows.length}</div><div class="hint">con stock</div></div>
           <div class="card"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
-          <div class="card dark"><div class="label">Valor a costo</div><div class="value">S/ ${valuationTotal.cost.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">inversión total</div></div>
-          <div class="card"><div class="label">Valor a PVP</div><div class="value">S/ ${valuationTotal.sell.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">valor retail</div></div>
-          <div class="card" style="${margin > 0 ? 'border-color:#16a34a;' : ''}"><div class="label">Margen bruto</div><div class="value" style="color:${margin > 0 ? '#16a34a' : '#dc2626'}">S/ ${margin.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div><div class="hint">PVP − Costo</div></div>
-          <div class="card"><div class="label">% Margen</div><div class="value" style="color:${margin > 0 ? '#16a34a' : '#dc2626'}">${marginPct}${typeof marginPct === 'string' && marginPct !== 'N/A' ? '%' : ''}</div><div class="hint">rentabilidad</div></div>
+          <div class="card purple"><div class="label">Valor a costo</div><div class="value" style="font-size:16px">S/ ${valuationTotal.cost.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">inversión total</div></div>
+          <div class="card"><div class="label">Valor a PVP</div><div class="value" style="font-size:16px">S/ ${valuationTotal.sell.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">valor retail</div></div>
+          <div class="card" style="${margin>0?'border-color:#16a34a':''};"><div class="label">Margen bruto</div><div class="value" style="font-size:16px;color:${margin>0?'#16a34a':'#dc2626'}">S/ ${margin.toLocaleString('es-PE',{minimumFractionDigits:2})}</div><div class="hint">PVP − Costo</div></div>
+          <div class="card"><div class="label">% Margen</div><div class="value" style="color:${margin>0?'#16a34a':'#dc2626'}">${marginPct}%</div><div class="hint">rentabilidad</div></div>
         </div>`;
-      tableHTML = '';
     }
 
     else if (activeReport === 'adjustments') {
       const pos = filteredAdj.filter(a => a.newQuantity > a.previousQuantity).length;
       const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
-      summaryHTML = `
-        <div class="summary">
-          <div class="card dark"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el período</div></div>
+      const summaryCards = `
+        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+          <div class="card purple"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el período</div></div>
           <div class="card"><div class="label">Incrementos</div><div class="value" style="color:#16a34a">+${pos}</div><div class="hint">stock sumado</div></div>
           <div class="card"><div class="label">Decrementos</div><div class="value" style="color:#dc2626">${neg}</div><div class="hint">stock reducido</div></div>
         </div>`;
@@ -375,23 +496,19 @@ export const Reports: React.FC = () => {
         const diff = a.newQuantity - a.previousQuantity;
         return `<tr>
           <td>${format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
-          <td><strong>${prod?.code || ''}</strong> ${prod?.name || a.productId}</td>
-          <td style="opacity:.7">${loc?.name || '—'}</td>
-          <td class="center">${a.previousQuantity}</td>
-          <td class="center bold">${a.newQuantity}</td>
-          <td class="center bold" style="color:${diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#888'}">${diff > 0 ? '+' : ''}${diff}</td>
+          <td><strong>${prod?.code||''}</strong> ${prod?.name||a.productId}</td>
+          <td style="opacity:.7">${loc?.name||'—'}</td>
+          <td class="c">${a.previousQuantity}</td>
+          <td class="c" style="font-weight:700">${a.newQuantity}</td>
+          <td class="c" style="font-weight:700;color:${diff>0?'#16a34a':diff<0?'#dc2626':'#888'}">${diff>0?'+':''}${diff}</td>
           <td style="opacity:.7">${a.reason}</td>
           <td style="opacity:.7">${a.user}</td>
         </tr>`;
       }).join('');
-      tableHTML = `
-        <table>
-          <thead><tr>
-            <th>Fecha</th><th>Producto</th><th>Ubicación</th>
-            <th class="center">Antes</th><th class="center">Después</th><th class="center">Diff</th>
-            <th>Motivo</th><th>Usuario</th>
-          </tr></thead>
-          <tbody>${bodyRows || '<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el período</td></tr>'}</tbody>
+      bodyHTML = summaryCards + `
+        <table class="std-table">
+          <thead><tr><th>Fecha</th><th>Producto</th><th>Ubicación</th><th class="c">Antes</th><th class="c">Después</th><th class="c">Diff</th><th>Motivo</th><th>Usuario</th></tr></thead>
+          <tbody>${bodyRows||'<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el período</td></tr>'}</tbody>
         </table>`;
     }
 
@@ -399,152 +516,59 @@ export const Reports: React.FC = () => {
       const aItems = abcData.filter(r => r.cls === 'A');
       const bItems = abcData.filter(r => r.cls === 'B');
       const cItems = abcData.filter(r => r.cls === 'C');
-      summaryHTML = `
-        <div class="summary">
-          <div class="card" style="border-color:#15803d;background:#f0fdf4">
-            <div class="label" style="color:#15803d">Clase A — Alta rotación</div>
-            <div class="value" style="color:#15803d">${aItems.length} SKUs</div>
-            <div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
-          </div>
-          <div class="card" style="border-color:#b45309;background:#fffbeb">
-            <div class="label" style="color:#b45309">Clase B — Rotación media</div>
-            <div class="value" style="color:#b45309">${bItems.length} SKUs</div>
-            <div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
-          </div>
-          <div class="card dark">
-            <div class="label">Clase C — Baja rotación</div>
-            <div class="value">${cItems.length} SKUs</div>
-            <div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div>
-          </div>
+      const summaryCards = `
+        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+          <div class="card" style="border-color:#15803d;background:#f0fdf4"><div class="label" style="color:#15803d">Clase A — Alta rotación</div><div class="value" style="color:#15803d">${aItems.length} SKUs</div><div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
+          <div class="card" style="border-color:#b45309;background:#fffbeb"><div class="label" style="color:#b45309">Clase B — Media</div><div class="value" style="color:#b45309">${bItems.length} SKUs</div><div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
+          <div class="card dark"><div class="label">Clase C — Baja</div><div class="value">${cItems.length} SKUs</div><div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
         </div>`;
-      const clsStyle: Record<string, string> = { A: 'color:#15803d', B: 'color:#b45309', C: 'opacity:.5' };
+      const clsStyle: Record<string,string> = { A:'color:#15803d', B:'color:#b45309', C:'opacity:.5' };
       const bodyRows = abcData.map(r => `
         <tr>
-          <td class="bold" style="font-size:15px;${clsStyle[r.cls]}">${r.cls}</td>
-          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.color,r.prod.size].filter(Boolean).join(' ')}</span></td>
-          <td class="right bold">${r.dispatched}</td>
-          <td class="right">${r.pct.toFixed(1)}%</td>
+          <td style="font-size:15px;font-weight:900;${clsStyle[r.cls]}">${r.cls}</td>
+          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.size].filter(Boolean).join(' ')}</span></td>
+          <td class="r" style="font-weight:700">${r.dispatched}</td>
+          <td class="r">${r.pct.toFixed(1)}%</td>
         </tr>`).join('');
-      tableHTML = `
-        <table>
-          <thead><tr><th>Clase</th><th>Producto</th><th class="right">Despachos</th><th class="right">% Volumen</th></tr></thead>
-          <tbody>${bodyRows || '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin despachos registrados</td></tr>'}</tbody>
+      bodyHTML = summaryCards + `
+        <table class="std-table">
+          <thead><tr><th>Clase</th><th>Producto</th><th class="r">Despachos</th><th class="r">% Volumen</th></tr></thead>
+          <tbody>${bodyRows||'<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin despachos</td></tr>'}</tbody>
         </table>`;
     }
 
     else if (activeReport === 'aging') {
       const critical = agingData.filter(r => r.daysSince !== null && r.daysSince >= 90).length;
-      summaryHTML = `
-        <div class="summary">
-          <div class="card dark"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">≥${agingDays} días sin movimiento</div></div>
-          <div class="card" style="${critical > 0 ? 'border-color:#dc2626;background:#fef2f2' : ''}"><div class="label">Críticos ≥90d</div><div class="value" style="color:${critical > 0 ? '#dc2626' : '#141414'}">${critical}</div><div class="hint">alta prioridad</div></div>
+      const summaryCards = `
+        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+          <div class="card purple"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">≥${agingDays} días sin movimiento</div></div>
+          <div class="card" style="${critical>0?'border-color:#dc2626;background:#fef2f2':''}"><div class="label">Críticos ≥90d</div><div class="value" style="color:${critical>0?'#dc2626':'#111'}">${critical}</div><div class="hint">alta prioridad</div></div>
           <div class="card"><div class="label">Unidades paradas</div><div class="value">${agingData.reduce((s,r)=>s+r.stock,0).toLocaleString('es-PE')}</div><div class="hint">en stock sin salida</div></div>
         </div>`;
       const bodyRows = agingData.map(r => {
-        const daysColor = r.daysSince !== null && r.daysSince >= 90 ? '#dc2626' : r.daysSince !== null && r.daysSince >= 30 ? '#b45309' : '#141414';
+        const daysColor = r.daysSince!==null&&r.daysSince>=90?'#dc2626':r.daysSince!==null&&r.daysSince>=30?'#b45309':'#111';
         return `<tr>
-          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.color,r.prod.size].filter(Boolean).join(' ')}</span></td>
-          <td class="center bold">${r.stock}</td>
-          <td class="center" style="opacity:.7">${r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—'}</td>
-          <td class="center bold" style="color:${daysColor}">${r.daysSince !== null ? r.daysSince : 'Sin despachos'}</td>
+          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.size].filter(Boolean).join(' ')}</span></td>
+          <td class="c" style="font-weight:700">${r.stock}</td>
+          <td class="c" style="opacity:.7">${r.lastDispatch?format(new Date(r.lastDispatch),'dd/MM/yyyy'):'—'}</td>
+          <td class="c" style="font-weight:700;color:${daysColor}">${r.daysSince!==null?r.daysSince:'Sin despachos'}</td>
         </tr>`;
       }).join('');
-      tableHTML = `
-        <table>
-          <thead><tr><th>Producto</th><th class="center">Stock</th><th class="center">Último despacho</th><th class="center">Días sin movimiento</th></tr></thead>
-          <tbody>${bodyRows || '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">No hay productos con ese criterio</td></tr>'}</tbody>
+      bodyHTML = summaryCards + `
+        <table class="std-table">
+          <thead><tr><th>Producto</th><th class="c">Stock</th><th class="c">Último despacho</th><th class="c">Días sin movimiento</th></tr></thead>
+          <tbody>${bodyRows||'<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin productos estancados</td></tr>'}</tbody>
         </table>`;
     }
 
     const html = `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
 <title>${title} — LogixZazu</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;0,900;1,400&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'IBM Plex Mono', 'Courier New', monospace; background: white; color: #141414; padding: 32px 40px; font-size: 11px; }
-  @page { size: A4; margin: 18mm 14mm; }
-  @media print { body { padding: 0; } }
-
-  .header { border-bottom: 3px solid #141414; padding-bottom: 18px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .brand-name { font-size: 20px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
-  .brand-sub { font-size: 8px; letter-spacing: .2em; color: #888; text-transform: uppercase; margin-top: 3px; }
-  .brand-badge { display: inline-block; background: #141414; color: #E4E3E0; padding: 2px 8px; font-size: 9px; font-weight: 700; letter-spacing: .1em; margin-top: 6px; }
-  .doc-title { text-align: right; }
-  .doc-title h1 { font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-  .doc-title .meta { font-size: 8.5px; color: #888; letter-spacing: .05em; margin-top: 5px; line-height: 1.6; }
-
-  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
-  .card { border: 1.5px solid #141414; padding: 11px 13px; }
-  .card.dark { background: #141414; color: #E4E3E0; }
-  .label { font-size: 7.5px; letter-spacing: .18em; text-transform: uppercase; opacity: .5; margin-bottom: 5px; }
-  .value { font-size: 22px; font-weight: 900; line-height: 1; }
-  .hint { font-size: 7.5px; opacity: .4; letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
-  thead { background: #141414; color: #E4E3E0; }
-  thead th { padding: 8px 10px; text-align: left; font-size: 7.5px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
-  th.center, td.center { text-align: center; }
-  th.right, td.right { text-align: right; }
-  tbody tr { border-bottom: 1px solid #e5e7eb; }
-  tbody tr:last-child { border-bottom: none; }
-  tbody td { padding: 8px 10px; vertical-align: top; }
-  tbody tr:nth-child(even) { background: #fafafa; }
-  td.bold, th.bold { font-weight: 700; }
-  tfoot td { padding: 8px 10px; font-weight: 700; border-top: 2px solid #141414; background: #f5f5f5; font-size: 10px; }
-
-  .section-header { display: flex; justify-content: space-between; align-items: center; background: #141414; color: #E4E3E0; padding: 8px 12px; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 0; }
-
-  .legend { display: flex; gap: 18px; margin-top: 18px; padding-top: 12px; border-top: 1px solid #e5e7eb; flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8px; color: #888; letter-spacing: .06em; text-transform: uppercase; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-
-  .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 7.5px; color: #aaa; letter-spacing: .05em; }
-  small { font-size: .85em; opacity: .6; }
-</style>
+<style>${sharedCSS}</style>
 </head><body>
-
-<div class="header">
-  <div>
-    <div class="brand-name">LOGIXZAZU</div>
-    <div class="brand-sub">Sistema de Inventario</div>
-    <div class="brand-badge">${brand}</div>
-  </div>
-  <div class="doc-title">
-    <h1>${title}</h1>
-    <div class="meta">
-      Generado: ${now}<br>
-      ${dateRange ? dateRange + '<br>' : ''}
-      ${activeReport === 'aging' ? `Criterio: ≥${agingDays} días sin movimiento` : ''}
-    </div>
-  </div>
-</div>
-
-${summaryHTML}
-${tableHTML}
-
-${activeReport !== 'valuation' && kanbanCols.length > 0 ? `
-<div style="margin-top:28px;border-top:2px solid #141414;padding-top:18px;page-break-before:auto;">
-  ${buildKanbanHTML()}
-</div>` : ''}
-
-${activeReport === 'inventory' ? `
-<div class="legend">
-  <div class="legend-item"><span class="dot" style="background:#141414"></span>Total — ${inventoryRows.length} SKUs · ${valuationTotal.units} uds · Costo: S/ ${valuationTotal.cost.toFixed(2)} · PVP: S/ ${valuationTotal.sell.toFixed(2)}</div>
-</div>` : ''}
-
-${activeReport === 'aging' ? `
-<div class="legend">
-  <div class="legend-item"><span class="dot" style="background:#dc2626"></span>Crítico ≥90 días</div>
-  <div class="legend-item"><span class="dot" style="background:#b45309"></span>Alerta ≥30 días</div>
-  <div class="legend-item"><span class="dot" style="background:#141414"></span>Sin despachos registrados</div>
-</div>` : ''}
-
-<div class="footer">
-  <span>LOGIXZAZU · ${title}</span>
-  <span>${now}</span>
-</div>
-
+${headerHTML}
+${bodyHTML}
+${footerHTML}
 </body></html>`;
 
     const win = window.open('', '_blank');
@@ -552,7 +576,7 @@ ${activeReport === 'aging' ? `
     win.document.write(html);
     win.document.close();
     win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+    setTimeout(() => { win.print(); win.close(); }, 600);
   };
 
   // ─── Datos Kanban por reporte ──────────────────────────────────────────────
