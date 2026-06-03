@@ -286,19 +286,18 @@ export const Users: React.FC = () => {
               <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">
                 Haz clic en una celda para cambiar el nivel de acceso
               </span>
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="text-[10px] font-mono border-collapse" style={{ minWidth: 480 }}>
+
+              {/* Vista desktop: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-[10px] font-mono border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left pb-3 pr-4 font-mono text-[9px] tracking-widest uppercase text-[#141414]/40 w-32">
-                        Módulo
-                      </th>
+                      <th className="text-left pb-3 pr-4 font-mono text-[9px] tracking-widest uppercase text-[#141414]/40 w-40">Módulo</th>
                       {roles.map(r => (
-                        <th key={r} className="pb-3 px-1.5 text-center min-w-[90px]">
-                          <div className={`inline-flex items-center gap-1 px-2 py-1.5 text-[8px] font-black tracking-wider rounded-sm ${ROLE_COLORS[r]}`}>
+                        <th key={r} className="pb-3 px-2 text-center min-w-[100px]">
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[9px] font-black tracking-wider rounded-sm ${ROLE_COLORS[r]}`}>
                             <RoleIcon role={r} />
-                            <span className="hidden sm:inline">{ROLE_LABELS[r].toUpperCase()}</span>
-                            <span className="sm:hidden">{r === 'ADMIN_GENERAL' ? 'ADM' : r === 'ADMINISTRADOR' ? 'ADM' : r === 'JEFE_ALMACEN' ? 'JA' : 'CEO'}</span>
+                            {ROLE_LABELS[r].toUpperCase()}
                           </div>
                         </th>
                       ))}
@@ -309,9 +308,7 @@ export const Users: React.FC = () => {
                       <React.Fragment key={group.label}>
                         <tr>
                           <td colSpan={roles.length + 1} className="pt-4 pb-1">
-                            <span className="font-mono text-[9px] font-black tracking-widest uppercase text-[#141414]/30">
-                              — {group.label}
-                            </span>
+                            <span className="font-mono text-[9px] font-black tracking-widest uppercase text-[#141414]/30">— {group.label}</span>
                           </td>
                         </tr>
                         {group.modules.map(mod => (
@@ -321,20 +318,12 @@ export const Users: React.FC = () => {
                               const perm: Permission = (rolePermissions[r]?.[mod.key] ?? 'none') as Permission;
                               const isEditable = isAdmin && r !== 'ADMIN_GENERAL';
                               const cycle: Permission[] = ['none', 'view', 'full'];
-                              const handleClick = () => {
-                                if (!isEditable) return;
-                                const next = cycle[(cycle.indexOf(perm) + 1) % cycle.length];
-                                updateRolePermission(r, mod.key, next);
-                              };
                               return (
                                 <td key={r} className="text-center py-2 px-2">
                                   <button
-                                    onClick={handleClick}
+                                    onClick={() => { if (!isEditable) return; updateRolePermission(r, mod.key, cycle[(cycle.indexOf(perm) + 1) % cycle.length]); }}
                                     disabled={!isEditable}
-                                    title={isEditable ? `Cambiar permiso` : undefined}
-                                    className={`font-mono text-[9px] font-bold px-2.5 py-1 border rounded-sm tracking-wider transition-all
-                                      ${PERM_STYLE[perm]}
-                                      ${isEditable ? 'cursor-pointer hover:scale-105 hover:shadow-sm active:scale-95' : 'cursor-default'}`}
+                                    className={`font-mono text-[9px] font-bold px-2.5 py-1 border rounded-sm tracking-wider transition-all ${PERM_STYLE[perm]} ${isEditable ? 'cursor-pointer hover:scale-105 hover:shadow-sm active:scale-95' : 'cursor-default'}`}
                                   >
                                     {PERM_LABEL[perm]}
                                   </button>
@@ -348,12 +337,48 @@ export const Users: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center gap-4 pt-3 border-t border-[#141414]/10">
+
+              {/* Vista mobile: tarjetas por módulo */}
+              <div className="md:hidden flex flex-col gap-3">
+                {MODULE_GROUPS.map(group => (
+                  <div key={group.label}>
+                    <div className="font-mono text-[9px] font-black tracking-widest uppercase text-[#141414]/30 mb-2">— {group.label}</div>
+                    <div className="flex flex-col gap-2">
+                      {group.modules.map(mod => (
+                        <div key={mod.key} className="border border-[#141414]/15 bg-white/50 px-3 py-2.5">
+                          <div className="font-mono text-[11px] font-bold text-[#141414] mb-2">{mod.label}</div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {roles.map(r => {
+                              const perm: Permission = (rolePermissions[r]?.[mod.key] ?? 'none') as Permission;
+                              const isEditable = isAdmin && r !== 'ADMIN_GENERAL';
+                              const cycle: Permission[] = ['none', 'view', 'full'];
+                              return (
+                                <button
+                                  key={r}
+                                  onClick={() => { if (!isEditable) return; updateRolePermission(r, mod.key, cycle[(cycle.indexOf(perm) + 1) % cycle.length]); }}
+                                  disabled={!isEditable}
+                                  className={`flex items-center justify-between gap-1 px-2 py-1.5 border rounded-sm transition-all ${isEditable ? 'active:scale-95' : 'cursor-default'} ${perm === 'none' ? 'border-[#141414]/10 bg-transparent' : 'border-[#141414]/20 bg-white'}`}
+                                >
+                                  <div className={`flex items-center gap-1 text-[8px] font-black ${ROLE_COLORS[r]} px-1.5 py-0.5 rounded-sm shrink-0`}>
+                                    <RoleIcon role={r} size={9} />
+                                    <span>{r === 'ADMIN_GENERAL' ? 'AG' : r === 'ADMINISTRADOR' ? 'AD' : r === 'JEFE_ALMACEN' ? 'JA' : 'CEO'}</span>
+                                  </div>
+                                  <span className={`font-mono text-[8px] font-bold border px-1.5 py-0.5 rounded-sm ${PERM_STYLE[perm]}`}>{PERM_LABEL[perm]}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#141414]/10">
                 {(['full', 'view', 'none'] as Permission[]).map(p => (
                   <div key={p} className="flex items-center gap-2">
-                    <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border rounded-sm ${PERM_STYLE[p]}`}>
-                      {PERM_LABEL[p]}
-                    </span>
+                    <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border rounded-sm ${PERM_STYLE[p]}`}>{PERM_LABEL[p]}</span>
                     <span className="font-mono text-[9px] text-[#141414]/40 uppercase tracking-wider">
                       {p === 'full' ? 'Acceso completo' : p === 'view' ? 'Solo lectura' : 'Sin acceso'}
                     </span>
