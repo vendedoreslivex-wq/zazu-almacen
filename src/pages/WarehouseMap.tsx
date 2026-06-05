@@ -8,15 +8,15 @@ const TYPE_LABEL: Record<string, string> = {
   RACK: 'ESTANTE',
   BIN: 'CASILLERO',
   EXTERNAL: 'EXTERNO',
-  WAREHOUSE: 'ALMACÉN',
+  WAREHOUSE: 'ALMACEN',
 };
 
 const TYPE_ICON: Record<string, string> = {
-  ZONE: '⬛',
-  RACK: '▦',
-  BIN: '▪',
-  EXTERNAL: '◈',
-  WAREHOUSE: '⬜',
+  ZONE: '?',
+  RACK: '?',
+  BIN: '?',
+  EXTERNAL: '?',
+  WAREHOUSE: '?',
 };
 
 type FillLevel = 'empty' | 'low' | 'medium' | 'high';
@@ -30,21 +30,21 @@ function getFillLevel(stock: number, capacity: number): FillLevel {
 }
 
 const FILL_STYLES: Record<FillLevel, string> = {
-  empty: 'bg-[#f5f4f1] border-[#141414]/20 text-[#141414]/40',
-  low: 'bg-red-50 border-red-400 text-red-700',
-  medium: 'bg-yellow-50 border-yellow-500 text-yellow-800',
-  high: 'bg-green-50 border-green-600 text-green-800',
+  empty: 'bg-[var(--bg-modal)] border-[var(--border)]/20 text-[var(--ink)]/40',
+  low: 'bg-red-500/10 border-red-400 text-red-700',
+  medium: 'bg-yellow-500/10 border-yellow-500 text-yellow-600',
+  high: 'bg-green-500/10 border-green-600 text-green-600',
 };
 
 const FILL_BAR: Record<FillLevel, string> = {
-  empty: 'bg-[#141414]/10',
+  empty: 'bg-[var(--ink)]/10',
   low: 'bg-red-400',
   medium: 'bg-yellow-400',
   high: 'bg-green-500',
 };
 
 const FILL_LABEL: Record<FillLevel, string> = {
-  empty: 'VACÍO',
+  empty: 'VACIO',
   low: 'BAJO',
   medium: 'NORMAL',
   high: 'LLENO',
@@ -89,23 +89,23 @@ export const WarehouseMap: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      <ModuleInfo number="12" title="Mapa del Almacén" description="Mapa visual del almacén que muestra el nivel de ocupación por ubicación. Identifica rápidamente zonas vacías, llenas o con stock crítico." />
+      <ModuleInfo number="12" title="Mapa del Almacen" description="Mapa visual del almacen que muestra el nivel de ocupacion por ubicacion. Identifica r-pidamente zonas vacias, llenas o con stock cr-tico." />
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">13 // MAPA_ALMACÉN</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Visualización del estado de stock por ubicación.</p>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">13 // MAPA_ALMACEN</h2>
+          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Visualizacion del estado de stock por ubicacion.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS LOS TIPOS</option>
             {types.map(t => <option key={String(t)} value={String(t)}>{TYPE_LABEL[String(t)] || String(t)}</option>)}
           </select>
           <select value={filterFill} onChange={e => setFilterFill(e.target.value as any)}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS LOS NIVELES</option>
-            <option value="empty">VACÍO</option>
+            <option value="empty">VACIO</option>
             <option value="low">BAJO</option>
             <option value="medium">NORMAL</option>
             <option value="high">LLENO</option>
@@ -116,10 +116,10 @@ export const WarehouseMap: React.FC = () => {
       {/* Summary bar */}
       <div className="grid grid-cols-4 gap-2">
         {([
-          { key: 'empty', label: 'VACÍO', icon: Circle, color: 'text-[#141414]/40 border-[#141414]/20 bg-[#f5f4f1]' },
-          { key: 'low', label: 'BAJO', icon: AlertTriangle, color: 'text-red-700 border-red-300 bg-red-50' },
-          { key: 'medium', label: 'NORMAL', icon: TrendingDown, color: 'text-yellow-800 border-yellow-300 bg-yellow-50' },
-          { key: 'high', label: 'LLENO', icon: CheckCircle, color: 'text-green-800 border-green-300 bg-green-50' },
+          { key: 'empty', label: 'VACIO', icon: Circle, color: 'text-[var(--ink)]/40 border-[var(--border)]/20 bg-[var(--bg-modal)]' },
+          { key: 'low', label: 'BAJO', icon: AlertTriangle, color: 'text-red-700 border-red-500/50 bg-red-500/10' },
+          { key: 'medium', label: 'NORMAL', icon: TrendingDown, color: 'text-yellow-600 border-yellow-500/50 bg-yellow-500/10' },
+          { key: 'high', label: 'LLENO', icon: CheckCircle, color: 'text-green-600 border-green-500/50 bg-green-500/10' },
         ] as const).map(({ key, label, icon: Icon, color }) => (
           <button key={key}
             onClick={() => setFilterFill(filterFill === key ? 'ALL' : key)}
@@ -135,7 +135,7 @@ export const WarehouseMap: React.FC = () => {
         {/* Map grid */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="text-center font-mono text-xs opacity-40 py-16 uppercase tracking-widest border border-dashed border-[#141414]/30">
+            <div className="text-center font-mono text-xs opacity-40 py-16 uppercase tracking-widest border border-dashed border-[var(--border)]/30">
               Sin ubicaciones para mostrar
             </div>
           ) : (
@@ -145,7 +145,7 @@ export const WarehouseMap: React.FC = () => {
                 const isSelected = selected === loc.id;
                 return (
                   <button key={loc.id} onClick={() => setSelected(isSelected ? null : loc.id)}
-                    className={`border-2 p-3 flex flex-col gap-2 text-left transition-all cursor-pointer group relative ${FILL_STYLES[fill]} ${isSelected ? 'ring-2 ring-[#141414] shadow-[3px_3px_0_#141414]' : 'hover:shadow-[2px_2px_0_#141414]'}`}>
+                    className={`border-2 p-3 flex flex-col gap-2 text-left transition-all cursor-pointer group relative ${FILL_STYLES[fill]} ${isSelected ? 'ring-2 ring-[#141414] shadow-[3px_3px_0_var(--border)]' : 'hover:shadow-[2px_2px_0_var(--border)]'}`}>
 
                     {lowStockItems.length > 0 && (
                       <div className="absolute top-2 right-2">
@@ -154,7 +154,7 @@ export const WarehouseMap: React.FC = () => {
                     )}
 
                     <div className="flex items-start gap-2">
-                      <span className="text-base leading-none mt-0.5">{TYPE_ICON[loc.type] || '▪'}</span>
+                      <span className="text-base leading-none mt-0.5">{TYPE_ICON[loc.type] || '?'}</span>
                       <div className="min-w-0">
                         <div className="font-mono font-black text-[10px] leading-tight truncate">{loc.name}</div>
                         <div className="font-mono text-[8px] opacity-50 uppercase tracking-widest mt-0.5">{TYPE_LABEL[loc.type] || loc.type}</div>
@@ -162,7 +162,7 @@ export const WarehouseMap: React.FC = () => {
                     </div>
 
                     {/* Fill bar */}
-                    <div className="w-full h-1.5 bg-[#141414]/10 rounded-none">
+                    <div className="w-full h-1.5 bg-[var(--ink)]/10 rounded-none">
                       <div className={`h-full transition-all ${FILL_BAR[fill]}`} style={{ width: `${barWidth}%` }} />
                     </div>
 
@@ -178,7 +178,7 @@ export const WarehouseMap: React.FC = () => {
                     </div>
 
                     <div className={`font-mono text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 self-start ${
-                      fill === 'empty' ? 'bg-[#141414]/10 text-[#141414]/40' :
+                      fill === 'empty' ? 'bg-[var(--ink)]/10 text-[var(--ink)]/40' :
                       fill === 'low' ? 'bg-red-500 text-white' :
                       fill === 'medium' ? 'bg-yellow-400 text-yellow-900' :
                       'bg-green-500 text-white'
@@ -194,8 +194,8 @@ export const WarehouseMap: React.FC = () => {
 
         {/* Detail panel */}
         {selectedStat && (
-          <div className="w-72 shrink-0 border border-[#141414] bg-[#E4E3E0] flex flex-col max-h-full overflow-hidden">
-            <div className="border-b border-[#141414] px-4 py-3 flex justify-between items-center shrink-0">
+          <div className="w-72 shrink-0 border border-[var(--border)] bg-[var(--bg)] flex flex-col max-h-full overflow-hidden">
+            <div className="border-b border-[var(--border)] px-4 py-3 flex justify-between items-center shrink-0">
               <div>
                 <div className="font-mono font-black text-xs uppercase">{selectedStat.loc.name}</div>
                 <div className="font-mono text-[8px] opacity-50 uppercase tracking-widest mt-0.5">{TYPE_LABEL[selectedStat.loc.type]}</div>
@@ -206,13 +206,13 @@ export const WarehouseMap: React.FC = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 border-b border-[#141414] shrink-0">
+            <div className="grid grid-cols-3 border-b border-[var(--border)] shrink-0">
               {[
                 { label: 'UNIDADES', value: selectedStat.totalUnits },
                 { label: 'SKUs', value: selectedStat.skuCount },
                 { label: 'ALERTAS', value: selectedStat.lowStockItems.length },
               ].map(({ label, value }) => (
-                <div key={label} className="p-3 border-r border-[#141414] last:border-r-0 text-center">
+                <div key={label} className="p-3 border-r border-[var(--border)] last:border-r-0 text-center">
                   <div className="font-mono font-black text-xl">{value}</div>
                   <div className="font-mono text-[7px] opacity-50 uppercase tracking-widest">{label}</div>
                 </div>
@@ -222,7 +222,7 @@ export const WarehouseMap: React.FC = () => {
             {/* Product list */}
             <div className="flex-1 overflow-y-auto">
               {selectedStat.stocks.filter(s => s.quantity > 0).length === 0 ? (
-                <div className="p-6 text-center font-mono text-[10px] opacity-40 uppercase">Ubicación vacía</div>
+                <div className="p-6 text-center font-mono text-[10px] opacity-40 uppercase">Ubicacion vacia</div>
               ) : (
                 <div className="flex flex-col divide-y divide-[#141414]/20">
                   {selectedStat.stocks
@@ -233,7 +233,7 @@ export const WarehouseMap: React.FC = () => {
                       if (!prod) return null;
                       const isLow = prod.lowStockThreshold != null && s.quantity <= prod.lowStockThreshold;
                       return (
-                        <div key={s.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${isLow ? 'bg-red-50' : ''}`}>
+                        <div key={s.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${isLow ? 'bg-red-500/10' : ''}`}>
                           <div className="min-w-0">
                             <div className="font-mono font-bold text-[10px] truncate flex items-center gap-1">
                               {isLow && <AlertTriangle size={9} className="text-red-500 shrink-0" />}
@@ -242,9 +242,9 @@ export const WarehouseMap: React.FC = () => {
                             <div className="font-mono text-[8px] opacity-60 truncate">{prod.name} {prod.color || ''} {prod.size || ''}</div>
                           </div>
                           <div className="shrink-0 text-right">
-                            <div className={`font-mono font-black text-sm ${isLow ? 'text-red-600' : 'text-[#141414]'}`}>{s.quantity}</div>
+                            <div className={`font-mono font-black text-sm ${isLow ? 'text-red-600' : 'text-[var(--ink)]'}`}>{s.quantity}</div>
                             {prod.lowStockThreshold && (
-                              <div className="font-mono text-[7px] opacity-40">mín {prod.lowStockThreshold}</div>
+                              <div className="font-mono text-[7px] opacity-40">m-n {prod.lowStockThreshold}</div>
                             )}
                           </div>
                         </div>
@@ -255,7 +255,7 @@ export const WarehouseMap: React.FC = () => {
             </div>
 
             {/* Legend */}
-            <div className="border-t border-[#141414] px-4 py-2 shrink-0 flex flex-wrap gap-x-3 gap-y-1">
+            <div className="border-t border-[var(--border)] px-4 py-2 shrink-0 flex flex-wrap gap-x-3 gap-y-1">
               {(['empty', 'low', 'medium', 'high'] as FillLevel[]).map(f => (
                 <div key={f} className="flex items-center gap-1">
                   <div className={`w-2 h-2 ${FILL_BAR[f]}`} />

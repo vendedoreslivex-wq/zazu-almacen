@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './store/AppContext';
+import { ThemeProvider } from './store/ThemeContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -76,38 +77,37 @@ export default function App() {
   if (!session) return <Login />;
 
   return (
-    <HashRouter>
-      <ErrorBoundary>
-        <AppProvider>
-          <AppShell />
-        </AppProvider>
-      </ErrorBoundary>
-    </HashRouter>
+    <ThemeProvider>
+      <HashRouter>
+        <ErrorBoundary>
+          <AppProvider>
+            <AppShell />
+          </AppProvider>
+        </ErrorBoundary>
+      </HashRouter>
+    </ThemeProvider>
   );
 }
 
 function SplashScreen({ label = 'INICIANDO...' }: { label?: string }) {
   return (
-    <div className="min-h-screen bg-[#E4E3E0] flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center gap-6">
       <div className="relative flex items-center justify-center">
-        <div className="absolute w-24 h-24 border-2 border-[#141414]/20 rounded-full animate-ping" />
-        <div className="absolute w-20 h-20 border border-[#141414]/10 rounded-full animate-pulse" />
-        <img
-          src="/img-icono/zazu_icon.png"
-          alt="LogixZazu"
-          className="w-16 h-16 object-contain relative z-10 animate-pulse"
-          style={{ animationDuration: '1.5s' }}
-        />
+        <div className="absolute w-24 h-24 border-2 border-[var(--border)]/20 rounded-full animate-ping" />
+        <div className="absolute w-20 h-20 border border-[var(--border)]/10 rounded-full animate-pulse" />
+        <div className="w-16 h-16 bg-[var(--ink)] flex items-center justify-center relative z-10 animate-pulse" style={{ animationDuration: '1.5s' }}>
+          <span className="font-mono font-black text-[var(--ink-inv)] text-xs tracking-widest">LZ</span>
+        </div>
       </div>
       <div className="flex flex-col items-center gap-2">
-        <span className="font-mono font-black text-base tracking-[0.3em] text-[#141414] uppercase">LOGIXZAZU</span>
+        <span className="font-mono font-black text-base tracking-[0.3em] text-[var(--ink)] uppercase">LOGIXZAZU</span>
         <span className="font-mono text-[9px] opacity-40 tracking-[0.4em] uppercase">{label}</span>
       </div>
       <div className="flex gap-1.5">
         {[0, 1, 2].map(i => (
           <div
             key={i}
-            className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce"
+            className="w-1.5 h-1.5 bg-[var(--ink)] rounded-full animate-bounce"
             style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }}
           />
         ))}

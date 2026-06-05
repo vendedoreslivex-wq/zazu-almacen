@@ -7,32 +7,32 @@ import {
 import { useAppContext } from '../store/AppContext';
 import { Reservation, ReservationStatus } from '../types';
 
-// ─── Columnas del kanban ──────────────────────────────────────────────────────
+// --- Columnas del kanban ------------------------------------------------------
 
 const COLUMNS: { status: ReservationStatus; label: string; color: string; border: string; dot: string; icon: React.ReactNode }[] = [
   {
     status: 'SOLICITADA', label: 'SOLICITADA',
-    color: 'bg-amber-50', border: 'border-amber-400', dot: 'bg-amber-400',
+    color: 'bg-amber-500/10', border: 'border-amber-400', dot: 'bg-amber-400',
     icon: <Clock size={13} className="text-amber-600" />
   },
   {
     status: 'CONFIRMADA', label: 'CONFIRMADA',
-    color: 'bg-blue-50', border: 'border-blue-400', dot: 'bg-blue-400',
+    color: 'bg-blue-500/10', border: 'border-blue-400', dot: 'bg-blue-400',
     icon: <CheckCircle2 size={13} className="text-blue-600" />
   },
   {
     status: 'LISTA', label: 'LISTA P/ ENTREGA',
-    color: 'bg-green-50', border: 'border-green-400', dot: 'bg-green-400',
+    color: 'bg-green-500/10', border: 'border-green-400', dot: 'bg-green-400',
     icon: <Package size={13} className="text-green-600" />
   },
   {
     status: 'ENTREGADA', label: 'ENTREGADA',
-    color: 'bg-[#f5f5f4]', border: 'border-[#9f9d99]', dot: 'bg-[#9f9d99]',
-    icon: <ArrowRight size={13} className="text-[#9f9d99]" />
+    color: 'bg-[var(--bg-card)]', border: 'border-[var(--border-soft)]', dot: 'bg-[var(--ink-50)]',
+    icon: <ArrowRight size={13} className="text-[var(--ink-50)]" />
   },
   {
     status: 'CANCELADA', label: 'CANCELADA',
-    color: 'bg-red-50', border: 'border-red-300', dot: 'bg-red-400',
+    color: 'bg-red-500/10', border: 'border-red-500/50', dot: 'bg-red-400',
     icon: <Ban size={13} className="text-red-500" />
   },
 ];
@@ -49,11 +49,11 @@ function isExpired(expiresAt?: string) {
 }
 
 function fmtDate(iso?: string) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// ─── Tarjeta Kanban ───────────────────────────────────────────────────────────
+// --- Tarjeta Kanban -----------------------------------------------------------
 
 function KanbanCard({
   res, productName, productColor, productSize, locationName, onAdvance,
@@ -70,11 +70,11 @@ function KanbanCard({
   const next = STATUS_NEXT[res.status];
 
   return (
-    <div className="bg-white/80 border border-[#141414] rounded-sm p-3 flex flex-col gap-2
-                    hover:shadow-[2px_2px_0_#141414] transition-shadow group">
+    <div className="bg-[var(--bg-card-alt)] border border-[var(--border)] rounded-sm p-3 flex flex-col gap-2
+                    hover:shadow-[2px_2px_0_var(--border)] transition-shadow group">
       {/* Referencia */}
       <div className="flex items-start justify-between gap-1">
-        <span className="font-mono text-[10px] font-bold tracking-widest text-[#141414]/50 uppercase">
+        <span className="font-mono text-[10px] font-bold tracking-widest text-[var(--ink)]/50 uppercase">
           {res.reference}
         </span>
         {next && onAdvance && (
@@ -82,8 +82,8 @@ function KanbanCard({
             onClick={() => onAdvance(res.id, next)}
             title={`Avanzar a ${next}`}
             className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5
-                       font-mono text-[8px] tracking-wider text-[#141414]/50 hover:text-[#141414]
-                       border border-[#141414]/20 hover:border-[#141414] px-1.5 py-0.5 rounded-sm"
+                       font-mono text-[8px] tracking-wider text-[var(--ink)]/50 hover:text-[var(--ink)]
+                       border border-[var(--border)]/20 hover:border-[var(--border)] px-1.5 py-0.5 rounded-sm"
           >
             {next} <ChevronRight size={10} />
           </button>
@@ -92,8 +92,8 @@ function KanbanCard({
 
       {/* Producto */}
       <div className="flex items-center gap-1.5">
-        <Package size={12} className="text-[#141414]/50 shrink-0" />
-        <span className="font-medium text-[13px] text-[#141414] leading-tight truncate">
+        <Package size={12} className="text-[var(--ink)]/50 shrink-0" />
+        <span className="font-medium text-[13px] text-[var(--ink)] leading-tight truncate">
           {productName}
         </span>
       </div>
@@ -101,22 +101,22 @@ function KanbanCard({
       {/* Tags */}
       <div className="flex gap-1 flex-wrap">
         {productColor && (
-          <span className="font-mono text-[9px] tracking-wider border border-[#141414]/20 px-1.5 py-0.5 rounded-sm bg-[#E4E3E0] text-[#141414]/70 uppercase">
+          <span className="font-mono text-[9px] tracking-wider border border-[var(--border)]/20 px-1.5 py-0.5 rounded-sm bg-[var(--bg)] text-[var(--ink)]/70 uppercase">
             {productColor}
           </span>
         )}
         {productSize && (
-          <span className="font-mono text-[9px] tracking-wider border border-[#141414]/20 px-1.5 py-0.5 rounded-sm bg-[#E4E3E0] text-[#141414]/70 uppercase">
+          <span className="font-mono text-[9px] tracking-wider border border-[var(--border)]/20 px-1.5 py-0.5 rounded-sm bg-[var(--bg)] text-[var(--ink)]/70 uppercase">
             {productSize}
           </span>
         )}
-        <span className="font-mono text-[9px] tracking-wider border border-[#141414]/30 px-1.5 py-0.5 rounded-sm text-[#141414] font-bold">
-          ×{res.quantity} uds
+        <span className="font-mono text-[9px] tracking-wider border border-[var(--border)]/30 px-1.5 py-0.5 rounded-sm text-[var(--ink)] font-bold">
+          -{res.quantity} uds
         </span>
       </div>
 
       {/* Info */}
-      <div className="flex flex-col gap-1 text-[11px] text-[#141414]/60">
+      <div className="flex flex-col gap-1 text-[11px] text-[var(--ink)]/60">
         <div className="flex items-center gap-1.5">
           <User size={10} className="shrink-0" />
           <span className="truncate">{res.client}</span>
@@ -140,7 +140,7 @@ function KanbanCard({
 
       {/* Notas */}
       {res.notes && (
-        <p className="text-[10px] text-[#141414]/50 italic border-t border-[#141414]/10 pt-1.5 leading-snug">
+        <p className="text-[10px] text-[var(--ink)]/50 italic border-t border-[var(--border)]/10 pt-1.5 leading-snug">
           {res.notes}
         </p>
       )}
@@ -148,7 +148,7 @@ function KanbanCard({
   );
 }
 
-// ─── Columna Kanban ───────────────────────────────────────────────────────────
+// --- Columna Kanban -----------------------------------------------------------
 
 function KanbanColumn({
   col, cards, products, locations, onAdvance,
@@ -165,16 +165,16 @@ function KanbanColumn({
       <div className={`border ${col.border} rounded-sm px-3 py-2 flex items-center justify-between ${col.color}`}>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${col.dot}`} />
-          <span className="font-mono text-[10px] font-black tracking-widest text-[#141414] uppercase">
+          <span className="font-mono text-[10px] font-black tracking-widest text-[var(--ink)] uppercase">
             {col.label}
           </span>
         </div>
-        <span className="font-mono text-[10px] font-bold text-[#141414]/50">{cards.length}</span>
+        <span className="font-mono text-[10px] font-bold text-[var(--ink)]/50">{cards.length}</span>
       </div>
       <div className="flex flex-col gap-2 min-h-[120px]">
         {cards.length === 0 ? (
-          <div className="border border-dashed border-[#141414]/15 rounded-sm h-20 flex items-center justify-center">
-            <span className="text-[10px] font-mono text-[#141414]/25 uppercase tracking-wider">Vacío</span>
+          <div className="border border-dashed border-[var(--border)]/15 rounded-sm h-20 flex items-center justify-center">
+            <span className="text-[10px] font-mono text-[var(--ink)]/25 uppercase tracking-wider">Vac-o</span>
           </div>
         ) : (
           cards.map(r => {
@@ -198,7 +198,7 @@ function KanbanColumn({
   );
 }
 
-// ─── Modal Nueva Reserva ──────────────────────────────────────────────────────
+// --- Modal Nueva Reserva ------------------------------------------------------
 
 function NewReservationModal({
   onClose,
@@ -255,42 +255,42 @@ function NewReservationModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-lg">
-        <div className="border-b border-[#141414] px-5 py-3.5 flex justify-between items-center">
+      <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-lg">
+        <div className="border-b border-[var(--border)] px-5 py-3.5 flex justify-between items-center">
           <span className="font-mono font-black text-[11px] uppercase tracking-widest">Nueva Reserva</span>
-          <button onClick={onClose} className="p-1 hover:bg-[#141414]/10 rounded-sm transition-colors">
+          <button onClick={onClose} className="p-1 hover:bg-[var(--ink)]/10 rounded-sm transition-colors">
             <X size={14} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           {error && (
-            <div className="border border-red-500 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide rounded-sm">
+            <div className="border border-red-500 bg-red-500/10 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide rounded-sm">
               {error}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             {/* Referencia */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Referencia *</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Referencia *</label>
               <input
                 value={form.reference}
                 onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}
                 placeholder="RSV-001"
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)]"
                 required
               />
             </div>
 
             {/* Producto */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Producto *</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Producto *</label>
               <select
                 value={form.productId}
                 onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)] cursor-pointer"
                 required
               >
-                <option value="">— Seleccionar producto —</option>
+                <option value="">- Seleccionar producto -</option>
                 {products.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.name}{p.color ? ` · ${p.color}` : ''}{p.size ? ` · ${p.size}` : ''} ({p.code})
@@ -299,15 +299,15 @@ function NewReservationModal({
               </select>
             </div>
 
-            {/* Ubicación */}
+            {/* Ubicacion */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Ubicación</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Ubicacion</label>
               <select
                 value={form.locationId}
                 onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))}
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)] cursor-pointer"
               >
-                <option value="">— Sin ubicación específica —</option>
+                <option value="">- Sin ubicacion espec-fica -</option>
                 {locations.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
@@ -316,23 +316,23 @@ function NewReservationModal({
 
             {/* Cantidad */}
             <div className="flex flex-col gap-1">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Cantidad *</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Cantidad *</label>
               <input
                 type="number" min={1}
                 value={form.quantity}
                 onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)]"
                 required
               />
             </div>
 
             {/* Estado inicial */}
             <div className="flex flex-col gap-1">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Estado inicial</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Estado inicial</label>
               <select
                 value={form.status}
                 onChange={e => setForm(f => ({ ...f, status: e.target.value as ReservationStatus }))}
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414] cursor-pointer"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)] cursor-pointer"
               >
                 <option value="SOLICITADA">SOLICITADA</option>
                 <option value="CONFIRMADA">CONFIRMADA</option>
@@ -342,36 +342,36 @@ function NewReservationModal({
 
             {/* Cliente */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Cliente / Destino *</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Cliente / Destino *</label>
               <input
                 value={form.client}
                 onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
                 placeholder="Nombre del cliente o canal"
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)]"
                 required
               />
             </div>
 
             {/* Fecha vencimiento */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Fecha de vencimiento</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Fecha de vencimiento</label>
               <input
                 type="date"
                 value={form.expiresAt}
                 onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)]"
               />
             </div>
 
             {/* Notas */}
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Notas</label>
+              <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Notas</label>
               <textarea
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
                 placeholder="Observaciones opcionales..."
-                className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414] resize-none"
+                className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)] resize-none"
               />
             </div>
           </div>
@@ -379,14 +379,14 @@ function NewReservationModal({
           <div className="flex gap-2 pt-1">
             <button
               type="submit" disabled={saving}
-              className="flex-1 bg-[#141414] text-[#E4E3E0] py-2.5 text-xs font-bold font-mono uppercase
-                         hover:shadow-[2px_2px_0_#9f9d99] disabled:opacity-50 transition-all"
+              className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 text-xs font-bold font-mono uppercase
+                         hover:shadow-[2px_2px_0_var(--border)] disabled:opacity-50 transition-all"
             >
               {saving ? 'GUARDANDO...' : 'CREAR RESERVA'}
             </button>
             <button
               type="button" onClick={onClose} disabled={saving}
-              className="flex-1 border border-[#141414] py-2.5 text-xs font-bold font-mono uppercase hover:bg-white/50 disabled:opacity-50 transition-all"
+              className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)] disabled:opacity-50 transition-all"
             >
               CANCELAR
             </button>
@@ -397,7 +397,7 @@ function NewReservationModal({
   );
 }
 
-// ─── Pestaña Kanban ───────────────────────────────────────────────────────────
+// --- Pesta-a Kanban -----------------------------------------------------------
 
 function KanbanTab({
   reservations, products, locations, onAdvance, onNewReservation,
@@ -421,15 +421,15 @@ function KanbanTab({
           onClick={() => setShowDone(!showDone)}
           className={`font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border rounded-sm transition-colors
             ${showDone
-              ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-              : 'bg-white/50 text-[#141414]/60 border-[#141414]/20 hover:border-[#141414]/50'}`}
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]'
+              : 'bg-[var(--surface)] text-[var(--ink)]/60 border-[var(--border)]/20 hover:border-[var(--border)]/50'}`}
         >
           {showDone ? 'Ocultar finalizadas' : `Ver finalizadas (${done.length})`}
         </button>
         <button
           onClick={onNewReservation}
-          className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-3 py-1.5 border border-[#141414]
-                     font-mono text-[10px] tracking-widest uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
+          className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-1.5 border border-[var(--border)]
+                     font-mono text-[10px] tracking-widest uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all"
         >
           <Plus size={12} /> Nueva reserva
         </button>
@@ -455,7 +455,7 @@ function KanbanTab({
   );
 }
 
-// ─── Pestaña Stock Reservado ──────────────────────────────────────────────────
+// --- Pesta-a Stock Reservado --------------------------------------------------
 
 function StockTab({
   reservations, products, stockLevels, locations,
@@ -472,7 +472,7 @@ function StockTab({
   const [sizeFilter, setSizeFilter] = useState('');
 
 
-  // Modelos únicos (nombres de producto sin color/talla)
+  // Modelos unicos (nombres de producto sin color/talla)
   const models = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
   const colors = useMemo(() => [...new Set(products.map(p => p.color).filter(Boolean))].sort() as string[], [products]);
   const sizes = useMemo(() => [...new Set(products.map(p => p.size).filter(Boolean))].sort() as string[], [products]);
@@ -497,7 +497,7 @@ function StockTab({
     return map;
   }, [stockLevels]);
 
-  // Ubicación principal del producto (la de mayor stock)
+  // Ubicacion principal del producto (la de mayor stock)
   const mainLocationByProduct = useMemo(() => {
     const map: Record<string, string> = {};
     const maxQty: Record<string, number> = {};
@@ -517,7 +517,7 @@ function StockTab({
         product: p,
         total: totalByProduct[p.id] ?? 0,
         reserved: reservedByProduct[p.id] ?? 0,
-        location: mainLocationByProduct[p.id] ?? '—',
+        location: mainLocationByProduct[p.id] ?? '-',
       }))
       .filter(row => {
         const q = search.toLowerCase();
@@ -568,7 +568,7 @@ function StockTab({
           <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:10px; color:#555;">${location}</td>
           <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:13px; font-weight:700; color:#141414; text-align:center;">${total}</td>
           <td style="padding:10px 12px; text-align:center;">
-            ${isCritical ? '<span style="font-size:10px;margin-right:3px;">⚠</span>' : ''}
+            ${isCritical ? '<span style="font-size:10px;margin-right:3px;">?</span>' : ''}
             <span style="font-family:\'Courier New\',monospace; font-size:13px; font-weight:700; color:${reservedColor};">${reserved}</span>
           </td>
           <td style="padding:10px 12px; font-family:'Courier New',monospace; font-size:13px; font-weight:700; color:${availColor}; text-align:center;">${available}</td>
@@ -579,13 +579,13 @@ function StockTab({
       modelFilter && `Modelo: ${modelFilter}`,
       colorFilter && `Color: ${colorFilter}`,
       sizeFilter && `Talla: ${sizeFilter}`,
-      filter !== 'ALL' && (filter === 'RESERVADO' ? 'Solo con reserva' : 'Crítico ≥50%'),
-      search && `Búsqueda: "${search}"`,
+      filter !== 'ALL' && (filter === 'RESERVADO' ? 'Solo con reserva' : 'Cr-tico =50%'),
+      search && `B-squeda: "${search}"`,
     ].filter(Boolean).join(' · ');
 
     const html = `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
-<title>Stock Reservado — LogixZazu</title>
+<title>Stock Reservado · LogixZazu</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -649,7 +649,7 @@ function StockTab({
     <div class="hint">libre de reservas</div>
   </div>
   <div class="summary-card" style="${criticals > 0 ? 'background:#fff7ed; border-color:#f97316;' : ''}">
-    <div class="label">Críticos ≥50%</div>
+    <div class="label">Cr-ticos =50%</div>
     <div class="value" style="color:${criticals > 0 ? '#c2410c' : '#141414'}">${criticals}</div>
     <div class="hint">productos en alerta</div>
   </div>
@@ -661,8 +661,8 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
   <thead>
     <tr>
       <th>Producto</th>
-      <th>Código</th>
-      <th>Ubicación</th>
+      <th>Codigo</th>
+      <th>Ubicacion</th>
       <th class="center">Total</th>
       <th class="center">Reservado</th>
       <th class="center">Disponible</th>
@@ -681,7 +681,7 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
 
 <div class="legend">
   <div class="legend-item"><span class="dot" style="background:#22c55e"></span>Disponible</div>
-  <div class="legend-item"><span class="dot" style="background:#fbbf24"></span>Crítico ≥50%</div>
+  <div class="legend-item"><span class="dot" style="background:#fbbf24"></span>Cr-tico =50%</div>
   <div class="legend-item"><span class="dot" style="background:#ef4444"></span>Stock negativo</div>
 </div>
 
@@ -700,26 +700,26 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
     setTimeout(() => { win.print(); win.close(); }, 500);
   };
 
-  const selectCls = "bg-white/60 border border-[#141414]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[#141414] focus:outline-none focus:border-[#141414] cursor-pointer uppercase tracking-wider";
+  const selectCls = "bg-[var(--surface)] border border-[var(--border)]/20 rounded-sm px-2 py-1.5 font-mono text-[10px] text-[var(--ink)] focus:outline-none focus:border-[var(--border)] cursor-pointer uppercase tracking-wider";
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Búsqueda */}
+        {/* B-squeda */}
         <div className="relative">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#141414]/40" />
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40" />
           <input
             type="text"
-            placeholder="Nombre o código..."
+            placeholder="Nombre o codigo..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-white/60 border border-[#141414]/20 rounded-sm pl-8 pr-7 py-1.5
-                       font-mono text-[11px] text-[#141414] placeholder-[#141414]/30
-                       focus:outline-none focus:border-[#141414] w-48"
+            className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-sm pl-8 pr-7 py-1.5
+                       font-mono text-[11px] text-[var(--ink)] placeholder-[#141414]/30
+                       focus:outline-none focus:border-[var(--border)] w-48"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
-              <X size={11} className="text-[#141414]/40" />
+              <X size={11} className="text-[var(--ink)]/40" />
             </button>
           )}
         </div>
@@ -753,10 +753,10 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
             onClick={() => setFilter(f)}
             className={`font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border rounded-sm transition-colors
               ${filter === f
-                ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-                : 'bg-white/50 text-[#141414]/60 border-[#141414]/20 hover:border-[#141414]/50'}`}
+                ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]'
+                : 'bg-[var(--surface)] text-[var(--ink)]/60 border-[var(--border)]/20 hover:border-[var(--border)]/50'}`}
           >
-            {f === 'ALL' ? 'Todos' : f === 'RESERVADO' ? 'Con reserva' : 'Crítico ≥50%'}
+            {f === 'ALL' ? 'Todos' : f === 'RESERVADO' ? 'Con reserva' : 'Cr-tico =50%'}
           </button>
         ))}
 
@@ -764,35 +764,35 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
         {hasActiveFilters && (
           <button
             onClick={() => { setSearch(''); setModelFilter(''); setColorFilter(''); setSizeFilter(''); setFilter('ALL'); }}
-            className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-300 text-red-500 rounded-sm hover:bg-red-50 transition-colors flex items-center gap-1"
+            className="font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-red-500/50 text-red-500 rounded-sm hover:bg-red-500/10 transition-colors flex items-center gap-1"
           >
             <X size={10} /> Limpiar
           </button>
         )}
 
-        <span className="font-mono text-[10px] text-[#141414]/40 tracking-wider ml-auto">
+        <span className="font-mono text-[10px] text-[var(--ink)]/40 tracking-wider ml-auto">
           {rows.length} producto{rows.length !== 1 ? 's' : ''}
         </span>
 
         <button
           onClick={handlePrint}
-          className="flex items-center gap-1.5 border border-[#141414] bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]
+          className="flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)]
                      px-3 py-1.5 font-mono text-[10px] tracking-widest uppercase transition-all"
         >
           <Printer size={11} /> PDF
         </button>
       </div>
 
-      <div className="border border-[#141414] rounded-sm overflow-hidden">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] bg-[#141414] text-[#E4E3E0] px-4 py-2.5 gap-4">
-          {['PRODUCTO', 'CÓDIGO', 'UBICACIÓN', 'TOTAL', 'RESERVADO', 'DISPONIBLE'].map(h => (
+      <div className="border border-[var(--border)] rounded-sm overflow-hidden">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2.5 gap-4">
+          {['PRODUCTO', 'CODIGO', 'UBICACION', 'TOTAL', 'RESERVADO', 'DISPONIBLE'].map(h => (
             <span key={h} className="font-mono text-[9px] tracking-widest uppercase font-black">{h}</span>
           ))}
         </div>
         {rows.length === 0 ? (
-          <div className="py-12 flex flex-col items-center gap-2 bg-white/30">
-            <Package size={24} className="text-[#141414]/20" />
-            <span className="font-mono text-[10px] text-[#141414]/30 tracking-wider uppercase">Sin resultados</span>
+          <div className="py-12 flex flex-col items-center gap-2 bg-[var(--surface-alt)]">
+            <Package size={24} className="text-[var(--ink)]/20" />
+            <span className="font-mono text-[10px] text-[var(--ink)]/30 tracking-wider uppercase">Sin resultados</span>
           </div>
         ) : (
           rows.map(({ product: p, total, reserved, location }) => {
@@ -804,17 +804,17 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
               <div
                 key={p.id}
                 className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] px-4 py-3 gap-4 items-center
-                            border-b border-[#141414]/10 last:border-0 transition-colors
-                            ${isCritical ? 'bg-amber-50/60 hover:bg-amber-50' : 'bg-white/40 hover:bg-white/70'}`}
+                            border-b border-[var(--border)]/10 last:border-0 transition-colors
+                            ${isCritical ? 'bg-amber-500/10 hover:bg-amber-500/10' : 'bg-[var(--bg-card)] hover:bg-[var(--bg-card-alt)]'}`}
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-medium text-[13px] text-[#141414] truncate">{p.name}</span>
+                  <span className="font-medium text-[13px] text-[var(--ink)] truncate">{p.name}</span>
                   <div className="flex gap-1">
-                    {p.color && <span className="font-mono text-[9px] text-[#141414]/50 uppercase">{p.color}</span>}
-                    {p.size && <span className="font-mono text-[9px] text-[#141414]/50 uppercase">· {p.size}</span>}
+                    {p.color && <span className="font-mono text-[9px] text-[var(--ink)]/50 uppercase">{p.color}</span>}
+                    {p.size && <span className="font-mono text-[9px] text-[var(--ink)]/50 uppercase">- {p.size}</span>}
                   </div>
                   {reserved > 0 && (
-                    <div className="h-1 w-full bg-[#141414]/10 rounded-full mt-1 overflow-hidden">
+                    <div className="h-1 w-full bg-[var(--ink)]/10 rounded-full mt-1 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${isCritical ? 'bg-amber-400' : 'bg-blue-400'}`}
                         style={{ width: `${Math.min(pct, 100)}%` }}
@@ -822,15 +822,15 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
                     </div>
                   )}
                 </div>
-                <span className="font-mono text-[11px] text-[#141414]/60 tracking-wider">{p.code}</span>
+                <span className="font-mono text-[11px] text-[var(--ink)]/60 tracking-wider">{p.code}</span>
                 <div className="flex items-center gap-1">
-                  <MapPin size={10} className="text-[#141414]/40 shrink-0" />
-                  <span className="font-mono text-[11px] text-[#141414]/70 truncate">{location}</span>
+                  <MapPin size={10} className="text-[var(--ink)]/40 shrink-0" />
+                  <span className="font-mono text-[11px] text-[var(--ink)]/70 truncate">{location}</span>
                 </div>
-                <span className="font-mono text-[12px] font-bold text-[#141414]">{total}</span>
+                <span className="font-mono text-[12px] font-bold text-[var(--ink)]">{total}</span>
                 <div className="flex items-center gap-1">
                   {isCritical && <AlertTriangle size={11} className="text-amber-500 shrink-0" />}
-                  <span className={`font-mono text-[12px] font-bold ${reserved > 0 ? 'text-amber-600' : 'text-[#141414]/30'}`}>
+                  <span className={`font-mono text-[12px] font-bold ${reserved > 0 ? 'text-amber-600' : 'text-[var(--ink)]/30'}`}>
                     {reserved}
                   </span>
                 </div>
@@ -846,12 +846,12 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
       <div className="flex items-center gap-4 justify-end">
         {[
           { color: 'bg-green-500', label: 'Disponible' },
-          { color: 'bg-amber-400', label: 'Crítico ≥50%' },
+          { color: 'bg-amber-400', label: 'Cr-tico =50%' },
           { color: 'bg-red-500', label: 'Stock negativo' },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5">
             <div className={`w-2 h-2 rounded-full ${l.color}`} />
-            <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">{l.label}</span>
+            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">{l.label}</span>
           </div>
         ))}
       </div>
@@ -859,7 +859,7 @@ ${activeFiltersText ? `<div class="filter-badge">FILTROS ACTIVOS: ${activeFilter
   );
 }
 
-// ─── Módulo principal ─────────────────────────────────────────────────────────
+// --- M-dulo principal ---------------------------------------------------------
 
 export const Reservations: React.FC = () => {
   const { reservations, products, locations, stockLevels, currentUser, addReservation, updateReservationStatus } = useAppContext();
@@ -897,40 +897,40 @@ export const Reservations: React.FC = () => {
   return (
     <div className="flex flex-col h-full gap-0 -m-4 md:-m-6 lg:-m-8">
       {/* Page header */}
-      <div className="border-b border-[#141414] px-6 py-4 bg-[#E4E3E0] flex items-center justify-between flex-wrap gap-3">
+      <div className="border-b border-[var(--border)] px-6 py-4 bg-[var(--bg)] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <ClipboardList size={18} className="text-[#141414]" />
+          <ClipboardList size={18} className="text-[var(--ink)]" />
           <div>
-            <h1 className="font-mono font-black text-sm tracking-widest text-[#141414] uppercase">
+            <h1 className="font-mono font-black text-sm tracking-widest text-[var(--ink)] uppercase">
               Reservas de Inventario
             </h1>
-            <p className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase mt-0.5">
-              Gestión y seguimiento de stock apartado
+            <p className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase mt-0.5">
+              Gesti-n y seguimiento de stock apartado
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
-            <span className="font-mono font-black text-lg text-[#141414]">{totalActive}</span>
-            <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">Activas</span>
+            <span className="font-mono font-black text-lg text-[var(--ink)]">{totalActive}</span>
+            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">Activas</span>
           </div>
-          <div className="w-px h-8 bg-[#141414]/20" />
+          <div className="w-px h-8 bg-[var(--ink)]/20" />
           <div className="flex flex-col items-end">
             <span className="font-mono font-black text-lg text-amber-600">{totalReservedUnits}</span>
-            <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">Uds apartadas</span>
+            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">Uds apartadas</span>
           </div>
-          <div className="w-px h-8 bg-[#141414]/20" />
+          <div className="w-px h-8 bg-[var(--ink)]/20" />
           <div className="flex flex-col items-end">
             <span className={`font-mono font-black text-lg ${criticalCount > 0 ? 'text-red-500' : 'text-green-600'}`}>
               {criticalCount}
             </span>
-            <span className="font-mono text-[9px] text-[#141414]/40 tracking-wider uppercase">Críticos</span>
+            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">Cr-ticos</span>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-[#141414] bg-[#E4E3E0] flex">
+      <div className="border-b border-[var(--border)] bg-[var(--bg)] flex">
         {[
           { key: 'kanban', label: 'Kanban', icon: <Columns size={13} /> },
           { key: 'stock', label: 'Stock Reservado', icon: <Table2 size={13} /> },
@@ -941,8 +941,8 @@ export const Reservations: React.FC = () => {
             className={`flex items-center gap-2 px-5 py-3 font-mono text-[10px] tracking-widest uppercase
                         border-b-2 transition-colors
                         ${tab === t.key
-                          ? 'border-[#141414] text-[#141414] font-black'
-                          : 'border-transparent text-[#141414]/40 hover:text-[#141414]/70'}`}
+                          ? 'border-[var(--border)] text-[var(--ink)] font-black'
+                          : 'border-transparent text-[var(--ink)]/40 hover:text-[var(--ink)]/70'}`}
           >
             {t.icon}
             {t.label}

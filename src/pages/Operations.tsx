@@ -17,7 +17,7 @@ import type { IScannerControls } from '@zxing/browser';
 import { supabase } from '../lib/supabase';
 import { uploadSignature } from '../lib/signatureStorage';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// --- Types ---------------------------------------------------------------------
 
 type ActiveOp = TransactionType | 'WRITEOFF';
 
@@ -38,12 +38,12 @@ type OperationGuide = {
   photo?: string;
 };
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+// --- Constants -----------------------------------------------------------------
 
 const TX_BADGE: Record<TransactionType, { label: string; cls: string }> = {
-  RECEPTION: { label: 'RX', cls: 'text-green-700 bg-green-50 border-green-400' },
-  DISPATCH:  { label: 'TX', cls: 'text-red-700 bg-red-50 border-red-400' },
-  TRANSFER:  { label: 'MV', cls: 'text-blue-700 bg-blue-50 border-blue-400' },
+  RECEPTION: { label: 'RX', cls: 'text-green-600 bg-green-500/10 border-green-500/40' },
+  DISPATCH:  { label: 'TX', cls: 'text-red-600 bg-red-500/10 border-red-500/40' },
+  TRANSFER:  { label: 'MV', cls: 'text-blue-600 bg-blue-500/10 border-blue-500/40' },
 };
 
 const GUIDE_PREFIX: Record<TransactionType, string> = {
@@ -52,11 +52,7 @@ const GUIDE_PREFIX: Record<TransactionType, string> = {
   TRANSFER:  'TR',
 };
 
-const BRAND_ICON: Record<string, string> = {
-  OVERSHARK: '/img-icono/Img-barra/over-icon.png',
-  BRAVOS:    '/img-icono/Img-barra/brav-icon.png',
-  BOX_PRIME: '/img-icono/Img-barra/box.icon.png',
-};
+const BRAND_ABBR: Record<string, string> = { OVERSHARK: 'OS', BRAVOS: 'BU', BOX_PRIME: 'BP' };
 
 const BRAND_NAME: Record<string, string> = {
   OVERSHARK: 'OVERSHARK',
@@ -65,23 +61,23 @@ const BRAND_NAME: Record<string, string> = {
 };
 
 const TYPE_META: Record<TransactionType, { label: string; accentColor: string; bgColor: string; icon: string }> = {
-  RECEPTION: { label: 'RECEPCIÓN', accentColor: '#15803d', bgColor: '#f0fdf4', icon: '↓' },
-  DISPATCH:  { label: 'DESPACHO',  accentColor: '#b91c1c', bgColor: '#fef2f2', icon: '↑' },
-  TRANSFER:  { label: 'TRASLADO',  accentColor: '#0369a1', bgColor: '#eff6ff', icon: '⇄' },
+  RECEPTION: { label: 'RECEPCION', accentColor: '#15803d', bgColor: '#f0fdf4', icon: '?' },
+  DISPATCH:  { label: 'DESPACHO',  accentColor: '#b91c1c', bgColor: '#fef2f2', icon: '?' },
+  TRANSFER:  { label: 'TRASLADO',  accentColor: '#0369a1', bgColor: '#eff6ff', icon: '?' },
 };
 
 const WRITEOFF_REASONS = [
   'Prendas en mal estado',
   'Prendas rotas',
   'Prendas sucias / manchadas',
-  'Prendas mojadas / húmedas',
-  'Prendas con defecto de fabricación',
+  'Prendas mojadas / h-medas',
+  'Prendas con defecto de fabricacion',
   'Prendas deterioradas por almacenamiento',
   'Merma por siniestro / robo',
   'Otro motivo',
 ];
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// --- Helpers -------------------------------------------------------------------
 
 async function nextGuideNumber(type: TransactionType, brand: string): Promise<string> {
   const { data, error } = await supabase.rpc('next_guide_number', { p_brand: brand, p_type: type });
@@ -112,9 +108,9 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
-// ─── CascadeProductSelector ────────────────────────────────────────────────────
-// Selector en cascada: modelo → color → talla → cantidad.
-// Al agregar una línea, el selector se reinicia automáticamente.
+// --- CascadeProductSelector ----------------------------------------------------
+// Selector en cascada: modelo ? color ? talla ? cantidad.
+// Al agregar una l-nea, el selector se reinicia autom-ticamente.
 
 interface CascadeProps {
   products: { id: string; name: string; code: string; color?: string; size?: string; category: string }[];
@@ -125,7 +121,7 @@ interface CascadeProps {
   opType?: TransactionType;
 }
 
-const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA ÚNICA', '(TALLA ÚNICA)', '10K', '20K'];
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA UNICA', '(TALLA UNICA)', '10K', '20K'];
 
 function sortSizes(sizes: string[]) {
   return [...sizes].sort((a, b) => {
@@ -141,7 +137,7 @@ function sortSizes(sizes: string[]) {
 const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onScanClick, stockLevels = [], fromLocation, opType }) => {
   const [baseName, setBaseName] = useState('');
   const [color, setColor] = useState('');
-  // sizeQtys: { [size]: qty string } — para el modo multi-talla
+  // sizeQtys: { [size]: qty string } · para el modo multi-talla
   const [sizeQtys, setSizeQtys] = useState<Record<string, string>>({});
   // qty para modo sin tallas
   const [qty, setQty] = useState('');
@@ -156,7 +152,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
   const colorReady = !needsColor || !!color;
   const needsSize = sizes.length > 0;
 
-  // Producto único cuando no hay tallas
+  // Producto unico cuando no hay tallas
   const selectedProd = useMemo(() => {
     if (!baseName || !colorReady || needsSize) return null;
     return byColor[0] ?? null;
@@ -204,12 +200,12 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
           onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setQty(''); }}
           className="input-technical flex-1 text-[11px]"
         >
-          <option value="">— Seleccione modelo —</option>
+          <option value="">- Seleccione modelo -</option>
           {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {onScanClick && (
           <button type="button" onClick={onScanClick} title="Escanear QR"
-            className="shrink-0 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 flex items-center justify-center">
+            className="shrink-0 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 flex items-center justify-center">
             <ScanLine size={15} />
           </button>
         )}
@@ -222,15 +218,15 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
           onChange={e => { setColor(e.target.value); setSizeQtys({}); setQty(''); }}
           className="input-technical text-[11px]"
         >
-          <option value="">— Seleccione color —</option>
+          <option value="">- Seleccione color -</option>
           {colors.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       )}
 
-      {/* Tallas múltiples con cantidad individual */}
+      {/* Tallas m-ltiples con cantidad individual */}
       {baseName && colorReady && needsSize && (
-        <div className="flex flex-col gap-1.5 border border-[#141414]/20 rounded-sm p-2 bg-white/40">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Tallas y cantidades</span>
+        <div className="flex flex-col gap-1.5 border border-[var(--border)]/20 rounded-sm p-2 bg-[var(--bg-card)]">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Tallas y cantidades</span>
           {sizes.map(size => {
             const prod = byColor.find(p => p.size === size);
             const avail = prod ? getAvail(prod.id) : null;
@@ -238,7 +234,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
             const over = avail !== null && q > avail;
             return (
               <div key={size} className="flex items-center gap-2">
-                <span className="font-mono text-[10px] font-black uppercase w-16 shrink-0 text-[#141414]">{size}</span>
+                <span className="font-mono text-[10px] font-black uppercase w-16 shrink-0 text-[var(--ink)]">{size}</span>
                 {avail !== null && (
                   <span className={cn('font-mono text-[8px] font-bold w-16 shrink-0', avail === 0 ? 'text-red-500' : 'text-green-700')}>
                     DISP: {avail}
@@ -250,7 +246,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
                   value={sizeQtys[size] ?? ''}
                   onChange={e => setSizeQtys(prev => ({ ...prev, [size]: e.target.value }))}
                   placeholder="0"
-                  className={cn('input-technical text-[11px] flex-1 text-center', over && 'border-red-600 bg-red-50')}
+                  className={cn('input-technical text-[11px] flex-1 text-center', over && 'border-red-600 bg-red-500/10')}
                 />
               </div>
             );
@@ -259,7 +255,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
             type="button"
             onClick={handleAddSizes}
             disabled={!anySizeQty}
-            className="mt-1 flex items-center justify-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
+            className="mt-1 flex items-center justify-center gap-1.5 border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
           >
             <Plus size={11} />
             AGREGAR TALLAS
@@ -267,7 +263,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
         </div>
       )}
 
-      {/* Cantidad + botón agregar (sin tallas) */}
+      {/* Cantidad + bot-n agregar (sin tallas) */}
       {baseName && colorReady && !needsSize && selectedProd && (
         <div className="flex items-center gap-2">
           <div className="flex flex-col flex-1">
@@ -278,7 +274,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
               onChange={e => setQty(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
               placeholder="Cantidad"
-              className={cn('input-technical text-[11px]', getAvail(selectedProd.id) !== null && parseInt(qty, 10) > getAvail(selectedProd.id)! && 'border-red-600 bg-red-50')}
+              className={cn('input-technical text-[11px]', getAvail(selectedProd.id) !== null && parseInt(qty, 10) > getAvail(selectedProd.id)! && 'border-red-600 bg-red-500/10')}
               autoFocus
             />
             {getAvail(selectedProd.id) !== null && (
@@ -291,7 +287,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
             type="button"
             onClick={handleAdd}
             disabled={!qty || parseInt(qty, 10) <= 0}
-            className="shrink-0 flex items-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest"
+            className="shrink-0 flex items-center gap-1.5 border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] disabled:opacity-30 transition-all px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest"
           >
             <Plus size={11} />
             AGREGAR
@@ -302,7 +298,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
   );
 };
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// --- Main Page -----------------------------------------------------------------
 
 export const Operations: React.FC = () => {
   const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION');
@@ -318,18 +314,18 @@ export const Operations: React.FC = () => {
       <ModuleInfo
         number="05"
         title="Operaciones"
-        description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta múltiples productos por operación."
+        description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta m-ltiples productos por operacion."
       />
 
       {/* Main tabs */}
-      <div className="flex border border-[#141414] bg-[#D4D3D0]">
+      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)]">
         <button
           onClick={() => setMainTab('operations')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[#141414] transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
             mainTab === 'operations'
-              ? 'bg-[#141414] text-[#E4E3E0]'
-              : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
           )}
         >
           <ArrowRightLeft size={14} />
@@ -338,10 +334,10 @@ export const Operations: React.FC = () => {
         <button
           onClick={() => setMainTab('log')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[#141414] transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
             mainTab === 'log'
-              ? 'bg-[#141414] text-[#E4E3E0]'
-              : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
           )}
         >
           <FileText size={14} />
@@ -352,8 +348,8 @@ export const Operations: React.FC = () => {
           className={cn(
             'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
             mainTab === 'reports'
-              ? 'bg-[#141414] text-[#E4E3E0]'
-              : 'text-[#141414] opacity-60 hover:opacity-100 hover:bg-white/50'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
           )}
         >
           <BarChart2 size={14} />
@@ -363,10 +359,10 @@ export const Operations: React.FC = () => {
 
       {mainTab === 'operations' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-[#D4D3D0] border border-[#141414] p-2 shadow-[4px_4px_0_#141414]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
             <OptButton
               icon={<ArrowDownLeft size={18} />}
-              label="RECEPCIÓN"
+              label="RECEPCION"
               desc="Registra entrada de productos al stock. Suma al inventario total."
               active={activeOpt === 'RECEPTION'}
               onClick={() => setActiveOpt('RECEPTION')}
@@ -395,7 +391,7 @@ export const Operations: React.FC = () => {
             />
           </div>
 
-          <div className="bg-white/40 border border-[#141414] p-6 lg:p-8 relative overflow-visible">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
             <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
               {activeOpt === 'RECEPTION' ? 'RX' : activeOpt === 'DISPATCH' ? 'TX' : activeOpt === 'TRANSFER' ? 'MV' : 'BJ'}
             </div>
@@ -412,7 +408,7 @@ export const Operations: React.FC = () => {
       )}
 
       {mainTab === 'reports' && (
-        <div className="border border-[#141414] bg-white/30 p-5 shadow-[3px_3px_0_#141414]">
+        <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
           <OperationsReport />
         </div>
       )}
@@ -420,7 +416,7 @@ export const Operations: React.FC = () => {
   );
 };
 
-// ─── OptButton ─────────────────────────────────────────────────────────────────
+// --- OptButton -----------------------------------------------------------------
 
 const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
   <button
@@ -430,18 +426,18 @@ const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
       accent === 'red'
         ? active
           ? 'border-red-800 bg-red-800 text-white shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
-          : 'border-red-800 bg-red-50 text-red-900 hover:bg-red-800 hover:text-white'
+          : 'border-red-800 bg-[var(--surface)] text-[var(--ink)] hover:bg-red-800 hover:text-white'
         : active
-          ? 'border-[#141414] bg-[#141414] text-[#E4E3E0] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
-          : 'border-[#141414] bg-white/50 hover:bg-[#141414] hover:text-[#E4E3E0]'
+          ? 'border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
+          : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)]'
     )}
   >
     <div className={cn(active ? '' : 'opacity-70')}>{icon}</div>
     <span className={cn('font-mono text-[9px] lg:text-[10px] tracking-widest font-bold uppercase', active ? '' : 'opacity-70')}>{label}</span>
     {desc && (
       <span className={cn(
-        'hidden sm:block font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full',
-        active ? 'border-white/20 text-white/60' : accent === 'red' ? 'border-red-800/20 text-red-900/50' : 'border-[#141414]/15 text-[#141414]/50'
+        'hidden sm:block font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full opacity-60',
+        active ? 'border-white/20' : 'border-[var(--border-soft)]'
       )}>
         {desc}
       </span>
@@ -449,24 +445,24 @@ const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
   </button>
 );
 
-// ─── FormGroup ─────────────────────────────────────────────────────────────────
+// --- FormGroup -----------------------------------------------------------------
 
 const FormGroup: React.FC<{ label: string; error?: string; children: React.ReactNode; className?: string }> = ({ label, error, children, className }) => (
   <div className={cn('flex flex-col gap-1.5', className)}>
     <label className={cn('font-mono text-[9px] font-bold tracking-[0.2em] uppercase', error ? 'text-red-700 opacity-100' : 'opacity-80')}>{label}</label>
     {children}
-    {error && <span className="font-mono text-[9px] font-bold text-red-700 uppercase mt-0.5 border border-red-700 px-1 py-0.5 bg-red-100 w-fit shrink-0 tracking-wider">{error}</span>}
+    {error && <span className="font-mono text-[9px] font-bold text-red-700 uppercase mt-0.5 border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit shrink-0 tracking-wider">{error}</span>}
   </div>
 );
 
 const PreviewRow = ({ label, value }: { label: string; value: string }) => (
-  <tr className="border-b border-[#141414]/15">
+  <tr className="border-b border-[var(--border)]/15">
     <td className="py-1.5 pr-3 font-bold uppercase opacity-50 text-[9px] tracking-widest">{label}</td>
     <td className="py-1.5 pl-3 font-bold uppercase text-right">{value}</td>
   </tr>
 );
 
-// ─── OperationForm ─────────────────────────────────────────────────────────────
+// --- OperationForm -------------------------------------------------------------
 
 const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const { products, locations, addTransaction, stockLevels, activeBrand, contacts, currentUser, users } = useAppContext();
@@ -575,7 +571,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const guideItems: OperationItem[] = [];
 
     // Upload signature to Storage so the DB stores a URL instead of a 50KB
-    // base64 blob. Photos aren't stored in the DB — they only travel embedded
+    // base64 blob. Photos aren't stored in the DB · they only travel embedded
     // in the email (as CID attachments).
     const storedSig = sigData ? await uploadSignature(sigData) : undefined;
 
@@ -640,7 +636,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     padRef.current?.clear();
     if (photoInputRef.current) photoInputRef.current.value = '';
 
-    // Email payload — pass the original data URLs so emailService can embed
+    // Email payload · pass the original data URLs so emailService can embed
     // the images as CID attachments. Gmail/Outlook strip <img src="data:...">
     // and Storage public URLs aren't always rendered either, so we attach the
     // images directly into the MIME message.
@@ -662,12 +658,12 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
     const userRecord = users.find(u => u.id === currentUser.id);
     const operatorEmail = (userRecord as any)?.emailPersonal || (userRecord as any)?.email;
     if (operatorEmail) {
-      setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA! ENVIANDO COMPROBANTE...' });
+      setFeedback({ type: 'success', message: '-OPERACION REGISTRADA! ENVIANDO COMPROBANTE...' });
       sendOperationEmail({ toEmail: operatorEmail, toName: currentUser.username, ...emailPayload })
-        .then(() => setFeedback({ type: 'success', message: `¡REGISTRADA! COMPROBANTE → ${operatorEmail}` }))
-        .catch(() => setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA! (SIN EMAIL — REVISA CONFIGURACIÓN)' }));
+        .then(() => setFeedback({ type: 'success', message: `-REGISTRADA! COMPROBANTE ? ${operatorEmail}` }))
+        .catch(() => setFeedback({ type: 'success', message: '-OPERACION REGISTRADA! (SIN EMAIL · REVISA CONFIGURACION)' }));
     } else {
-      setFeedback({ type: 'success', message: '¡OPERACIÓN REGISTRADA CORRECTAMENTE!' });
+      setFeedback({ type: 'success', message: '-OPERACION REGISTRADA CORRECTAMENTE!' });
     }
     setTimeout(() => setFeedback(null), 6000);
 
@@ -685,27 +681,27 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
       {feedback && (
         <div className={cn(
           'p-3 border font-bold font-mono text-xs uppercase tracking-widest',
-          feedback.type === 'success' ? 'bg-green-100 border-green-700 text-green-800' : 'bg-red-100 border-red-700 text-red-800'
+          feedback.type === 'success' ? 'bg-green-500/15 border-green-700 text-green-600' : 'bg-red-500/15 border-red-700 text-red-600'
         )}>
           {feedback.message}
         </div>
       )}
 
-      <div className="border-b border-[#141414] pb-3 hidden md:block">
+      <div className="border-b border-[var(--border)] pb-3 hidden md:block">
         <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">
-          {type === 'RECEPTION' ? '01 // NUEVA RECEPCIÓN DE INVENTARIO' : type === 'DISPATCH' ? '01 // DESPACHO DE MATERIALES' : '01 // TRANSLADO INTERNO ZONAS'}
+          {type === 'RECEPTION' ? '01 // NUEVA RECEPCION DE INVENTARIO' : type === 'DISPATCH' ? '01 // DESPACHO DE MATERIALES' : '01 // TRANSLADO INTERNO ZONAS'}
         </h3>
         <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold">
           SISTEMA_DE_REGISTRO_ACTIVO // {type}
         </p>
       </div>
 
-      {/* ── SELECTOR DE PRODUCTOS ── */}
+      {/* -- SELECTOR DE PRODUCTOS -- */}
       <div className="flex flex-col gap-3">
         <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">
           AGREGAR PRODUCTOS
         </label>
-        <div className="border border-[#141414]/20 bg-white/40 p-3">
+        <div className="border border-[var(--border)]/20 bg-[var(--bg-card)] p-3">
           <CascadeProductSelector
             products={products}
             onAdd={(item) => addLineItems([item])}
@@ -717,26 +713,26 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         </div>
 
         {errors.lines && (
-          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit tracking-wider">
             {errors.lines}
           </span>
         )}
 
-        {/* Lista de líneas confirmadas */}
+        {/* Lista de l-neas confirmadas */}
         {lineItems.length > 0 && (
-          <div className="flex flex-col gap-0 border border-[#141414]/20 overflow-hidden">
-            <div className="bg-[#141414] text-[#E4E3E0] px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
-              <span>PRODUCTOS EN OPERACIÓN</span>
-              <span>{lineItems.length} LÍNEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+          <div className="flex flex-col gap-0 border border-[var(--border)]/20 overflow-hidden">
+            <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
+              <span>PRODUCTOS EN OPERACION</span>
+              <span>{lineItems.length} L-NEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
             </div>
             {lineItems.map((item, idx) => {
               const prod = products.find(p => p.id === item.productId);
               const itemErr = lineErrors[item.key];
               return (
                 <div key={item.key} className={cn(
-                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-[#141414]/10 last:border-0',
-                  idx % 2 === 0 ? 'bg-white/60' : 'bg-[#f5f4f1]/60',
-                  itemErr && 'bg-red-50 border-red-200'
+                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-[var(--border)]/10 last:border-0',
+                  idx % 2 === 0 ? 'bg-[var(--surface)]' : 'bg-[var(--bg-modal)]/60',
+                  itemErr && 'bg-red-500/10 border-red-500/30'
                 )}>
                   <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
                   <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
@@ -759,14 +755,14 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         )}
       </div>
 
-      {/* ── LOCATIONS ── */}
+      {/* -- LOCATIONS -- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(type === 'DISPATCH' || type === 'TRANSFER') && (
-          <FormGroup label="UBICACIÓN ORIGEN" error={errors.fromLocation}>
+          <FormGroup label="UBICACION ORIGEN" error={errors.fromLocation}>
             <select
               value={fromLocation}
               onChange={e => { setFromLocation(e.target.value); if (type === 'TRANSFER' && e.target.value === toLocation) setToLocation(''); setErrors(prev => ({ ...prev, fromLocation: '' })); }}
-              className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-50')}
+              className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-500/10')}
             >
               <option value="">Seleccione Origen...</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -775,11 +771,11 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         )}
 
         {(type === 'RECEPTION' || type === 'TRANSFER') && (
-          <FormGroup label="UBICACIÓN DESTINO" error={errors.toLocation}>
+          <FormGroup label="UBICACION DESTINO" error={errors.toLocation}>
             <select
               value={toLocation}
               onChange={e => { setToLocation(e.target.value); setErrors(prev => ({ ...prev, toLocation: '' })); }}
-              className={cn('input-technical', errors.toLocation && 'border-red-600 bg-red-50')}
+              className={cn('input-technical', errors.toLocation && 'border-red-600 bg-red-500/10')}
             >
               <option value="">Seleccione Destino...</option>
               {locations.map(l => (
@@ -789,12 +785,12 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
             {toLocation && (() => {
               const items = stockLevels.filter(s => s.locationId === toLocation && s.quantity > 0);
               return items.length > 0 ? (
-                <div className="text-[9px] font-mono border border-[#141414]/10 bg-white/30 p-2 mt-1 max-h-28 overflow-y-auto">
+                <div className="text-[9px] font-mono border border-[var(--border)]/10 bg-[var(--surface-alt)] p-2 mt-1 max-h-28 overflow-y-auto">
                   <span className="opacity-60 uppercase tracking-widest font-bold mb-1 block">EN DESTINO:</span>
                   {items.map((s, i) => (
-                    <div key={i} className="flex justify-between items-center border-b border-[#141414]/5 last:border-0 py-0.5">
-                      <span className="font-bold truncate pr-2">{products.find(p => p.id === s.productId)?.name ?? '—'}</span>
-                      <span className="bg-[#141414] text-[#E4E3E0] px-1.5 py-0.5">{s.quantity}</span>
+                    <div key={i} className="flex justify-between items-center border-b border-[var(--border)]/5 last:border-0 py-0.5">
+                      <span className="font-bold truncate pr-2">{products.find(p => p.id === s.productId)?.name ?? '-'}</span>
+                      <span className="bg-[var(--ink)] text-[var(--ink-inv)] px-1.5 py-0.5">{s.quantity}</span>
                     </div>
                   ))}
                 </div>
@@ -803,18 +799,18 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
           </FormGroup>
         )}
 
-        {/* ── REFERENCE ── */}
-        <FormGroup label="REFERENCIA / GUÍA" error={errors.reference} className={type === 'TRANSFER' ? 'md:col-span-2' : ''}>
+        {/* -- REFERENCE -- */}
+        <FormGroup label="REFERENCIA / GU-A" error={errors.reference} className={type === 'TRANSFER' ? 'md:col-span-2' : ''}>
           <input
             type="text"
             value={reference}
             onChange={e => { setReference(e.target.value); setErrors(prev => ({ ...prev, reference: '' })); }}
-            className={cn('input-technical', errors.reference && 'border-red-600 bg-red-50')}
+            className={cn('input-technical', errors.reference && 'border-red-600 bg-red-500/10')}
             placeholder="EJ: GR-20914"
           />
         </FormGroup>
 
-        {/* ── CONTACT ── */}
+        {/* -- CONTACT -- */}
         {(type === 'RECEPTION' || type === 'DISPATCH') && (
           <FormGroup label={type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE'} className="border-l-4 border-l-[#141414] pl-2">
             <select value={contactId} onChange={e => setContactId(e.target.value)} className="input-technical">
@@ -827,7 +823,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
               const c = contacts.find(ct => ct.id === contactId);
               return c?.email ? (
                 <div className="font-mono text-[9px] text-blue-600 font-bold mt-1 truncate">
-                  ✉ {c.email}
+                  ? {c.email}
                 </div>
               ) : null;
             })()}
@@ -835,10 +831,10 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         )}
       </div>
 
-      {/* ── SERIAL + PHOTO ROW ── */}
+      {/* -- SERIAL + PHOTO ROW -- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {activeBrand === 'BOX_PRIME' && (
-          <FormGroup label="NÚMERO DE SERIE / LOTE">
+          <FormGroup label="NUMERO DE SERIE / LOTE">
             <input
               type="text"
               value={serialNumber}
@@ -849,13 +845,13 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
           </FormGroup>
         )}
 
-        {/* ── PHOTO ── */}
-        <FormGroup label="EVIDENCIA FOTOGRÁFICA" className={activeBrand !== 'BOX_PRIME' ? 'md:col-span-2' : ''}>
+        {/* -- PHOTO -- */}
+        <FormGroup label="EVIDENCIA FOTOGR-FICA" className={activeBrand !== 'BOX_PRIME' ? 'md:col-span-2' : ''}>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => photoInputRef.current?.click()}
-              className="flex items-center gap-2 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase"
+              className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase"
             >
               <Camera size={13} />
               {photo ? 'CAMBIAR FOTO' : 'CAPTURAR / ADJUNTAR'}
@@ -875,22 +871,22 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
             className="hidden"
           />
           {photo ? (
-            <div className="mt-2 border border-[#141414]/20 bg-white/40 p-1 w-fit">
+            <div className="mt-2 border border-[var(--border)]/20 bg-[var(--bg-card)] p-1 w-fit">
               <img src={photo} alt="evidencia" className="max-h-28 max-w-full object-contain" />
             </div>
           ) : (
             <span className="font-mono text-[9px] opacity-40 uppercase tracking-wide mt-1">
-              Opcional — se incluirá en guía y comprobante
+              Opcional · se incluir- en gu-a y comprobante
             </span>
           )}
         </FormGroup>
       </div>
 
-      {/* ── SIGNATURE ── */}
+      {/* -- SIGNATURE -- */}
       {(type === 'RECEPTION' || type === 'DISPATCH') && (
         <FormGroup label="FIRMA DIGITAL" error={errors.signature}>
           <div className={cn(
-            'border border-[#141414] bg-white relative w-full h-32 overflow-hidden',
+            'border border-[var(--border)] bg-[var(--bg-input)] relative w-full h-32 overflow-hidden',
             errors.signature && 'border-red-600 shadow-[2px_2px_0_#dc2626]'
           )}>
             <canvas
@@ -900,25 +896,25 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
             <button
               type="button"
               onClick={() => padRef.current?.clear()}
-              className="absolute top-2 right-2 text-[9px] font-mono font-bold tracking-widest bg-[#141414] text-white px-2 py-1 opacity-70 hover:opacity-100"
+              className="absolute top-2 right-2 text-[9px] font-mono font-bold tracking-widest bg-[var(--ink)] text-white px-2 py-1 opacity-70 hover:opacity-100"
             >
               BORRAR
             </button>
           </div>
           <span className="text-[9px] font-mono opacity-50 uppercase mt-1">
-            {type === 'RECEPTION' ? 'Firma de conformidad de recepción' : 'Firma de conformidad de despacho'}
+            {type === 'RECEPTION' ? 'Firma de conformidad de recepcion' : 'Firma de conformidad de despacho'}
           </span>
         </FormGroup>
       )}
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
         <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
-          {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
+          {lineItems.length} {lineItems.length === 1 ? 'L-NEA' : 'L-NEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
         </div>
         <button
           type="button"
           onClick={handleSubmit}
-          className="w-full sm:w-auto bg-[#141414] border border-[#141414] hover:bg-white hover:text-[#141414] text-[#E4E3E0] px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#141414] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+          className="w-full sm:w-auto bg-[var(--ink)] border border-[var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] text-[var(--ink-inv)] px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_var(--border)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
         >
           EJECUTAR_{type}
         </button>
@@ -944,13 +940,13 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
 
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[6px_6px_0_#141414] w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="bg-[#141414] text-[#E4E3E0] px-5 py-3 flex justify-between items-center">
+          <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[6px_6px_0_var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-5 py-3 flex justify-between items-center">
               <div>
-                <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest">CONFIRMAR OPERACIÓN</div>
+                <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest">CONFIRMAR OPERACION</div>
                 <div className="font-mono font-black text-sm uppercase tracking-widest">{TYPE_META[type].label}</div>
               </div>
-              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <table className="w-full text-[10px] font-mono border-collapse">
@@ -962,12 +958,12 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
                   <PreviewRow label="Operador" value={currentUser.username} />
                 </tbody>
               </table>
-              <div className="border border-[#141414]">
-                <div className="bg-[#141414] text-[#E4E3E0] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRODUCTOS</div>
+              <div className="border border-[var(--border)]">
+                <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRODUCTOS</div>
                 {lineItems.filter(l => l.productId).map((item, i) => {
                   const prod = products.find(p => p.id === item.productId);
                   return (
-                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-white/50' : ''}`}>
+                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-[var(--surface)]' : ''}`}>
                       <div>
                         <span className="font-bold">{prod?.code}</span>
                         <span className="opacity-60 ml-2">{prod?.name} {prod?.color} {prod?.size}</span>
@@ -976,7 +972,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
                     </div>
                   );
                 })}
-                <div className="flex justify-between px-3 py-2 bg-[#D4D3D0] border-t border-[#141414] font-mono text-[10px] font-bold">
+                <div className="flex justify-between px-3 py-2 bg-[var(--bg-sidebar)] border-t border-[var(--border)] font-mono text-[10px] font-bold">
                   <span>TOTAL</span>
                   <span>{lineItems.reduce((s, l) => s + (parseInt(l.qty, 10) || 0), 0)} uds</span>
                 </div>
@@ -984,14 +980,14 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
               {pendingSig && (
                 <div>
                   <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest mb-1">FIRMA</div>
-                  <img src={pendingSig} alt="Firma" className="max-w-[160px] max-h-[60px] border border-[#141414] bg-white p-1" />
+                  <img src={pendingSig} alt="Firma" className="max-w-[160px] max-h-[60px] border border-[var(--border)] bg-[var(--bg-input)] p-1" />
                 </div>
               )}
               <div className="flex gap-2 pt-2">
-                <button onClick={confirmPreview} className="flex-1 bg-[#141414] text-[#E4E3E0] py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all">
+                <button onClick={confirmPreview} className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">
                   CONFIRMAR Y REGISTRAR
                 </button>
-                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[#141414] py-2.5 text-xs font-bold font-mono uppercase hover:bg-white/50">
+                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
                   VOLVER
                 </button>
               </div>
@@ -1016,7 +1012,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   );
 };
 
-// ─── WriteOffForm ──────────────────────────────────────────────────────────────
+// --- WriteOffForm --------------------------------------------------------------
 
 const WriteOffForm: React.FC = () => {
   const { products, locations, addTransaction, stockLevels, activeBrand, currentUser } = useAppContext();
@@ -1061,7 +1057,7 @@ const WriteOffForm: React.FC = () => {
   const executeWriteOff = async () => {
     setShowPreview(false);
     const guideNumber = await nextGuideNumber('DISPATCH', activeBrand);
-    const reference = `[BAJA] ${effectiveReason}${notes.trim() ? ' — ' + notes.trim() : ''}`;
+    const reference = `[BAJA] ${effectiveReason}${notes.trim() ? ' · ' + notes.trim() : ''}`;
     try {
       for (const item of lineItems) {
         await addTransaction({
@@ -1087,7 +1083,7 @@ const WriteOffForm: React.FC = () => {
     setErrors({});
     if (photoInputRef.current) photoInputRef.current.value = '';
 
-    setFeedback({ type: 'success', message: `¡BAJA REGISTRADA! GUÍA ${guideNumber}` });
+    setFeedback({ type: 'success', message: `-BAJA REGISTRADA! GU-A ${guideNumber}` });
     setTimeout(() => setFeedback(null), 6000);
   };
 
@@ -1096,17 +1092,17 @@ const WriteOffForm: React.FC = () => {
       {feedback && (
         <div className={cn(
           'p-3 border font-bold font-mono text-xs uppercase tracking-widest',
-          feedback.type === 'success' ? 'bg-green-100 border-green-700 text-green-800' : 'bg-red-100 border-red-700 text-red-800'
+          feedback.type === 'success' ? 'bg-green-500/15 border-green-700 text-green-600' : 'bg-red-500/15 border-red-700 text-red-600'
         )}>
           {feedback.message}
         </div>
       )}
 
       <div className="border-b border-red-800/30 pb-3">
-        <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest text-red-900">
-          BAJA / MERMA — REGISTRO DE PRENDAS DADAS DE BAJA
+        <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest text-red-600">
+          BAJA / MERMA · REGISTRO DE PRENDAS DADAS DE BAJA
         </h3>
-        <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold text-red-800">
+        <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold text-red-600">
           DESCUENTA INVENTARIO · REQUIERE MOTIVO OBLIGATORIO
         </p>
       </div>
@@ -1114,7 +1110,7 @@ const WriteOffForm: React.FC = () => {
       {/* Productos */}
       <div className="flex flex-col gap-3">
         <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">AGREGAR PRODUCTOS A DAR DE BAJA</label>
-        <div className="border border-red-800/30 bg-red-50/40 p-3">
+        <div className="border border-red-800/30 bg-red-500/10 p-3">
           <CascadeProductSelector
             products={products}
             onAdd={(item) => setLineItems(prev => [...prev, item])}
@@ -1124,20 +1120,20 @@ const WriteOffForm: React.FC = () => {
           />
         </div>
         {errors.lines && (
-          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-100 w-fit tracking-wider">{errors.lines}</span>
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit tracking-wider">{errors.lines}</span>
         )}
         {lineItems.length > 0 && (
           <div className="flex flex-col gap-0 border border-red-800/30 overflow-hidden">
             <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
               <span>PRENDAS A DAR DE BAJA</span>
-              <span>{lineItems.length} LÍNEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+              <span>{lineItems.length} L-NEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
             </div>
             {lineItems.map((item, idx) => {
               const prod = products.find(p => p.id === item.productId);
               return (
                 <div key={item.key} className={cn(
                   'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-red-800/10 last:border-0',
-                  idx % 2 === 0 ? 'bg-white/60' : 'bg-red-50/40'
+                  idx % 2 === 0 ? 'bg-[var(--surface)]' : 'bg-red-500/10'
                 )}>
                   <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
                   <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
@@ -1154,15 +1150,15 @@ const WriteOffForm: React.FC = () => {
         )}
       </div>
 
-      {/* Ubicación origen + Motivo */}
+      {/* Ubicacion origen + Motivo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormGroup label="UBICACIÓN ORIGEN (ALMACÉN)" error={errors.fromLocation}>
+        <FormGroup label="UBICACION ORIGEN (ALMACEN)" error={errors.fromLocation}>
           <select
             value={fromLocation}
             onChange={e => { setFromLocation(e.target.value); setErrors(prev => ({ ...prev, fromLocation: '' })); }}
-            className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-50')}
+            className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-500/10')}
           >
-            <option value="">Seleccione Almacén...</option>
+            <option value="">Seleccione Almacen...</option>
             {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </FormGroup>
@@ -1171,9 +1167,9 @@ const WriteOffForm: React.FC = () => {
           <select
             value={reason}
             onChange={e => { setReason(e.target.value); setErrors(prev => ({ ...prev, reason: '', customReason: '' })); }}
-            className={cn('input-technical', errors.reason && 'border-red-600 bg-red-50')}
+            className={cn('input-technical', errors.reason && 'border-red-600 bg-red-500/10')}
           >
-            <option value="">— Seleccione motivo —</option>
+            <option value="">- Seleccione motivo -</option>
             {WRITEOFF_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </FormGroup>
@@ -1184,7 +1180,7 @@ const WriteOffForm: React.FC = () => {
               type="text"
               value={customReason}
               onChange={e => { setCustomReason(e.target.value); setErrors(prev => ({ ...prev, customReason: '' })); }}
-              className={cn('input-technical', errors.customReason && 'border-red-600 bg-red-50')}
+              className={cn('input-technical', errors.customReason && 'border-red-600 bg-red-500/10')}
               placeholder="EJ: PRENDAS VENCIDAS POR PLAZO DE ALMACENAMIENTO"
             />
           </FormGroup>
@@ -1196,7 +1192,7 @@ const WriteOffForm: React.FC = () => {
             value={notes}
             onChange={e => setNotes(e.target.value)}
             className="input-technical"
-            placeholder="EJ: LOTE 2024-03, DETECTADO EN REVISIÓN MENSUAL"
+            placeholder="EJ: LOTE 2024-03, DETECTADO EN REVISI-N MENSUAL"
           />
         </FormGroup>
       </div>
@@ -1205,7 +1201,7 @@ const WriteOffForm: React.FC = () => {
       <FormGroup label="EVIDENCIA FOTOGRÁFICA (RECOMENDADO)">
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => photoInputRef.current?.click()}
-            className="flex items-center gap-2 border border-[#141414] bg-white/70 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase">
+            className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase">
             <Camera size={13} />
             {photo ? 'CAMBIAR FOTO' : 'CAPTURAR / ADJUNTAR'}
           </button>
@@ -1218,7 +1214,7 @@ const WriteOffForm: React.FC = () => {
         </div>
         <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
         {photo && (
-          <div className="mt-2 border border-[#141414]/20 bg-white/40 p-1 w-fit">
+          <div className="mt-2 border border-[var(--border)]/20 bg-[var(--bg-card)] p-1 w-fit">
             <img src={photo} alt="evidencia" className="max-h-28 max-w-full object-contain" />
           </div>
         )}
@@ -1226,12 +1222,12 @@ const WriteOffForm: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
         <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
-          {lineItems.length} {lineItems.length === 1 ? 'LÍNEA' : 'LÍNEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
+          {lineItems.length} {lineItems.length === 1 ? 'L-NEA' : 'L-NEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
         </div>
         <button
           type="button"
           onClick={handleSubmit}
-          className="w-full sm:w-auto bg-red-800 border border-red-800 hover:bg-white hover:text-red-800 text-white px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+          className="w-full sm:w-auto bg-red-800 border border-red-800 hover:bg-[var(--bg-input)] hover:text-red-600 text-white px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
         >
           REGISTRAR BAJA
         </button>
@@ -1258,19 +1254,19 @@ const WriteOffForm: React.FC = () => {
       {/* Preview modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border-2 border-red-800 shadow-[6px_6px_0_#991b1b] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-[var(--bg)] border-2 border-red-800 shadow-[6px_6px_0_#991b1b] w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="bg-red-800 text-white px-5 py-3 flex justify-between items-center">
               <div>
                 <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">CONFIRMAR BAJA / MERMA</div>
                 <div className="font-mono font-black text-sm uppercase tracking-widest">BAJA DE INVENTARIO</div>
               </div>
-              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
             </div>
             <div className="p-5 flex flex-col gap-4">
-              <div className="bg-red-50 border border-red-800/30 p-3 font-mono text-[10px] flex flex-col gap-1">
+              <div className="bg-red-500/10 border border-red-800/30 p-3 font-mono text-[10px] flex flex-col gap-1">
                 <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Motivo</span><span className="font-bold">{effectiveReason}</span></div>
                 {notes && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Notas</span><span className="font-bold">{notes}</span></div>}
-                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Almacén</span><span className="font-bold">{locations.find(l => l.id === fromLocation)?.name}</span></div>
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Almacen</span><span className="font-bold">{locations.find(l => l.id === fromLocation)?.name}</span></div>
                 <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Operador</span><span className="font-bold">{currentUser.username}</span></div>
               </div>
               <div className="border border-red-800/30">
@@ -1278,7 +1274,7 @@ const WriteOffForm: React.FC = () => {
                 {lineItems.map((item, i) => {
                   const prod = products.find(p => p.id === item.productId);
                   return (
-                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-white/50' : ''}`}>
+                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-[var(--surface)]' : ''}`}>
                       <div>
                         <span className="font-bold">{prod?.code}</span>
                         <span className="opacity-60 ml-2">{prod?.name} {prod?.color} {prod?.size}</span>
@@ -1287,19 +1283,19 @@ const WriteOffForm: React.FC = () => {
                     </div>
                   );
                 })}
-                <div className="flex justify-between px-3 py-2 bg-red-100 border-t border-red-800/20 font-mono text-[10px] font-bold">
+                <div className="flex justify-between px-3 py-2 bg-red-500/15 border-t border-red-800/20 font-mono text-[10px] font-bold">
                   <span>TOTAL A DAR DE BAJA</span>
                   <span>{lineItems.reduce((s, l) => s + (parseInt(l.qty, 10) || 0), 0)} uds</span>
                 </div>
               </div>
-              <p className="font-mono text-[9px] text-red-800 font-bold uppercase tracking-widest border border-red-800/30 bg-red-50 p-2">
-                ESTA ACCIÓN DESCUENTA EL INVENTARIO Y NO SE PUEDE REVERTIR DIRECTAMENTE.
+              <p className="font-mono text-[9px] text-red-600 font-bold uppercase tracking-widest border border-red-800/30 bg-red-500/10 p-2">
+                ESTA ACCION DESCUENTA EL INVENTARIO Y NO SE PUEDE REVERTIR DIRECTAMENTE.
               </p>
               <div className="flex gap-2 pt-2">
                 <button onClick={executeWriteOff} className="flex-1 bg-red-800 text-white py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#991b1b] transition-all">
                   CONFIRMAR BAJA
                 </button>
-                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[#141414] py-2.5 text-xs font-bold font-mono uppercase hover:bg-white/50">
+                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
                   VOLVER
                 </button>
               </div>
@@ -1311,7 +1307,7 @@ const WriteOffForm: React.FC = () => {
   );
 };
 
-// ─── QR Scanner ────────────────────────────────────────────────────────────────
+// --- QR Scanner ----------------------------------------------------------------
 
 const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: string) => void }> = ({ onClose, onDetected }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -1338,7 +1334,7 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
               if (data?.id) {
                 onDetected(data.id);
               } else {
-                setErrorMsg('QR no corresponde a un producto válido.');
+                setErrorMsg('QR no corresponde a un producto valido.');
                 setStatus('error');
                 active = true;
               }
@@ -1352,7 +1348,7 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
         if (active) setStatus('scanning');
       } catch (err: unknown) {
         const e = err as Error;
-        setErrorMsg(e?.message?.toLowerCase().includes('permission') ? 'Sin acceso a cámara.' : 'No se pudo iniciar la cámara.');
+        setErrorMsg(e?.message?.toLowerCase().includes('permission') ? 'Sin acceso a c-mara.' : 'No se pudo iniciar la c-mara.');
         setStatus('error');
       }
     };
@@ -1363,8 +1359,8 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-sm flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="border-b-2 border-[#141414] bg-[#141414] text-[#E4E3E0] px-4 py-3 flex items-center justify-between">
+      <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-sm flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="border-b-2 border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ScanLine size={15} />
             <span className="font-mono text-[10px] font-bold tracking-widest uppercase">ESCANEAR QR PRODUCTO</span>
@@ -1375,16 +1371,16 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
           <video ref={videoRef} className="w-full" style={{ minHeight: 280 }} />
           {status === 'starting' && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-              <span className="font-mono text-[10px] text-white tracking-widest animate-pulse uppercase">INICIANDO CÁMARA...</span>
+              <span className="font-mono text-[10px] text-white tracking-widest animate-pulse uppercase">INICIANDO C-MARA...</span>
             </div>
           )}
         </div>
-        <div className="px-4 py-3 border-t border-[#141414]/20">
+        <div className="px-4 py-3 border-t border-[var(--border)]/20">
           {status === 'scanning' && <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-green-700 text-center animate-pulse">APUNTA AL QR DEL PRODUCTO</p>}
           {status === 'error' && (
             <div className="flex flex-col gap-2">
               <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-red-700 text-center">{errorMsg}</p>
-              <button onClick={onClose} className="w-full border border-[#141414] bg-[#141414] text-[#E4E3E0] py-2 font-mono text-[10px] font-bold tracking-widest uppercase">CERRAR</button>
+              <button onClick={onClose} className="w-full border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] py-2 font-mono text-[10px] font-bold tracking-widest uppercase">CERRAR</button>
             </div>
           )}
         </div>
@@ -1393,7 +1389,7 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
   );
 };
 
-// ─── Transaction Log ────────────────────────────────────────────────────────────
+// --- Transaction Log ------------------------------------------------------------
 
 const PAGE_SIZE = 50;
 
@@ -1513,7 +1509,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
     try {
       await deleteTransaction(cancelTx.id);
       setCancelTx(null);
-      showToast('Operación anulada. Stock revertido.');
+      showToast('Operacion anulada. Stock revertido.');
     } catch (e: any) { showToast(e.message || 'Error al anular', true); }
     finally { setBusy(false); }
   };
@@ -1564,7 +1560,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
     try {
       await updateTransaction(editTx.id, { reference: editRef.trim(), contactId: editContact || null });
       setEditTx(null);
-      showToast('Operación actualizada.');
+      showToast('Operacion actualizada.');
     } catch (e: any) { showToast(e.message || 'Error al actualizar', true); }
     finally { setBusy(false); }
   };
@@ -1578,7 +1574,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {toast && (
         <div className={cn(
           'border px-3 py-2 font-mono text-[10px] font-bold uppercase flex items-center justify-between',
-          toastErr ? 'border-red-600 bg-red-50 text-red-700' : 'border-green-600 bg-green-50 text-green-700'
+          toastErr ? 'border-red-600 bg-red-500/10 text-red-700' : 'border-green-600 bg-green-500/10 text-green-700'
         )}>
           {toast}
           <button onClick={() => setToast('')} className="ml-3 opacity-60 hover:opacity-100"><X size={12} /></button>
@@ -1588,12 +1584,12 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Type filter */}
-        <div className="flex items-center border border-[#141414]/20 bg-white/40 shrink-0">
+        <div className="flex items-center border border-[var(--border)]/20 bg-[var(--bg-card)] shrink-0">
           {(['ALL', 'RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => (
             <button key={t}
               onClick={() => setFilter(() => setFilterType(t))}
-              className={cn('px-2.5 py-1.5 font-mono text-[8px] font-black tracking-widest uppercase border-r border-[#141414]/20 last:border-r-0 transition-all',
-                filterType === t ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-[#141414]/5')}
+              className={cn('px-2.5 py-1.5 font-mono text-[8px] font-black tracking-widest uppercase border-r border-[var(--border)]/20 last:border-r-0 transition-all',
+                filterType === t ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--ink)]/5')}
             >
               {t === 'ALL' ? 'TODO' : t === 'RECEPTION' ? 'RX' : t === 'DISPATCH' ? 'TX' : 'MV'}
             </button>
@@ -1601,12 +1597,12 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
         </div>
 
         {/* Status filter */}
-        <div className="flex items-center border border-[#141414]/20 bg-white/40 shrink-0">
+        <div className="flex items-center border border-[var(--border)]/20 bg-[var(--bg-card)] shrink-0">
           {(['ALL', 'ACTIVE', 'CANCELLED'] as const).map(s => (
             <button key={s}
               onClick={() => setFilter(() => setFilterStatus(s))}
-              className={cn('px-2.5 py-1.5 font-mono text-[8px] font-black tracking-widest uppercase border-r border-[#141414]/20 last:border-r-0 transition-all',
-                filterStatus === s ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-[#141414]/5')}
+              className={cn('px-2.5 py-1.5 font-mono text-[8px] font-black tracking-widest uppercase border-r border-[var(--border)]/20 last:border-r-0 transition-all',
+                filterStatus === s ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--ink)]/5')}
             >
               {s === 'ALL' ? 'TODOS' : s === 'ACTIVE' ? 'ACTIVOS' : 'ANULADOS'}
             </button>
@@ -1614,24 +1610,24 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
         </div>
 
         {/* Search */}
-        <div className="flex items-center border border-[#141414]/20 bg-white/40 px-2 gap-1.5 flex-1 min-w-[160px]">
+        <div className="flex items-center border border-[var(--border)]/20 bg-[var(--bg-card)] px-2 gap-1.5 flex-1 min-w-[160px]">
           <Search size={11} className="opacity-40 shrink-0" />
           <input
             value={search}
             onChange={e => setFilter(() => setSearch(e.target.value))}
-            placeholder="Buscar producto, ref., ubicación..."
+            placeholder="Buscar producto, ref., ubicacion..."
             className="bg-transparent font-mono text-[9px] py-1.5 outline-none w-full placeholder:opacity-40"
           />
           {search && <button onClick={() => setFilter(() => setSearch(''))} className="opacity-40 hover:opacity-100"><X size={10} /></button>}
         </div>
 
         {/* Date range filter */}
-        <div className="flex items-center gap-1 border border-[#141414]/20 bg-white/40 px-2 py-1 shrink-0">
+        <div className="flex items-center gap-1 border border-[var(--border)]/20 bg-[var(--bg-card)] px-2 py-1 shrink-0">
           <span className="font-mono text-[8px] opacity-40 uppercase">Desde</span>
           <input type="date" value={filterDateFrom}
             onChange={e => setFilter(() => setFilterDateFrom(e.target.value))}
             className="bg-transparent font-mono text-[8px] outline-none cursor-pointer" />
-          <span className="font-mono text-[8px] opacity-40 uppercase mx-1">—</span>
+          <span className="font-mono text-[8px] opacity-40 uppercase mx-1">-</span>
           <span className="font-mono text-[8px] opacity-40 uppercase">Hasta</span>
           <input type="date" value={filterDateTo}
             onChange={e => setFilter(() => setFilterDateTo(e.target.value))}
@@ -1642,16 +1638,16 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
           )}
         </div>
 
-        <div className="flex-1 h-px bg-[#141414]/10 hidden sm:block min-w-[10px]" />
+        <div className="flex-1 h-px bg-[var(--ink)]/10 hidden sm:block min-w-[10px]" />
 
-        {/* Bulk cancel — all roles when selected */}
+        {/* Bulk cancel · all roles when selected */}
         {selected.size > 0 && (
           <button onClick={() => setShowBulkCancel(true)} disabled={busy}
             className="flex items-center gap-1.5 font-mono text-[8px] font-bold uppercase border border-orange-500 text-orange-600 px-2.5 py-1.5 hover:bg-orange-500 hover:text-white transition-all shrink-0 disabled:opacity-50">
             <ShieldOff size={10} /> ANULAR {selected.size}
           </button>
         )}
-        {/* Bulk hard-delete — admin only */}
+        {/* Bulk hard-delete · admin only */}
         {isAdmin && selected.size > 0 && (
           <button onClick={() => setShowBulkPurge(true)} disabled={busy}
             className="flex items-center gap-1.5 font-mono text-[8px] font-bold uppercase border border-red-600 bg-red-600 text-white px-2.5 py-1.5 hover:bg-red-700 transition-all shrink-0 disabled:opacity-50">
@@ -1659,7 +1655,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
           </button>
         )}
 
-        {/* Purge all — admin only */}
+        {/* Purge all · admin only */}
         {isAdmin && (
           <button onClick={() => setShowPurgeAll(true)}
             className="flex items-center gap-1.5 font-mono text-[8px] font-bold uppercase border border-red-400 text-red-600 px-2.5 py-1.5 hover:bg-red-600 hover:text-white transition-all shrink-0">
@@ -1676,28 +1672,28 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">‹</button>
+              className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
             <span className="font-mono text-[8px] opacity-50 px-1">{page} / {totalPages}</span>
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">›</button>
+              className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
           </div>
         )}
       </div>
 
       {/* Table */}
       {pageRows.length === 0 ? (
-        <div className="border border-[#141414]/20 bg-white/30 p-8 text-center font-mono text-[10px] opacity-40 uppercase tracking-widest">
+        <div className="border border-[var(--border)]/20 bg-[var(--surface-alt)] p-8 text-center font-mono text-[10px] opacity-40 uppercase tracking-widest">
           SIN REGISTROS
         </div>
       ) : (
         <div className="flex flex-col gap-0.5">
-          {/* Select-all row — all roles */}
+          {/* Select-all row · all roles */}
           {selectableRows.length > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#141414]/5 border border-[#141414]/10">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--ink)]/5 border border-[var(--border)]/10">
               <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll}
                 className="w-3.5 h-3.5 accent-[#141414] cursor-pointer" />
               <span className="font-mono text-[8px] opacity-50 uppercase tracking-widest">
-                {selected.size > 0 ? `${selected.size} seleccionado${selected.size > 1 ? 's' : ''}` : 'Seleccionar página'}
+                {selected.size > 0 ? `${selected.size} seleccionado${selected.size > 1 ? 's' : ''}` : 'Seleccionar pagina'}
               </span>
             </div>
           )}
@@ -1713,15 +1709,15 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
 
             return (
               <div key={tx.id} className={cn(
-                'border bg-white/50 flex items-center gap-2 md:gap-3 px-3 py-2.5 text-[11px] font-mono transition-all',
-                isCancelled ? 'border-[#141414]/10 opacity-40' : 'border-[#141414]/15 hover:border-[#141414]/30',
-                isSel && !isCancelled && 'bg-orange-50/60 border-orange-300'
+                'border bg-[var(--surface)] flex items-center gap-2 md:gap-3 px-3 py-2.5 text-[11px] font-mono transition-all',
+                isCancelled ? 'border-[var(--border)]/10 opacity-40' : 'border-[var(--border)]/15 hover:border-[var(--border)]/30',
+                isSel && !isCancelled && 'bg-orange-500/10 border-orange-500/40'
               )}>
-                {/* Checkbox — all roles, non-cancelled */}
+                {/* Checkbox · all roles, non-cancelled */}
                 {isCancelled
                   ? <div className="w-3.5 h-3.5 shrink-0" />
                   : <input type="checkbox" checked={isSel} onChange={() => {}}
-                      className="w-3.5 h-3.5 shrink-0 accent-[#141414] cursor-pointer"
+                      className="w-3.5 h-3.5 shrink-0 accent-[var(--ink)] cursor-pointer"
                       onClick={e => { e.stopPropagation(); toggleSelect(tx.id, e.shiftKey); }} />
                 }
 
@@ -1733,7 +1729,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                   <div className="font-bold truncate">{product?.name ?? tx.productId}</div>
                   <div className="text-[9px] opacity-50 truncate">{product?.code}{contact ? ` · ${contact.name}` : ''}</div>
                 </div>
-                <div className="shrink-0 bg-[#141414] text-[#E4E3E0] px-2 py-0.5 text-[10px] font-black">{tx.quantity}</div>
+                <div className="shrink-0 bg-[var(--ink)] text-[var(--ink-inv)] px-2 py-0.5 text-[10px] font-black">{tx.quantity}</div>
                 <div className="hidden md:flex items-center gap-1 shrink-0 text-[9px] opacity-50 max-w-[180px]">
                   {fromLoc && <span className="truncate">{fromLoc.name}</span>}
                   {fromLoc && toLoc && <ArrowRightLeft size={8} className="opacity-40 shrink-0" />}
@@ -1743,7 +1739,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
 
                 {isCancelled ? (
                   <div className="flex items-center gap-0.5 shrink-0">
-                    <span className="text-[8px] font-black text-red-500 border border-red-300 px-1.5 py-0.5 bg-red-50">ANULADO</span>
+                    <span className="text-[8px] font-black text-red-500 border border-red-500/50 px-1.5 py-0.5 bg-red-500/10">ANULADO</span>
                     {/* Admin: hard-delete a cancelled record */}
                     {isAdmin && (
                       <button onClick={() => setPurgeTx(tx)} title="Eliminar registro"
@@ -1754,17 +1750,17 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                   </div>
                 ) : (
                   <div className="flex items-center gap-0.5 shrink-0">
-                    {/* Edit — all roles */}
+                    {/* Edit · all roles */}
                     <button onClick={() => { setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); }}
-                      title="Editar" className="p-1.5 border border-transparent hover:border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                      title="Editar" className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                       <Pencil size={12} />
                     </button>
-                    {/* Cancel (anular) — all roles */}
+                    {/* Cancel (anular) · all roles */}
                     <button onClick={() => setCancelTx(tx)} title="Anular"
                       className="p-1.5 border border-transparent hover:border-orange-500 hover:bg-orange-500 hover:text-white transition-all text-orange-500">
                       <ShieldOff size={12} />
                     </button>
-                    {/* Hard delete — admin only */}
+                    {/* Hard delete · admin only */}
                     {isAdmin && (
                       <button onClick={() => setPurgeTx(tx)} title="Eliminar registro"
                         className="p-1.5 border border-transparent hover:border-red-600 hover:bg-red-600 hover:text-white transition-all text-red-400">
@@ -1783,41 +1779,41 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 pt-1">
           <button onClick={() => setPage(1)} disabled={page === 1}
-            className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">«</button>
+            className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">‹</button>
+            className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
           <span className="font-mono text-[8px] opacity-50 px-2">{page} / {totalPages}</span>
           <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">›</button>
+            className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
           <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-            className="font-mono text-[8px] px-2 py-1 border border-[#141414]/20 hover:bg-[#141414]/5 disabled:opacity-30 transition-all">»</button>
+            className="font-mono text-[8px] px-2 py-1 border border-[var(--border)]/20 hover:bg-[var(--ink)]/5 disabled:opacity-30 transition-all">-</button>
         </div>
       )}
 
-      {/* ── Modals ─────────────────────────────────────────────────────────── */}
+      {/* -- Modals ----------------------------------------------------------- */}
 
       {/* Edit modal */}
       {editTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[8px_8px_0_#141414] w-full max-w-sm">
-            <div className="border-b-2 border-[#141414] bg-[#141414] text-[#E4E3E0] px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2"><Pencil size={13} /><span className="font-mono text-[10px] font-bold tracking-widest uppercase">EDITAR OPERACIÓN</span></div>
+          <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
+            <div className="border-b-2 border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2"><Pencil size={13} /><span className="font-mono text-[10px] font-bold tracking-widest uppercase">EDITAR OPERACION</span></div>
               <button onClick={() => setEditTx(null)} className="opacity-60 hover:opacity-100"><X size={14} /></button>
             </div>
             <div className="p-5 flex flex-col gap-4">
-              <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest border-b border-[#141414]/10 pb-2">
+              <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest border-b border-[var(--border)]/10 pb-2">
                 {editTx.type} · {products.find(p => p.id === editTx.productId)?.name} · {editTx.quantity} UND
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-70">REFERENCIA / GUÍA</label>
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-70">REFERENCIA / GU-A</label>
                 <input type="text" value={editRef} onChange={e => setEditRef(e.target.value)}
-                  className="w-full border border-[#141414] bg-white px-3 py-2 font-mono text-xs font-bold uppercase outline-none focus:shadow-[2px_2px_0_#141414] transition-all" />
+                  className="w-full border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs font-bold uppercase outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all" />
               </div>
               {(editTx.type === 'RECEPTION' || editTx.type === 'DISPATCH') && (
                 <div className="flex flex-col gap-1.5">
                   <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-70">{editTx.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE'}</label>
                   <select value={editContact} onChange={e => setEditContact(e.target.value)}
-                    className="w-full border border-[#141414] bg-white px-3 py-2 font-mono text-xs font-bold uppercase outline-none focus:shadow-[2px_2px_0_#141414] transition-all">
+                    className="w-full border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs font-bold uppercase outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all">
                     <option value="">-- Sin contacto --</option>
                     {useAppContext().contacts.filter(c => editTx.type === 'RECEPTION' ? c.type === 'SUPPLIER' : c.type === 'CLIENT').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -1827,11 +1823,11 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
               )}
               <div className="flex gap-2 pt-1">
                 <button onClick={handleEditSave} disabled={busy || !editRef.trim()}
-                  className="flex-1 bg-[#141414] text-[#E4E3E0] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:opacity-80 disabled:opacity-50 transition-all">
+                  className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:opacity-80 disabled:opacity-50 transition-all">
                   {busy ? 'GUARDANDO...' : 'GUARDAR'}
                 </button>
                 <button onClick={() => setEditTx(null)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1843,15 +1839,15 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Cancel (anular) single */}
       {cancelTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-4 border-orange-500 shadow-[8px_8px_0_#141414] w-full max-w-sm">
+          <div className="bg-[var(--bg)] border-4 border-orange-500 shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
             <div className="border-b border-orange-500 bg-orange-500 px-4 py-3 flex items-center gap-2">
               <ShieldOff size={15} className="text-white" />
-              <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">ANULAR OPERACIÓN</span>
+              <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">ANULAR OPERACION</span>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <p className="font-mono text-xs font-bold uppercase text-center leading-relaxed">
-                ¿Anular <span className="text-orange-600">{cancelTx.reference}</span>?<br />
-                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">El stock será revertido. El registro permanece como ANULADO.</span>
+                -Anular <span className="text-orange-600">{cancelTx.reference}</span>?<br />
+                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">El stock ser- revertido. El registro permanece como ANULADO.</span>
               </p>
               <div className="flex gap-2">
                 <button onClick={handleCancel} disabled={busy}
@@ -1859,7 +1855,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                   {busy ? 'ANULANDO...' : 'CONFIRMAR'}
                 </button>
                 <button onClick={() => setCancelTx(null)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1871,27 +1867,27 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Hard-delete single */}
       {purgeTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-4 border-red-600 shadow-[8px_8px_0_#141414] w-full max-w-sm">
+          <div className="bg-[var(--bg)] border-4 border-red-600 shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
             <div className="border-b border-red-600 bg-red-600 px-4 py-3 flex items-center gap-2">
               <Trash2 size={15} className="text-white" />
               <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">ELIMINAR REGISTRO</span>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <p className="font-mono text-xs font-bold uppercase text-center leading-relaxed">
-                ¿Eliminar el registro <span className="text-red-600">{purgeTx.reference}</span>?<br />
+                -Eliminar el registro <span className="text-red-600">{purgeTx.reference}</span>?<br />
                 <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">
                   {purgeTx.status !== 'CANCELLED'
-                    ? 'El registro se borrará sin revertir stock. Usa "Anular" si quieres revertir primero.'
-                    : 'El registro ANULADO se borrará permanentemente de la base de datos.'}
+                    ? 'El registro se borrar- sin revertir stock. Usa "Anular" si quieres revertir primero.'
+                    : 'El registro ANULADO se borrar- permanentemente de la base de datos.'}
                 </span>
               </p>
               <div className="flex gap-2">
                 <button onClick={handlePurge} disabled={busy}
                   className="flex-1 bg-red-600 border border-red-600 text-white py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-red-700 disabled:opacity-50 transition-all">
-                  {busy ? 'ELIMINANDO...' : 'SÍ, ELIMINAR'}
+                  {busy ? 'ELIMINANDO...' : 'S-, ELIMINAR'}
                 </button>
                 <button onClick={() => setPurgeTx(null)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1903,15 +1899,15 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Bulk cancel */}
       {showBulkCancel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-4 border-orange-500 shadow-[8px_8px_0_#141414] w-full max-w-sm">
+          <div className="bg-[var(--bg)] border-4 border-orange-500 shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
             <div className="border-b border-orange-500 bg-orange-500 px-4 py-3 flex items-center gap-2">
               <ShieldOff size={15} className="text-white" />
               <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">ANULAR {selected.size} OPERACIONES</span>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <p className="font-mono text-xs font-bold uppercase text-center leading-relaxed">
-                ¿Anular <span className="text-orange-600">{selected.size}</span> operaciones?<br />
-                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">El stock de cada una será revertido. Los registros permanecen como ANULADOS.</span>
+                -Anular <span className="text-orange-600">{selected.size}</span> operaciones?<br />
+                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">El stock de cada una ser- revertido. Los registros permanecen como ANULADOS.</span>
               </p>
               <div className="flex gap-2">
                 <button onClick={handleBulkCancel} disabled={busy}
@@ -1919,7 +1915,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                   {busy ? 'ANULANDO...' : 'CONFIRMAR'}
                 </button>
                 <button onClick={() => setShowBulkCancel(false)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1931,23 +1927,23 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Bulk hard-delete */}
       {showBulkPurge && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-4 border-red-600 shadow-[8px_8px_0_#141414] w-full max-w-sm">
+          <div className="bg-[var(--bg)] border-4 border-red-600 shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
             <div className="border-b border-red-600 bg-red-600 px-4 py-3 flex items-center gap-2">
               <Trash2 size={15} className="text-white" />
               <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">ELIMINAR {selected.size} REGISTROS</span>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <p className="font-mono text-xs font-bold uppercase text-center leading-relaxed">
-                ¿Eliminar <span className="text-red-600">{selected.size}</span> registros de la base de datos?<br />
-                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">Esta acción es irreversible. El stock NO será revertido.</span>
+                -Eliminar <span className="text-red-600">{selected.size}</span> registros de la base de datos?<br />
+                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">Esta accion es irreversible. El stock NO ser- revertido.</span>
               </p>
               <div className="flex gap-2">
                 <button onClick={handleBulkPurge} disabled={busy}
                   className="flex-1 bg-red-600 border border-red-600 text-white py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-red-700 disabled:opacity-50 transition-all">
-                  {busy ? 'ELIMINANDO...' : 'SÍ, ELIMINAR'}
+                  {busy ? 'ELIMINANDO...' : 'S-, ELIMINAR'}
                 </button>
                 <button onClick={() => setShowBulkPurge(false)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1959,24 +1955,24 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       {/* Purge all */}
       {showPurgeAll && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#E4E3E0] border-4 border-red-600 shadow-[8px_8px_0_#141414] w-full max-w-sm">
+          <div className="bg-[var(--bg)] border-4 border-red-600 shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
             <div className="border-b border-red-600 bg-red-600 px-4 py-3 flex items-center gap-2">
               <AlertTriangle size={15} className="text-white" />
               <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-white">BORRAR TODAS LAS OPERACIONES</span>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <p className="font-mono text-xs font-bold uppercase text-center leading-relaxed">
-                ¿Confirmas eliminar <span className="text-red-600">TODOS</span> los registros?<br />
-                <span className="text-[10px] text-red-500 font-black block mt-1">ATENCIÓN: El stock se reiniciará a cero.</span>
-                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">Esta acción es irreversible.</span>
+                -Confirmas eliminar <span className="text-red-600">TODOS</span> los registros?<br />
+                <span className="text-[10px] text-red-500 font-black block mt-1">ATENCION: El stock se reiniciar- a cero.</span>
+                <span className="text-[9px] opacity-50 normal-case font-normal block mt-1">Esta accion es irreversible.</span>
               </p>
               <div className="flex gap-2">
                 <button onClick={handlePurgeAll} disabled={busy}
                   className="flex-1 bg-red-600 border border-red-600 text-white py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-red-700 disabled:opacity-50 transition-all">
-                  {busy ? 'BORRANDO...' : 'SÍ, BORRAR TODO'}
+                  {busy ? 'BORRANDO...' : 'S-, BORRAR TODO'}
                 </button>
                 <button onClick={() => setShowPurgeAll(false)}
-                  className="flex-1 border border-[#141414] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[#141414] hover:text-[#E4E3E0] transition-all">
+                  className="flex-1 border border-[var(--border)] py-2.5 font-mono text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                   CANCELAR
                 </button>
               </div>
@@ -1988,7 +1984,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
   );
 };
 
-// ─── Operations Report ─────────────────────────────────────────────────────────
+// --- Operations Report ---------------------------------------------------------
 
 const OperationsReport: React.FC = () => {
   const { transactions, products, locations, activeBrand } = useAppContext();
@@ -2052,7 +2048,7 @@ const OperationsReport: React.FC = () => {
   const byWriteoffReason = useMemo(() => {
     const map = new Map<string, { count: number; units: number }>();
     writeoffs.forEach(tx => {
-      const reason = tx.reference?.replace('[BAJA] ', '').split(' — ')[0] ?? 'Sin motivo';
+      const reason = tx.reference?.replace('[BAJA] ', '').split(' · ')[0] ?? 'Sin motivo';
       if (!map.has(reason)) map.set(reason, { count: 0, units: 0 });
       const e = map.get(reason)!; e.count++; e.units += tx.quantity;
     });
@@ -2098,7 +2094,7 @@ const OperationsReport: React.FC = () => {
     else { setSortCol(col); setSortDir('desc'); }
   };
 
-  // ── Exports ──
+  // -- Exports --
   const exportExcel = () => {
     const rows = histFiltered.map(tx => {
       const prod = products.find(p => p.id === tx.productId);
@@ -2124,16 +2120,20 @@ const OperationsReport: React.FC = () => {
     XLSX.writeFile(wb, `operaciones_${activeBrand}_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     const win = window.open('', '_blank');
     if (!win) return;
+    const logoB64 = await fetch('/Zazu/inv/zazu-inv-light.png')
+      .then(r => r.blob())
+      .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
+      .catch(() => '');
     const dateLabel = dateFrom || dateTo
-      ? `Del ${dateFrom || '—'} al ${dateTo || '—'}`
-      : 'Todos los períodos';
+      ? `Del ${dateFrom || '-'} al ${dateTo || '-'}`
+      : 'Todos los per-odos';
     const rowsHTML = histFiltered.map((tx, i) => {
       const prod = products.find(p => p.id === tx.productId);
       const isWO = tx.reference?.startsWith('[BAJA]');
-      const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RECEPCIÓN' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO';
+      const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RECEPCION' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO';
       const typeColor = isWO ? '#991b1b' : tx.type === 'RECEPTION' ? '#15803d' : tx.type === 'DISPATCH' ? '#b91c1c' : '#0369a1';
       return `<tr style="background:${i%2===0?'#f9f9f9':'#fff'}">
         <td>${new Date(tx.date).toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</td>
@@ -2141,21 +2141,20 @@ const OperationsReport: React.FC = () => {
         <td>${prod?.code ?? ''}</td>
         <td>${prod?.name ?? tx.productId}${prod?.size ? ' ' + prod.size : ''}</td>
         <td style="text-align:right;font-weight:700">${tx.quantity}</td>
-        <td>${locations.find(l=>l.id===tx.fromLocationId)?.name ?? '—'}</td>
-        <td>${locations.find(l=>l.id===tx.toLocationId)?.name ?? '—'}</td>
+        <td>${locations.find(l=>l.id===tx.fromLocationId)?.name ?? '-'}</td>
+        <td>${locations.find(l=>l.id===tx.toLocationId)?.name ?? '-'}</td>
         <td>${tx.reference ?? ''}</td>
         <td>${tx.user ?? ''}</td>
       </tr>`;
     }).join('');
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Reporte Operaciones — ${activeBrand}</title>
+    <title>Reporte Operaciones · ${activeBrand}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
       *{box-sizing:border-box;margin:0;padding:0}
       body{font-family:Inter,sans-serif;font-size:10px;color:#141414;padding:24px 32px;background:#fff}
       .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #141414;padding-bottom:12px;margin-bottom:16px}
-      .logo{width:48px;height:48px;background:#6B21A8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px;letter-spacing:1px}
-      .logo-sub{font-size:6px;letter-spacing:2px;opacity:.8}
+      .logo{width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
       .company{margin-left:12px}
       .company h1{font-size:13px;font-weight:900;text-transform:uppercase}
       .company p{font-size:9px;opacity:.5;margin-top:2px}
@@ -2177,11 +2176,11 @@ const OperationsReport: React.FC = () => {
     </style></head><body>
     <div class="header">
       <div style="display:flex;align-items:center">
-        <div class="logo">zazu<span class="logo-sub">express</span></div>
+        ${logoB64 ? `<div class="logo"><img src="${logoB64}" style="width:48px;height:48px;object-fit:contain" /></div>` : `<div class="logo" style="background:#6B21A8;color:#fff;font-weight:900;font-size:11px;letter-spacing:1px;flex-direction:column">zazu<span style="font-size:6px;letter-spacing:2px;opacity:.8">express</span></div>`}
         <div class="company">
           <h1>Reporte de Operaciones</h1>
-          <p>Tecnología y Distribución Logística del Perú S.A.C. · RUC 20614699842</p>
-          <p>Marca: ${activeBrand} · Período: ${dateLabel}</p>
+          <p>Tecnolog-a y Distribucion Log-stica del Per- S.A.C. · RUC 20614699842</p>
+          <p>Marca: ${activeBrand} · Per-odo: ${dateLabel}</p>
         </div>
       </div>
       <div class="meta">Generado: ${new Date().toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</div>
@@ -2195,7 +2194,7 @@ const OperationsReport: React.FC = () => {
     </div>
     <div class="section-title">Historial de operaciones (${histFiltered.length} registros)</div>
     <table><thead><tr>
-      <th>Fecha</th><th>Tipo</th><th>Código</th><th>Producto</th><th style="text-align:right">Cant.</th>
+      <th>Fecha</th><th>Tipo</th><th>Codigo</th><th>Producto</th><th style="text-align:right">Cant.</th>
       <th>Origen</th><th>Destino</th><th>Referencia</th><th>Operador</th>
     </tr></thead><tbody>${rowsHTML}</tbody>
     <tfoot><tr><td colspan="4">TOTAL</td><td style="text-align:right">${histFiltered.reduce((s,tx)=>s+tx.quantity,0).toLocaleString('es-PE')}</td><td colspan="4"></td></tr></tfoot>
@@ -2205,9 +2204,9 @@ const OperationsReport: React.FC = () => {
   };
 
   const TYPE_CFG = {
-    RECEPTION: { label: 'Recepciones', icon: ArrowDownLeft, color: 'text-green-700', bg: 'bg-green-50 border-green-300', bar: 'bg-green-500' },
-    DISPATCH:  { label: 'Despachos',   icon: ArrowUpRight,  color: 'text-red-700',   bg: 'bg-red-50 border-red-300',     bar: 'bg-red-500'   },
-    TRANSFER:  { label: 'Traslados',   icon: ArrowRightLeft,color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-300',   bar: 'bg-blue-400'  },
+    RECEPTION: { label: 'Recepciones', icon: ArrowDownLeft, color: 'text-green-700', bg: 'bg-green-500/10 border-green-500/50', bar: 'bg-green-500' },
+    DISPATCH:  { label: 'Despachos',   icon: ArrowUpRight,  color: 'text-red-700',   bg: 'bg-red-500/10 border-red-500/50',     bar: 'bg-red-500'   },
+    TRANSFER:  { label: 'Traslados',   icon: ArrowRightLeft,color: 'text-blue-700',  bg: 'bg-blue-500/10 border-blue-500/50',   bar: 'bg-blue-400'  },
   };
 
   const SortIcon = ({ col }: { col: typeof sortCol }) => sortCol !== col ? null : sortDir === 'asc' ? <ChevronUp size={9} /> : <ChevronDown size={9} />;
@@ -2215,68 +2214,68 @@ const OperationsReport: React.FC = () => {
   return (
     <div className="flex flex-col gap-5">
 
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="opacity-50" />
           <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">REPORTE DE OPERACIONES</h2>
-          <span className="font-mono text-[8px] border border-[#141414]/20 px-1.5 py-0.5 bg-white/60 uppercase tracking-wider">{activeBrand}</span>
+          <span className="font-mono text-[8px] border border-[var(--border)]/20 px-1.5 py-0.5 bg-[var(--surface)] uppercase tracking-wider">{activeBrand}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40 hidden sm:inline">Período:</span>
+          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40 hidden sm:inline">Per-odo:</span>
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setHistPage(1); }}
-            className="border border-[#141414]/30 px-2 py-1.5 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] w-full sm:w-auto" />
-          <span className="font-mono text-[9px] opacity-30">→</span>
+            className="border border-[var(--border)]/30 px-2 py-1.5 font-mono text-[9px] bg-[var(--surface)] outline-none focus:border-[var(--border)] w-full sm:w-auto" />
+          <span className="font-mono text-[9px] opacity-30">?</span>
           <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setHistPage(1); }}
-            className="border border-[#141414]/30 px-2 py-1.5 font-mono text-[9px] bg-white/60 outline-none focus:border-[#141414] w-full sm:w-auto" />
+            className="border border-[var(--border)]/30 px-2 py-1.5 font-mono text-[9px] bg-[var(--surface)] outline-none focus:border-[var(--border)] w-full sm:w-auto" />
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[8px] border border-[#141414]/30 px-2 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors whitespace-nowrap">
-              ✕ LIMPIAR
+              className="font-mono text-[8px] border border-[var(--border)]/30 px-2 py-1.5 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors whitespace-nowrap">
+              ? LIMPIAR
             </button>
           )}
         </div>
       </div>
 
-      {/* ── KPI Cards ── */}
+      {/* -- KPI Cards -- */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {/* Total ops */}
-        <div className="border border-[#141414] bg-[#141414] text-[#E4E3E0] p-3 shadow-[3px_3px_0_#141414] col-span-2 sm:col-span-1">
+        <div className="border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] p-3 shadow-[3px_3px_0_var(--border)] col-span-2 sm:col-span-1">
           <div className="font-mono text-[8px] opacity-50 uppercase tracking-widest mb-1">Total Ops</div>
           <div className="font-mono font-black text-2xl">{totalOps}</div>
           <div className="font-mono text-[8px] opacity-40 mt-0.5">operaciones</div>
         </div>
         {/* Unidades */}
-        <div className="border border-[#141414] bg-white/70 p-3 shadow-[3px_3px_0_#141414]">
+        <div className="border border-[var(--border)] bg-[var(--bg-card-alt)] p-3 shadow-[3px_3px_0_var(--border)]">
           <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-1">Unidades</div>
-          <div className="font-mono font-black text-2xl text-[#141414]">{totalUnits.toLocaleString('es-PE')}</div>
+          <div className="font-mono font-black text-2xl text-[var(--ink)]">{totalUnits.toLocaleString('es-PE')}</div>
           <div className="font-mono text-[8px] opacity-40 mt-0.5">movidas</div>
         </div>
         {/* Recepciones */}
-        <div className="border border-green-400 bg-green-50 p-3">
+        <div className="border border-green-400 bg-green-500/10 p-3">
           <div className="flex items-center gap-1 mb-1"><ArrowDownLeft size={10} className="text-green-700" /><span className="font-mono text-[8px] font-bold text-green-700 uppercase tracking-wide">Recepciones</span></div>
-          <div className="font-mono font-black text-xl text-green-800">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
+          <div className="font-mono font-black text-xl text-green-600">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
           <div className="font-mono text-[8px] text-green-700 opacity-60 mt-0.5">{byType.RECEPTION.count} operaciones</div>
         </div>
         {/* Despachos */}
-        <div className="border border-red-300 bg-red-50 p-3">
+        <div className="border border-red-500/50 bg-red-500/10 p-3">
           <div className="flex items-center gap-1 mb-1"><ArrowUpRight size={10} className="text-red-700" /><span className="font-mono text-[8px] font-bold text-red-700 uppercase tracking-wide">Despachos</span></div>
-          <div className="font-mono font-black text-xl text-red-800">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
+          <div className="font-mono font-black text-xl text-red-600">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
           <div className="font-mono text-[8px] text-red-700 opacity-60 mt-0.5">{byType.DISPATCH.count} operaciones</div>
         </div>
         {/* Bajas */}
-        <div className="border border-orange-400 bg-orange-50 p-3">
+        <div className="border border-orange-400 bg-orange-500/10 p-3">
           <div className="flex items-center gap-1 mb-1"><ShieldOff size={10} className="text-orange-700" /><span className="font-mono text-[8px] font-bold text-orange-700 uppercase tracking-wide">Bajas/Merma</span></div>
-          <div className="font-mono font-black text-xl text-orange-800">{writeoffUnits.toLocaleString('es-PE')}</div>
+          <div className="font-mono font-black text-xl text-orange-600">{writeoffUnits.toLocaleString('es-PE')}</div>
           <div className="font-mono text-[8px] text-orange-700 opacity-60 mt-0.5">{writeoffs.length} operaciones</div>
         </div>
       </div>
 
-      {/* ── Distribution bar ── */}
+      {/* -- Distribution bar -- */}
       {totalUnits > 0 && (
-        <div className="border border-[#141414]/20 bg-white/40 px-4 py-3">
-          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribución por tipo (unidades)</div>
-          <div className="flex h-4 overflow-hidden border border-[#141414]/10">
+        <div className="border border-[var(--border)]/20 bg-[var(--bg-card)] px-4 py-3">
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribucion por tipo (unidades)</div>
+          <div className="flex h-4 overflow-hidden border border-[var(--border)]/10">
             {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
               const pct = (byType[t].units / totalUnits) * 100;
               return pct > 0 ? (
@@ -2312,8 +2311,8 @@ const OperationsReport: React.FC = () => {
         </div>
       )}
 
-      {/* ── Tab bar + export buttons ── */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-[#141414]/20">
+      {/* -- Tab bar + export buttons -- */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)]/20">
         <div className="flex overflow-x-auto scrollbar-none">
           {([
             { id: 'resumen',     label: 'Resumen' },
@@ -2323,7 +2322,7 @@ const OperationsReport: React.FC = () => {
           ] as { id: typeof reportTab; label: string }[]).map(tab => (
             <button key={tab.id} onClick={() => setReportTab(tab.id)}
               className={cn('px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap',
-                reportTab === tab.id ? 'border-[#141414] text-[#141414]' : 'border-transparent opacity-40 hover:opacity-70'
+                reportTab === tab.id ? 'border-[var(--border)] text-[var(--ink)]' : 'border-transparent opacity-40 hover:opacity-70'
               )}>
               {tab.label}
             </button>
@@ -2331,30 +2330,30 @@ const OperationsReport: React.FC = () => {
         </div>
         <div className="flex items-center gap-1 pb-1 self-end sm:self-auto">
           <button onClick={exportExcel} title="Exportar Excel"
-            className="flex items-center gap-1 border border-[#141414]/30 px-2.5 py-1.5 hover:bg-green-700 hover:text-white hover:border-green-700 transition-all font-mono text-[8px] font-bold uppercase">
+            className="flex items-center gap-1 border border-[var(--border)]/30 px-2.5 py-1.5 hover:bg-green-700 hover:text-white hover:border-green-700 transition-all font-mono text-[8px] font-bold uppercase">
             <FileSpreadsheet size={11} /> XLS
           </button>
           <button onClick={exportPDF} title="Exportar PDF"
-            className="flex items-center gap-1 border border-[#141414]/30 px-2.5 py-1.5 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all font-mono text-[8px] font-bold uppercase">
+            className="flex items-center gap-1 border border-[var(--border)]/30 px-2.5 py-1.5 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all font-mono text-[8px] font-bold uppercase">
             <FileText size={11} /> PDF
           </button>
         </div>
       </div>
 
-      {/* ══ RESUMEN ══ */}
+      {/* -- RESUMEN -- */}
       {reportTab === 'resumen' && (
         <div className="flex flex-col gap-4">
           {/* Por tipo */}
-          <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-            <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Operaciones por tipo</div>
-            <div className="grid grid-cols-4 px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[#141414]/10">
+          <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
+            <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Operaciones por tipo</div>
+            <div className="grid grid-cols-4 px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[var(--border)]/10">
               <div>Tipo</div><div className="text-right">Ops.</div><div className="text-right">Unidades</div><div className="text-right">% Total</div>
             </div>
             {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
               const cfg = TYPE_CFG[t]; const Icon = cfg.icon;
               const pct = totalUnits > 0 ? ((byType[t].units / totalUnits) * 100).toFixed(1) : '0.0';
               return (
-                <div key={t} className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50 items-center">
+                <div key={t} className="grid grid-cols-4 px-4 py-3 border-b border-[var(--border)]/10 last:border-0 hover:bg-[var(--surface)] items-center">
                   <div className="flex items-center gap-2"><Icon size={12} className={cfg.color} /><span className={`font-mono text-[10px] font-bold uppercase ${cfg.color}`}>{cfg.label}</span></div>
                   <div className="font-mono text-[11px] font-bold text-right">{byType[t].count}</div>
                   <div className="font-mono text-[12px] font-black text-right">{byType[t].units.toLocaleString('es-PE')}</div>
@@ -2363,14 +2362,14 @@ const OperationsReport: React.FC = () => {
               );
             })}
             {writeoffs.length > 0 && (
-              <div className="grid grid-cols-4 px-4 py-3 border-b border-[#141414]/10 hover:bg-white/50 items-center">
+              <div className="grid grid-cols-4 px-4 py-3 border-b border-[var(--border)]/10 hover:bg-[var(--surface)] items-center">
                 <div className="flex items-center gap-2"><ShieldOff size={12} className="text-orange-700" /><span className="font-mono text-[10px] font-bold uppercase text-orange-700">Bajas/Merma</span></div>
                 <div className="font-mono text-[11px] font-bold text-right">{writeoffs.length}</div>
                 <div className="font-mono text-[12px] font-black text-right">{writeoffUnits.toLocaleString('es-PE')}</div>
-                <div className="text-right"><span className="font-mono text-[10px] font-bold px-1.5 py-0.5 border bg-orange-50 border-orange-400 text-orange-700">{totalUnits > 0 ? ((writeoffUnits / (totalUnits + writeoffUnits)) * 100).toFixed(1) : '0.0'}%</span></div>
+                <div className="text-right"><span className="font-mono text-[10px] font-bold px-1.5 py-0.5 border bg-orange-500/10 border-orange-400 text-orange-700">{totalUnits > 0 ? ((writeoffUnits / (totalUnits + writeoffUnits)) * 100).toFixed(1) : '0.0'}%</span></div>
               </div>
             )}
-            <div className="grid grid-cols-4 px-4 py-2.5 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[10px] font-black uppercase">
+            <div className="grid grid-cols-4 px-4 py-2.5 bg-[var(--bg-modal)] border-t border-[var(--border)]/20 font-mono text-[10px] font-black uppercase">
               <div className="opacity-40 text-[8px]">TOTAL</div>
               <div className="text-right">{totalOps}</div>
               <div className="text-right">{(totalUnits + writeoffUnits).toLocaleString('es-PE')}</div>
@@ -2380,12 +2379,12 @@ const OperationsReport: React.FC = () => {
 
           {/* Por destino */}
           {byDestination.length > 0 && (
-            <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-              <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Entradas por almacén destino</div>
+            <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
+              <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Entradas por almacen destino</div>
               {byDestination.map((row, i) => {
                 const barPct = byDestination[0].units > 0 ? (row.units / byDestination[0].units) * 100 : 0;
                 return (
-                  <div key={i} className="px-4 py-3 border-b border-[#141414]/10 last:border-0 hover:bg-white/50">
+                  <div key={i} className="px-4 py-3 border-b border-[var(--border)]/10 last:border-0 hover:bg-[var(--surface)]">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <MapPin size={10} className="opacity-40 shrink-0" />
@@ -2394,7 +2393,7 @@ const OperationsReport: React.FC = () => {
                       </div>
                       <span className="font-mono text-[12px] font-black text-green-700 shrink-0 ml-4">{row.units.toLocaleString('es-PE')} uds</span>
                     </div>
-                    <div className="h-1.5 bg-[#141414]/5 overflow-hidden">
+                    <div className="h-1.5 bg-[var(--ink)]/5 overflow-hidden">
                       <div className="h-full bg-green-500/60 transition-all" style={{ width: `${barPct}%` }} />
                     </div>
                   </div>
@@ -2405,38 +2404,38 @@ const OperationsReport: React.FC = () => {
         </div>
       )}
 
-      {/* ══ POR PRODUCTO ══ */}
+      {/* -- POR PRODUCTO -- */}
       {reportTab === 'movimientos' && (
-        <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
-          {/* Header — hidden on mobile, shown on sm+ */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_56px_56px_56px_56px] bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2">
+        <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
+          {/* Header · hidden on mobile, shown on sm+ */}
+          <div className="hidden sm:grid sm:grid-cols-[1fr_56px_56px_56px_56px] bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2">
             <div>Producto</div>
             <div className="text-right text-green-300">Entr.</div>
             <div className="text-right text-red-300">Sal.</div>
             <div className="text-right text-blue-300">Trasl.</div>
             <div className="text-right text-orange-300">Baja</div>
           </div>
-          <div className="sm:hidden bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">
+          <div className="sm:hidden bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">
             Movimientos por producto
           </div>
           {byProduct.length === 0 ? (
-            <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el período</div>
+            <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el per-odo</div>
           ) : byProduct.map((row, i) => {
             const total = row.in + row.out + row.transfer + row.writeoff;
             const maxTotal = byProduct[0] ? byProduct[0].in + byProduct[0].out + byProduct[0].transfer + byProduct[0].writeoff : 1;
             const barPct = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
             return (
-              <div key={i} className={cn('px-4 py-2.5 border-b border-[#141414]/10 last:border-0 hover:bg-white/60', i % 2 !== 0 && 'bg-white/30')}>
+              <div key={i} className={cn('px-4 py-2.5 border-b border-[var(--border)]/10 last:border-0 hover:bg-[var(--surface)]', i % 2 !== 0 && 'bg-[var(--surface-alt)]')}>
                 {/* Desktop row */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_56px_56px_56px_56px] items-center gap-2 mb-1">
                   <div className="min-w-0">
                     <div className="font-mono text-[10px] font-bold truncate uppercase">{row.name}</div>
                     {row.code && <div className="font-mono text-[8px] opacity-40">{row.code}</div>}
                   </div>
-                  <div className="font-mono text-[10px] font-bold text-right text-green-700">{row.in > 0 ? row.in.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
-                  <div className="font-mono text-[10px] font-bold text-right text-red-600">{row.out > 0 ? row.out.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
-                  <div className="font-mono text-[10px] font-bold text-right text-blue-600">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
-                  <div className="font-mono text-[10px] font-bold text-right text-orange-600">{row.writeoff > 0 ? row.writeoff.toLocaleString('es-PE') : <span className="opacity-20">—</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-green-700">{row.in > 0 ? row.in.toLocaleString('es-PE') : <span className="opacity-20">-</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-red-600">{row.out > 0 ? row.out.toLocaleString('es-PE') : <span className="opacity-20">-</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-blue-600">{row.transfer > 0 ? row.transfer.toLocaleString('es-PE') : <span className="opacity-20">-</span>}</div>
+                  <div className="font-mono text-[10px] font-bold text-right text-orange-600">{row.writeoff > 0 ? row.writeoff.toLocaleString('es-PE') : <span className="opacity-20">-</span>}</div>
                 </div>
                 {/* Mobile card row */}
                 <div className="sm:hidden">
@@ -2448,15 +2447,15 @@ const OperationsReport: React.FC = () => {
                       { label: 'Tras', val: row.transfer, cls: 'text-blue-600' },
                       { label: 'Baja', val: row.writeoff, cls: 'text-orange-600' },
                     ].map(({ label, val, cls }) => (
-                      <div key={label} className="flex flex-col items-center border border-[#141414]/10 py-1 px-0.5 bg-white/50">
+                      <div key={label} className="flex flex-col items-center border border-[var(--border)]/10 py-1 px-0.5 bg-[var(--surface)]">
                         <span className="font-mono text-[7px] opacity-40 uppercase">{label}</span>
-                        <span className={cn('font-mono text-[11px] font-black', val > 0 ? cls : 'opacity-20')}>{val > 0 ? val : '—'}</span>
+                        <span className={cn('font-mono text-[11px] font-black', val > 0 ? cls : 'opacity-20')}>{val > 0 ? val : '-'}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="h-1 bg-[#141414]/5 overflow-hidden">
-                  <div className="h-full bg-[#141414]/20 transition-all" style={{ width: `${barPct}%` }} />
+                <div className="h-1 bg-[var(--ink)]/5 overflow-hidden">
+                  <div className="h-full bg-[var(--ink)]/20 transition-all" style={{ width: `${barPct}%` }} />
                 </div>
               </div>
             );
@@ -2464,12 +2463,12 @@ const OperationsReport: React.FC = () => {
         </div>
       )}
 
-      {/* ══ BAJAS / MERMA ══ */}
+      {/* -- BAJAS / MERMA -- */}
       {reportTab === 'bajas' && (
         <div className="flex flex-col gap-4">
           {writeoffs.length === 0 ? (
-            <div className="border border-[#141414]/20 px-4 py-12 text-center font-mono text-[10px] opacity-40 uppercase">
-              No hay bajas registradas en este período
+            <div className="border border-[var(--border)]/20 px-4 py-12 text-center font-mono text-[10px] opacity-40 uppercase">
+              No hay bajas registradas en este per-odo
             </div>
           ) : (
             <>
@@ -2479,7 +2478,7 @@ const OperationsReport: React.FC = () => {
                 {byWriteoffReason.map((row, i) => {
                   const barPct = byWriteoffReason[0].units > 0 ? (row.units / byWriteoffReason[0].units) * 100 : 0;
                   return (
-                    <div key={i} className="px-4 py-3 border-b border-orange-800/10 last:border-0 hover:bg-orange-50/60">
+                    <div key={i} className="px-4 py-3 border-b border-orange-800/10 last:border-0 hover:bg-orange-500/10">
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <ShieldOff size={10} className="text-orange-600 shrink-0 opacity-60" />
@@ -2497,33 +2496,33 @@ const OperationsReport: React.FC = () => {
               </div>
 
               {/* Detalle de bajas */}
-              <div className="border border-[#141414]/20 shadow-[2px_2px_0_#14141430] overflow-hidden">
-                <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Detalle de bajas ({writeoffs.length})</div>
-                <div className="grid grid-cols-[auto_1fr_auto_auto] px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[#141414]/10 gap-3">
-                  <div>Fecha</div><div>Producto / Motivo</div><div className="text-right">Almacén</div><div className="text-right w-12">Cant.</div>
+              <div className="border border-[var(--border)]/20 shadow-[2px_2px_0_var(--border-soft)] overflow-hidden">
+                <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-widest">Detalle de bajas ({writeoffs.length})</div>
+                <div className="grid grid-cols-[auto_1fr_auto_auto] px-4 py-1.5 font-mono text-[8px] opacity-40 uppercase tracking-widest border-b border-[var(--border)]/10 gap-3">
+                  <div>Fecha</div><div>Producto / Motivo</div><div className="text-right">Almacen</div><div className="text-right w-12">Cant.</div>
                 </div>
                 {writeoffs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx, i) => {
                   const prod = products.find(p => p.id === tx.productId);
-                  const reason = tx.reference?.replace('[BAJA] ', '').split(' — ')[0] ?? '';
-                  const notes  = tx.reference?.includes(' — ') ? tx.reference.split(' — ').slice(1).join(' — ') : '';
+                  const reason = tx.reference?.replace('[BAJA] ', '').split(' · ')[0] ?? '';
+                  const notes  = tx.reference?.includes(' · ') ? tx.reference.split(' · ').slice(1).join(' · ') : '';
                   const fromLoc = locations.find(l => l.id === tx.fromLocationId);
                   return (
-                    <div key={tx.id} className={cn('grid grid-cols-[auto_1fr_auto_auto] px-4 py-2.5 border-b border-[#141414]/8 last:border-0 hover:bg-orange-50/50 items-start gap-3', i % 2 !== 0 && 'bg-white/30')}>
+                    <div key={tx.id} className={cn('grid grid-cols-[auto_1fr_auto_auto] px-4 py-2.5 border-b border-[var(--border)]/8 last:border-0 hover:bg-orange-500/10 items-start gap-3', i % 2 !== 0 && 'bg-[var(--surface-alt)]')}>
                       <div className="font-mono text-[9px] opacity-50 shrink-0 whitespace-nowrap">
                         {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? '—'}{prod?.size ? ` · ${prod.size}` : ''}</div>
+                        <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? '-'}{prod?.size ? ` · ${prod.size}` : ''}</div>
                         <div className="font-mono text-[8px] text-orange-700 font-bold">{reason}</div>
                         {notes && <div className="font-mono text-[8px] opacity-40">{notes}</div>}
                         <div className="font-mono text-[8px] opacity-30">{tx.user}</div>
                       </div>
-                      <div className="font-mono text-[9px] opacity-50 text-right shrink-0 whitespace-nowrap">{fromLoc?.name ?? '—'}</div>
+                      <div className="font-mono text-[9px] opacity-50 text-right shrink-0 whitespace-nowrap">{fromLoc?.name ?? '-'}</div>
                       <div className="font-mono text-[12px] font-black text-orange-700 text-right w-12 shrink-0">{tx.quantity}</div>
                     </div>
                   );
                 })}
-                <div className="flex justify-between px-4 py-2.5 bg-orange-50 border-t border-orange-800/20 font-mono text-[10px] font-black">
+                <div className="flex justify-between px-4 py-2.5 bg-orange-500/10 border-t border-orange-800/20 font-mono text-[10px] font-black">
                   <span className="opacity-50 text-[8px]">TOTAL DADO DE BAJA</span>
                   <span className="text-orange-700">{writeoffUnits.toLocaleString('es-PE')} uds</span>
                 </div>
@@ -2533,34 +2532,34 @@ const OperationsReport: React.FC = () => {
         </div>
       )}
 
-      {/* ══ HISTORIAL ══ */}
+      {/* -- HISTORIAL -- */}
       {reportTab === 'historial' && (
         <div className="flex flex-col gap-3">
           {/* Search */}
-          <div className="flex items-center gap-2 border border-[#141414]/20 bg-white/60 px-3 py-1.5">
+          <div className="flex items-center gap-2 border border-[var(--border)]/20 bg-[var(--surface)] px-3 py-1.5">
             <Search size={11} className="opacity-30 shrink-0" />
             <input
               type="text"
               value={searchQ}
               onChange={e => { setSearchQ(e.target.value); setHistPage(1); }}
-              placeholder="Buscar producto, código, referencia, operador..."
+              placeholder="Buscar producto, codigo, referencia, operador..."
               className="flex-1 bg-transparent outline-none font-mono text-[10px] placeholder:opacity-30"
             />
-            {searchQ && <button onClick={() => setSearchQ('')} className="text-[#141414]/40 hover:text-[#141414]"><X size={11} /></button>}
+            {searchQ && <button onClick={() => setSearchQ('')} className="text-[var(--ink)]/40 hover:text-[var(--ink)]"><X size={11} /></button>}
           </div>
 
-          <div className="border border-[#141414] shadow-[3px_3px_0_#141414] overflow-hidden">
+          <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] bg-[#141414] text-[#E4E3E0] px-3 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2 items-center">
+            <div className="grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-2 font-mono text-[8px] font-bold uppercase tracking-widest gap-2 items-center">
               <button onClick={() => toggleSort('date')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity whitespace-nowrap">
                 Fecha <SortIcon col="date" />
               </button>
               <button onClick={() => toggleSort('type')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity">
                 Tipo <SortIcon col="type" />
               </button>
-              <div className="hidden sm:block">Código</div>
+              <div className="hidden sm:block">Codigo</div>
               <div>Producto</div>
-              <div className="hidden md:block">Almacén</div>
+              <div className="hidden md:block">Almacen</div>
               <button onClick={() => toggleSort('qty')} className="flex items-center gap-0.5 hover:opacity-70 transition-opacity justify-end">
                 <SortIcon col="qty" /> Cant.
               </button>
@@ -2573,27 +2572,27 @@ const OperationsReport: React.FC = () => {
               const prod = products.find(p => p.id === tx.productId);
               const isWO = tx.reference?.startsWith('[BAJA]');
               const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RX' : tx.type === 'DISPATCH' ? 'TX' : 'MV';
-              const typeColor = isWO ? 'text-orange-700 bg-orange-50 border-orange-400' : tx.type === 'RECEPTION' ? 'text-green-700 bg-green-50 border-green-400' : tx.type === 'DISPATCH' ? 'text-red-700 bg-red-50 border-red-400' : 'text-blue-700 bg-blue-50 border-blue-400';
+              const typeColor = isWO ? 'text-orange-700 bg-orange-500/10 border-orange-400' : tx.type === 'RECEPTION' ? 'text-green-700 bg-green-500/10 border-green-400' : tx.type === 'DISPATCH' ? 'text-red-700 bg-red-500/10 border-red-400' : 'text-blue-700 bg-blue-500/10 border-blue-400';
               const locName = tx.type === 'RECEPTION'
                 ? locations.find(l => l.id === tx.toLocationId)?.name
                 : locations.find(l => l.id === tx.fromLocationId)?.name;
               return (
                 <div key={tx.id} className={cn(
-                  'grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] px-3 py-2 border-b border-[#141414]/8 last:border-0 hover:bg-white/60 items-center gap-2',
-                  i % 2 !== 0 ? 'bg-white/30' : '',
-                  isWO && 'bg-orange-50/30'
+                  'grid grid-cols-[60px_56px_1fr_auto] sm:grid-cols-[auto_80px_auto_1fr_auto_auto_auto] px-3 py-2 border-b border-[var(--border)]/8 last:border-0 hover:bg-[var(--surface)] items-center gap-2',
+                  i % 2 !== 0 ? 'bg-[var(--surface-alt)]' : '',
+                  isWO && 'bg-orange-500/10'
                 )}>
                   <div className="font-mono text-[9px] opacity-50 whitespace-nowrap">
                     {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
                   </div>
                   <div><span className={cn('font-mono text-[8px] font-bold border px-1 py-0.5 uppercase', typeColor)}>{typeLabel}</span></div>
-                  <div className="hidden sm:block font-mono text-[9px] opacity-50">{prod?.code ?? '—'}</div>
+                  <div className="hidden sm:block font-mono text-[9px] opacity-50">{prod?.code ?? '-'}</div>
                   <div className="min-w-0">
                     <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? tx.productId}</div>
                     {(prod?.color || prod?.size) && <div className="font-mono text-[8px] opacity-40">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</div>}
-                    {isWO && tx.reference && <div className="font-mono text-[8px] text-orange-700">{tx.reference.replace('[BAJA] ', '').split(' — ')[0]}</div>}
+                    {isWO && tx.reference && <div className="font-mono text-[8px] text-orange-700">{tx.reference.replace('[BAJA] ', '').split(' · ')[0]}</div>}
                   </div>
-                  <div className="hidden md:block font-mono text-[9px] opacity-40 text-right whitespace-nowrap">{locName ?? '—'}</div>
+                  <div className="hidden md:block font-mono text-[9px] opacity-40 text-right whitespace-nowrap">{locName ?? '-'}</div>
                   <div className={cn('font-mono text-[11px] font-black text-right', tx.type === 'RECEPTION' ? 'text-green-700' : isWO ? 'text-orange-700' : 'text-red-700')}>{tx.quantity}</div>
                   <div className="hidden md:block font-mono text-[8px] opacity-30 text-right truncate max-w-[80px]">{tx.user}</div>
                 </div>
@@ -2601,15 +2600,15 @@ const OperationsReport: React.FC = () => {
             })}
 
             {/* Footer totals */}
-            <div className="flex justify-between items-center px-3 py-2 bg-[#f5f4f1] border-t border-[#141414]/20 font-mono text-[9px]">
+            <div className="flex justify-between items-center px-3 py-2 bg-[var(--bg-modal)] border-t border-[var(--border)]/20 font-mono text-[9px]">
               <span className="opacity-40 uppercase tracking-widest text-[8px]">{histFiltered.length} registros · {histFiltered.reduce((s,tx)=>s+tx.quantity,0).toLocaleString('es-PE')} uds</span>
               {histPages > 1 && (
                 <div className="flex items-center gap-1">
                   <button onClick={() => setHistPage(p => Math.max(1, p-1))} disabled={histPage === 1}
-                    className="border border-[#141414]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-white/60 font-bold">‹</button>
+                    className="border border-[var(--border)]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-[var(--surface)] font-bold">-</button>
                   <span className="px-2 opacity-60">{histPage} / {histPages}</span>
                   <button onClick={() => setHistPage(p => Math.min(histPages, p+1))} disabled={histPage === histPages}
-                    className="border border-[#141414]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-white/60 font-bold">›</button>
+                    className="border border-[var(--border)]/30 px-2 py-0.5 disabled:opacity-30 hover:bg-[var(--surface)] font-bold">-</button>
                 </div>
               )}
             </div>
@@ -2620,17 +2619,21 @@ const OperationsReport: React.FC = () => {
   );
 };
 
-// ─── Guide Modal ───────────────────────────────────────────────────────────────
+// --- Guide Modal ---------------------------------------------------------------
 
 const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ guide, onClose }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const meta = TYPE_META[guide.type];
   const totalQty = guide.items.reduce((sum, i) => sum + i.quantity, 0);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const win = window.open('', '_blank');
     if (!win) return;
-    const logoUrl = `${window.location.origin}${BRAND_ICON[guide.brand] ?? BRAND_ICON.BOX_PRIME}`;
+    const logoB64 = await fetch('/Zazu/zazu-logo/zazu-light mode.png')
+      .then(r => r.blob())
+      .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
+      .catch(() => '');
+    const brandAbbr = BRAND_ABBR[guide.brand] ?? 'LZ';
 
     const itemsHTML = guide.items.length === 1
       ? `<div class="section">
@@ -2640,9 +2643,9 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
           <div class="qty-box">${guide.items[0].quantity} UND</div>
         </div>`
       : `<div class="section">
-          <div class="section-title">Productos (${guide.items.length} líneas)</div>
+          <div class="section-title">Productos (${guide.items.length} l-neas)</div>
           <table class="items-table">
-            <thead><tr><th>Código</th><th>Producto</th><th class="right">Cant.</th></tr></thead>
+            <thead><tr><th>Codigo</th><th>Producto</th><th class="right">Cant.</th></tr></thead>
             <tbody>${guide.items.map(it => `<tr><td class="code">${it.productCode}</td><td class="name">${it.productName}</td><td class="right qty">${it.quantity}</td></tr>`).join('')}</tbody>
             <tfoot><tr><td colspan="2" class="total-label">TOTAL</td><td class="right total-qty">${totalQty}</td></tr></tfoot>
           </table>
@@ -2650,7 +2653,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
 
     const photoHTML = guide.photo
       ? `<div class="section">
-          <div class="section-title">Evidencia fotográfica</div>
+          <div class="section-title">Evidencia fotografica</div>
           <img class="photo-img" src="${guide.photo}" alt="evidencia"/>
         </div>`
       : '';
@@ -2673,7 +2676,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
         </div>`
       : '';
 
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Guía ${guide.number}</title>
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gu-a ${guide.number}</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:'Courier New',monospace;background:#fff;display:flex;justify-content:center;padding:32px 16px}
@@ -2681,7 +2684,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
       .stripe{height:6px;background:${meta.accentColor}}
       .top{padding:16px 20px 14px;border-bottom:2px solid #141414;display:flex;justify-content:space-between;align-items:center;gap:12px}
       .top-left{display:flex;align-items:center;gap:12px}
-      .brand-logo{width:40px;height:40px;object-fit:contain;flex-shrink:0}
+      .brand-logo{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
       .brand{font-size:8px;font-weight:700;letter-spacing:3px;opacity:.4;text-transform:uppercase;margin-bottom:4px}
       .docnum{font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
       .badge{padding:6px 14px;color:#fff;font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;background:${meta.accentColor};display:flex;align-items:center;gap:6px;flex-shrink:0}
@@ -2722,9 +2725,9 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
       <div class="stripe"></div>
       <div class="top">
         <div class="top-left">
-          <img class="brand-logo" src="${logoUrl}" alt="${BRAND_NAME[guide.brand] ?? guide.brand}" />
+          ${logoB64 ? `<div class="brand-logo"><img src="${logoB64}" style="width:40px;height:40px;object-fit:contain" /></div>` : `<div class="brand-logo" style="background:#141414;color:#E4E3E0;font-size:11px;font-weight:900;letter-spacing:1px">${brandAbbr}</div>`}
           <div>
-            <div class="brand">${BRAND_NAME[guide.brand] ?? guide.brand} // GUÍA DE OPERACIÓN</div>
+            <div class="brand">${BRAND_NAME[guide.brand] ?? guide.brand} // GU-A DE OPERACION</div>
             <div class="docnum">${guide.number}</div>
           </div>
         </div>
@@ -2741,7 +2744,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
       ${sigHTML}
       ${photoHTML}
       <div class="footer">
-        <div class="footer-text">LogixZazu v3.0 // Documento generado automáticamente</div>
+        <div class="footer-text">LogixZazu v3.0 // Documento generado autom-ticamente</div>
         <div class="stamp">REGISTRADO</div>
       </div>
     </div>
@@ -2754,20 +2757,22 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
   return (
     <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-white border-2 border-[#141414] shadow-[10px_10px_0_#141414] w-full max-w-lg flex flex-col my-auto"
+        className="bg-[var(--bg-input)] border-2 border-[var(--border)] shadow-[10px_10px_0_var(--border)] w-full max-w-lg flex flex-col my-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="h-1.5 w-full" style={{ background: meta.accentColor }} />
 
         {/* Header */}
-        <div className="px-6 py-4 border-b-2 border-[#141414] flex items-center justify-between gap-4" style={{ background: meta.bgColor }}>
+        <div className="px-6 py-4 border-b-2 border-[var(--border)] flex items-center justify-between gap-4" style={{ background: meta.bgColor }}>
           <div className="flex items-center gap-3 min-w-0">
-            <img src={BRAND_ICON[guide.brand] ?? BRAND_ICON.BOX_PRIME} alt={BRAND_NAME[guide.brand]} className="w-10 h-10 object-contain shrink-0" />
+            <div className="w-10 h-10 bg-[var(--ink)] flex items-center justify-center shrink-0">
+              <span className="font-mono font-black text-[var(--ink-inv)] text-[9px] tracking-wider">{BRAND_ABBR[guide.brand] ?? 'LZ'}</span>
+            </div>
             <div className="min-w-0">
               <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-40 uppercase mb-0.5">
-                {BRAND_NAME[guide.brand] ?? guide.brand} // GUÍA DE OPERACIÓN
+                {BRAND_NAME[guide.brand] ?? guide.brand} // GU-A DE OPERACION
               </div>
-              <div className="font-mono font-black text-xl tracking-tight text-[#141414]">{guide.number}</div>
+              <div className="font-mono font-black text-xl tracking-tight text-[var(--ink)]">{guide.number}</div>
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -2781,29 +2786,29 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
 
         <div ref={printRef}>
           {/* Meta grid */}
-          <div className="grid grid-cols-2 border-b border-[#141414]/15">
+          <div className="grid grid-cols-2 border-b border-[var(--border)]/15">
             {[
               { label: 'FECHA', value: guide.date },
               { label: 'OPERADOR', value: guide.operator },
               { label: 'REFERENCIA', value: guide.reference },
               guide.contact ? { label: guide.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE', value: guide.contact } : null,
             ].filter(Boolean).map((cell: any) => (
-              <div key={cell.label} className="px-5 py-3 border-b border-r border-[#141414]/10 odd:border-r even:border-r-0">
+              <div key={cell.label} className="px-5 py-3 border-b border-r border-[var(--border)]/10 odd:border-r even:border-r-0">
                 <div className="font-mono text-[8px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">{cell.label}</div>
-                <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{cell.value}</div>
+                <div className="font-mono font-black text-[11px] text-[var(--ink)] uppercase">{cell.value}</div>
               </div>
             ))}
           </div>
 
           {/* Items */}
-          <div className="px-5 py-4 border-b border-[#141414]/15">
+          <div className="px-5 py-4 border-b border-[var(--border)]/15">
             <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-3">
-              {guide.items.length === 1 ? 'PRODUCTO' : `PRODUCTOS — ${guide.items.length} LÍNEAS`}
+              {guide.items.length === 1 ? 'PRODUCTO' : `PRODUCTOS · ${guide.items.length} L-NEAS`}
             </div>
             {guide.items.length === 1 ? (
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="font-mono font-black text-base text-[#141414] uppercase leading-tight truncate">{guide.items[0].productName}</div>
+                  <div className="font-mono font-black text-base text-[var(--ink)] uppercase leading-tight truncate">{guide.items[0].productName}</div>
                   <div className="font-mono text-[10px] opacity-50 mt-0.5">{guide.items[0].productCode}{guide.items[0].serialNumber ? ` · S/N: ${guide.items[0].serialNumber}` : ''}</div>
                 </div>
                 <div className="shrink-0 flex flex-col items-center justify-center px-4 py-2 text-white font-mono font-black" style={{ background: meta.accentColor, minWidth: 72 }}>
@@ -2812,20 +2817,20 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-0 border border-[#141414]/20 overflow-hidden">
+              <div className="flex flex-col gap-0 border border-[var(--border)]/20 overflow-hidden">
                 <div className="grid grid-cols-[auto_1fr_auto] text-[9px] font-mono font-bold uppercase tracking-wider" style={{ background: meta.accentColor, color: 'white' }}>
-                  <div className="px-3 py-2">Código</div>
+                  <div className="px-3 py-2">Codigo</div>
                   <div className="px-3 py-2">Producto</div>
                   <div className="px-3 py-2 text-right">Cant.</div>
                 </div>
                 {guide.items.map((item, i) => (
-                  <div key={i} className="grid grid-cols-[auto_1fr_auto] text-[10px] font-mono border-t border-[#141414]/10 bg-white/60">
+                  <div key={i} className="grid grid-cols-[auto_1fr_auto] text-[10px] font-mono border-t border-[var(--border)]/10 bg-[var(--surface)]">
                     <div className="px-3 py-2 opacity-50 text-[9px]">{item.productCode}</div>
                     <div className="px-3 py-2 font-bold uppercase truncate">{item.productName}</div>
                     <div className="px-3 py-2 font-black text-right">{item.quantity}</div>
                   </div>
                 ))}
-                <div className="grid grid-cols-[1fr_auto] bg-[#f5f4f1] border-t border-[#141414]/20 font-mono font-black text-[11px]">
+                <div className="grid grid-cols-[1fr_auto] bg-[var(--bg-modal)] border-t border-[var(--border)]/20 font-mono font-black text-[11px]">
                   <div className="px-3 py-2 opacity-50 uppercase text-[9px] tracking-widest self-center">TOTAL</div>
                   <div className="px-3 py-2 text-right" style={{ color: meta.accentColor }}>{totalQty} UND</div>
                 </div>
@@ -2835,13 +2840,13 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
 
           {/* Movement */}
           {(guide.fromLocation || guide.toLocation) && (
-            <div className="px-5 py-4 border-b border-[#141414]/15">
+            <div className="px-5 py-4 border-b border-[var(--border)]/15">
               <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-3">MOVIMIENTO</div>
               <div className="flex items-stretch gap-0">
                 {guide.fromLocation && (
-                  <div className="flex-1 border border-[#141414]/20 bg-[#fafaf9] px-3 py-2.5">
+                  <div className="flex-1 border border-[var(--border)]/20 bg-[var(--bg-card-alt)] px-3 py-2.5">
                     <div className="font-mono text-[7px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">ORIGEN</div>
-                    <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{guide.fromLocation}</div>
+                    <div className="font-mono font-black text-[11px] text-[var(--ink)] uppercase">{guide.fromLocation}</div>
                   </div>
                 )}
                 {guide.fromLocation && guide.toLocation && (
@@ -2850,9 +2855,9 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
                   </div>
                 )}
                 {guide.toLocation && (
-                  <div className="flex-1 border border-[#141414]/20 bg-[#fafaf9] px-3 py-2.5">
+                  <div className="flex-1 border border-[var(--border)]/20 bg-[var(--bg-card-alt)] px-3 py-2.5">
                     <div className="font-mono text-[7px] font-bold tracking-[0.2em] opacity-40 uppercase mb-1">DESTINO</div>
-                    <div className="font-mono font-black text-[11px] text-[#141414] uppercase">{guide.toLocation}</div>
+                    <div className="font-mono font-black text-[11px] text-[var(--ink)] uppercase">{guide.toLocation}</div>
                   </div>
                 )}
               </div>
@@ -2861,9 +2866,9 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
 
           {/* Signature */}
           {guide.signature && (
-            <div className="px-5 py-4 border-b border-[#141414]/15">
+            <div className="px-5 py-4 border-b border-[var(--border)]/15">
               <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-2">FIRMA DE CONFORMIDAD</div>
-              <div className="border border-[#141414]/20 bg-[#fafaf9] p-2">
+              <div className="border border-[var(--border)]/20 bg-[var(--bg-card-alt)] p-2">
                 <img src={guide.signature} alt="firma" className="h-16 w-full object-contain" />
               </div>
             </div>
@@ -2871,33 +2876,33 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
 
           {/* Photo */}
           {guide.photo && (
-            <div className="px-5 py-4 border-b border-[#141414]/15">
-              <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-2">EVIDENCIA FOTOGRÁFICA</div>
-              <div className="border border-[#141414]/20 bg-[#fafaf9] p-1">
+            <div className="px-5 py-4 border-b border-[var(--border)]/15">
+              <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-35 uppercase mb-2">EVIDENCIA FOTOGR-FICA</div>
+              <div className="border border-[var(--border)]/20 bg-[var(--bg-card-alt)] p-1">
                 <img src={guide.photo} alt="evidencia" className="max-h-40 w-full object-contain" />
               </div>
             </div>
           )}
 
           {/* Footer stamp */}
-          <div className="px-5 py-3 flex items-center justify-between bg-[#fafaf9]">
-            <div className="font-mono text-[8px] opacity-30 tracking-widest uppercase">LogixZazu v3.0 // Documento generado automáticamente</div>
+          <div className="px-5 py-3 flex items-center justify-between bg-[var(--bg-card-alt)]">
+            <div className="font-mono text-[8px] opacity-30 tracking-widest uppercase">LogixZazu v3.0 // Documento generado autom-ticamente</div>
             <div className="font-mono font-black text-[8px] tracking-widest uppercase px-3 py-1.5 border-2" style={{ borderColor: meta.accentColor, color: meta.accentColor }}>
-              ✓ REGISTRADO
+              ? REGISTRADO
             </div>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="border-t-2 border-[#141414] p-3 flex gap-2 bg-[#f5f4f1]">
+        <div className="border-t-2 border-[var(--border)] p-3 flex gap-2 bg-[var(--bg-modal)]">
           <button
             onClick={handlePrint}
             className="flex-1 flex items-center justify-center gap-2 text-white py-2.5 text-[10px] font-bold font-mono uppercase transition-all hover:opacity-90"
             style={{ background: meta.accentColor }}
           >
-            <Printer size={13} /> IMPRIMIR GUÍA
+            <Printer size={13} /> IMPRIMIR GU-A
           </button>
-          <button onClick={onClose} className="flex-1 border-2 border-[#141414] py-2.5 text-[10px] font-bold font-mono uppercase hover:bg-white transition-all text-[#141414]">
+          <button onClick={onClose} className="flex-1 border-2 border-[var(--border)] py-2.5 text-[10px] font-bold font-mono uppercase hover:bg-[var(--bg-input)] transition-all text-[var(--ink)]">
             CERRAR
           </button>
         </div>

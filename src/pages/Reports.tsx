@@ -11,13 +11,13 @@ type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc
 const REPORT_TITLES: Record<ReportType, string> = {
   inventory: 'INVENTARIO VALORIZADO',
   movements: 'MOVIMIENTOS POR PROVEEDOR',
-  valuation: 'VALORIZACIÓN POR MARCA',
+  valuation: 'VALORIZACION POR MARCA',
   adjustments: 'HISTORIAL DE AJUSTES',
-  abc: 'ANÁLISIS ABC DE ROTACIÓN',
-  aging: 'ANTIGÜEDAD DE STOCK',
+  abc: 'ANALISIS ABC DE ROTACION',
+  aging: 'ANTIG-EDAD DE STOCK',
 };
 
-// ─── Menú desplegable de exportación ─────────────────────────────────────────
+// --- Men- desplegable de exportacion -----------------------------------------
 
 function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () => void; onCSV: () => void }) {
   const [open, setOpen] = useState(false);
@@ -35,29 +35,29 @@ function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () 
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 border border-[#141414] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-white/60 transition-all"
+        className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-[var(--surface)] transition-all"
       >
         <Download size={13} /> Exportar <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-[#E4E3E0] border border-[#141414] shadow-[3px_3px_0_#141414] min-w-[160px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-[var(--bg)] border border-[var(--border)] shadow-[3px_3px_0_var(--border)] min-w-[160px]">
           <button
             onClick={() => { onPDF(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
           >
             <Printer size={12} /> PDF
           </button>
-          <div className="border-t border-[#141414]/20" />
+          <div className="border-t border-[var(--border)]/20" />
           <button
             onClick={() => { onExcel(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
           >
             <FileSpreadsheet size={12} /> Excel (.xlsx)
           </button>
-          <div className="border-t border-[#141414]/20" />
+          <div className="border-t border-[var(--border)]/20" />
           <button
             onClick={() => { onCSV(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors text-left"
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
           >
             <FileText size={12} /> CSV
           </button>
@@ -67,7 +67,7 @@ function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () 
   );
 }
 
-// ─── Módulo principal ─────────────────────────────────────────────────────────
+// --- M-dulo principal ---------------------------------------------------------
 
 export const Reports: React.FC = () => {
   const { products, stockLevels, transactions, contacts, adjustments, locations, activeBrand } = useAppContext();
@@ -146,14 +146,14 @@ export const Reports: React.FC = () => {
     return rows.sort((a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999));
   }, [products, transactions, stockLevels, agingDays]);
 
-  // ─── Datos planos para CSV / Excel ─────────────────────────────────────────
+  // --- Datos planos para CSV / Excel -----------------------------------------
 
   const getSheetData = (): { headers: string[]; rows: (string | number | null)[][] } => {
     switch (activeReport) {
       case 'inventory': {
         const totalUnits = inventoryRows.reduce((s, r) => s + r.qty, 0);
         return {
-          headers: ['Código', 'Nombre', 'Color', 'Talla', 'Categoría', 'Stock', '% Entrada'],
+          headers: ['Codigo', 'Nombre', 'Color', 'Talla', 'Categor-a', 'Stock', '% Entrada'],
           rows: inventoryRows.map(r => [
             r.code, r.name, r.color || '', r.size || '', r.category,
             r.qty, totalUnits > 0 ? +((r.qty / totalUnits) * 100).toFixed(1) : 0,
@@ -162,7 +162,7 @@ export const Reports: React.FC = () => {
       }
       case 'movements':
         return {
-          headers: ['Proveedor', 'Fecha', 'Referencia', 'Producto', 'Código', 'Color', 'Talla', 'Cantidad'],
+          headers: ['Proveedor', 'Fecha', 'Referencia', 'Producto', 'Codigo', 'Color', 'Talla', 'Cantidad'],
           rows: movementsBySupplier.flatMap(({ supplier, txs }) =>
             txs.map(tx => {
               const prod = products.find(p => p.id === tx.productId);
@@ -189,7 +189,7 @@ export const Reports: React.FC = () => {
         };
       case 'adjustments':
         return {
-          headers: ['Fecha', 'Producto', 'Código', 'Ubicación', 'Antes', 'Después', 'Diferencia', 'Motivo', 'Notas', 'Usuario'],
+          headers: ['Fecha', 'Producto', 'Codigo', 'Ubicacion', 'Antes', 'Despu-s', 'Diferencia', 'Motivo', 'Notas', 'Usuario'],
           rows: filteredAdj.map(a => {
             const prod = products.find(p => p.id === a.productId);
             const loc = locations.find(l => l.id === a.locationId);
@@ -209,7 +209,7 @@ export const Reports: React.FC = () => {
         };
       case 'abc':
         return {
-          headers: ['Clase', 'Código', 'Producto', 'Color', 'Talla', 'Despachos', '% Volumen'],
+          headers: ['Clase', 'Codigo', 'Producto', 'Color', 'Talla', 'Despachos', '% Volumen'],
           rows: abcData.map(r => [
             r.cls, r.prod.code, r.prod.name, r.prod.color || '', r.prod.size || '',
             r.dispatched, +r.pct.toFixed(2),
@@ -217,7 +217,7 @@ export const Reports: React.FC = () => {
         };
       case 'aging':
         return {
-          headers: ['Código', 'Producto', 'Color', 'Talla', 'Stock', 'Último Despacho', 'Días sin movimiento'],
+          headers: ['Codigo', 'Producto', 'Color', 'Talla', 'Stock', 'ultimo Despacho', 'D-as sin movimiento'],
           rows: agingData.map(r => [
             r.prod.code, r.prod.name, r.prod.color || '', r.prod.size || '',
             r.stock,
@@ -228,7 +228,7 @@ export const Reports: React.FC = () => {
     }
   };
 
-  // ─── Exportar CSV ───────────────────────────────────────────────────────────
+  // --- Exportar CSV -----------------------------------------------------------
 
   const exportCSV = () => {
     const { headers, rows } = getSheetData();
@@ -237,7 +237,7 @@ export const Reports: React.FC = () => {
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const csv = [headers, ...rows].map(row => row.map(escape).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['?' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -246,13 +246,13 @@ export const Reports: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // ─── Exportar Excel ─────────────────────────────────────────────────────────
+  // --- Exportar Excel ---------------------------------------------------------
 
   const exportExcel = () => {
     const { headers, rows } = getSheetData();
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
-    // Ancho de columnas automático
+    // Ancho de columnas autom-tico
     const colWidths = headers.map((h, i) => {
       const maxLen = Math.max(h.length, ...rows.map(r => String(r[i] ?? '').length));
       return { wch: Math.min(maxLen + 2, 40) };
@@ -264,9 +264,9 @@ export const Reports: React.FC = () => {
     XLSX.writeFile(wb, `${activeReport}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
 
-  // ─── Exportar PDF ───────────────────────────────────────────────────────────
+  // --- Exportar PDF -----------------------------------------------------------
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     const now = format(new Date(), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
     const title = REPORT_TITLES[activeReport];
     const brand = activeBrand.replace('_', ' ');
@@ -281,12 +281,14 @@ export const Reports: React.FC = () => {
       return '';
     })();
 
-    // Logo SVG inline Zazu Express (purple square)
-    const logoSVG = `<svg width="90" height="60" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg">
-      <rect width="90" height="60" fill="#6B21A8" rx="4"/>
-      <text x="45" y="32" font-family="Arial Black,sans-serif" font-size="22" font-weight="900" fill="white" text-anchor="middle" letter-spacing="1">zazu</text>
-      <text x="45" y="47" font-family="Arial,sans-serif" font-size="9" fill="#e9d5ff" text-anchor="middle" letter-spacing="3">express</text>
-    </svg>`;
+    // Logo Zazu Express — inventory variant (light, PDF is always white bg)
+    const logoB64 = await fetch('/Zazu/inv/zazu-inv-light.png')
+      .then(r => r.blob())
+      .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
+      .catch(() => '');
+    const logoSVG = logoB64
+      ? `<img src="${logoB64}" style="width:70px;height:70px;object-fit:contain" />`
+      : `<svg width="90" height="60" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="60" fill="#6B21A8" rx="4"/><text x="45" y="32" font-family="Arial Black,sans-serif" font-size="22" font-weight="900" fill="white" text-anchor="middle">zazu</text><text x="45" y="47" font-family="Arial,sans-serif" font-size="9" fill="#e9d5ff" text-anchor="middle" letter-spacing="3">express</text></svg>`;
 
     // CSS compartido para todos los reportes
     const sharedCSS = `
@@ -296,21 +298,21 @@ export const Reports: React.FC = () => {
       @page { size: A4; margin: 14mm 12mm; }
       @media print { body { padding: 0; } }
 
-      /* ── Header ── */
+      /* -- Header -- */
       .doc-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }
-      .doc-logo { flex-shrink: 0; }
+      .doc-logo { flex-shrink: 0; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; }
       .doc-company { flex: 1; padding-top: 4px; }
       .doc-company .name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; line-height: 1.3; }
       .doc-company .ruc { font-size: 11px; font-weight: 700; margin-top: 4px; }
       .doc-meta { text-align: right; font-size: 9px; color: #666; line-height: 1.7; }
       .doc-brand { display: inline-block; background: #6B21A8; color: white; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 3px; margin-top: 4px; letter-spacing: .08em; }
 
-      /* ── Título ── */
+      /* -- T-tulo -- */
       .doc-title { text-align: center; margin: 20px 0 10px; }
       .doc-title h1 { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
       .doc-date { text-align: center; font-size: 11px; font-weight: 700; margin-bottom: 22px; }
 
-      /* ── Tabla pivote (modelo × talla) ── */
+      /* -- Tabla pivote (modelo · talla) -- */
       table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
       thead th { background: #e8e8e8; padding: 7px 10px; text-align: center; font-weight: 700; font-size: 10px; text-transform: uppercase; border: 1px solid #ccc; }
       thead th.col-model { text-align: left; min-width: 160px; }
@@ -321,7 +323,7 @@ export const Reports: React.FC = () => {
       tfoot td { padding: 7px 10px; border: 1px solid #ccc; text-align: center; font-weight: 900; background: #e0e0e0; font-size: 11px; }
       tfoot td.col-model { text-align: left; }
 
-      /* ── Summary cards ── */
+      /* -- Summary cards -- */
       .summary { display: grid; gap: 10px; margin-bottom: 22px; }
       .card { border: 1.5px solid #ddd; padding: 11px 14px; border-radius: 4px; }
       .card.dark { background: #111; color: white; }
@@ -330,7 +332,7 @@ export const Reports: React.FC = () => {
       .card .value { font-size: 22px; font-weight: 900; line-height: 1; }
       .card .hint { font-size: 8px; opacity: .45; text-transform: uppercase; margin-top: 3px; }
 
-      /* ── Tabla estándar ── */
+      /* -- Tabla est-ndar -- */
       .std-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
       .std-table thead th { background: #111; color: white; padding: 8px 10px; text-align: left; font-size: 8px; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; }
       .std-table th.c, .std-table td.c { text-align: center; }
@@ -340,12 +342,12 @@ export const Reports: React.FC = () => {
       .std-table tbody tr:nth-child(even) td { background: #fafafa; }
       .std-table tfoot td { padding: 8px 10px; font-weight: 700; border-top: 2px solid #111; background: #f5f5f5; }
 
-      /* ── ABC chips ── */
+      /* -- ABC chips -- */
       .cls-a { color: #15803d; font-weight: 900; }
       .cls-b { color: #b45309; font-weight: 900; }
       .cls-c { opacity: .55; }
 
-      /* ── Footer ── */
+      /* -- Footer -- */
       .doc-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 8px; color: #aaa; }
     `;
 
@@ -353,7 +355,7 @@ export const Reports: React.FC = () => {
       <div class="doc-header">
         <div class="doc-logo">${logoSVG}</div>
         <div class="doc-company">
-          <div class="name">Tecnología y Distribución Logística<br>del Perú S.A.C.</div>
+          <div class="name">Tecnolog-a y Distribucion Log-stica<br>del Per- S.A.C.</div>
           <div class="ruc">RUC: 20614699842</div>
         </div>
         <div class="doc-meta">
@@ -369,10 +371,10 @@ export const Reports: React.FC = () => {
 
     const dateRange = dateRangeLabel;
 
-    // ── Contenido específico por reporte ──
+    // -- Contenido espec-fico por reporte --
     let bodyHTML = '';
 
-    // Helper: construye tabla pivote MODELO × TALLA con totales
+    // Helper: construye tabla pivote MODELO · TALLA con totales
     const buildPivotTable = (
       rows: { model: string; size: string; qty: number }[],
       rowLabel = 'MODELO'
@@ -425,7 +427,7 @@ export const Reports: React.FC = () => {
     };
 
     if (activeReport === 'inventory') {
-      // Tabla pivote: modelo × talla, cantidad en stock
+      // Tabla pivote: modelo · talla, cantidad en stock
       const pivotRows = inventoryRows.map(r => ({
         model: r.name,
         size: r.size?.trim() || 'S/T',
@@ -434,7 +436,7 @@ export const Reports: React.FC = () => {
       const summaryCards = `
         <div class="summary" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px;">
           <div class="card"><div class="label">SKUs con stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
-          <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
+          <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacen</div></div>
         </div>`;
       bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO');
     }
@@ -445,7 +447,7 @@ export const Reports: React.FC = () => {
         <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
           <div class="card purple"><div class="label">Proveedores</div><div class="value">${movementsBySupplier.length}</div><div class="hint">con recepciones</div></div>
           <div class="card dark"><div class="label">Total unidades</div><div class="value">${totalUnits.toLocaleString('es-PE')}</div><div class="hint">recepcionadas</div></div>
-          <div class="card"><div class="label">Transacciones</div><div class="value">${movementsBySupplier.reduce((s, m) => s + m.txs.length, 0)}</div><div class="hint">en el período</div></div>
+          <div class="card"><div class="label">Transacciones</div><div class="value">${movementsBySupplier.reduce((s, m) => s + m.txs.length, 0)}</div><div class="hint">en el per-odo</div></div>
         </div>`;
       const tablesHTML = movementsBySupplier.map(({ supplier, txs, total }) => {
         const pivotRows = txs.map(tx => {
@@ -459,7 +461,7 @@ export const Reports: React.FC = () => {
             </div>
             ${buildPivotTable(pivotRows, 'MODELO')}
           </div>`;
-      }).join('') || '<p style="text-align:center;padding:32px;opacity:.5;">Sin recepciones en el período</p>';
+      }).join('') || '<p style="text-align:center;padding:32px;opacity:.5;">Sin recepciones en el per-odo</p>';
       bodyHTML = summaryCards + tablesHTML;
     }
 
@@ -467,7 +469,7 @@ export const Reports: React.FC = () => {
       bodyHTML = `
         <div class="summary" style="grid-template-columns:repeat(2,1fr)">
           <div class="card"><div class="label">SKUs activos</div><div class="value">${inventoryRows.length}</div><div class="hint">con stock</div></div>
-          <div class="card purple"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacén</div></div>
+          <div class="card purple"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacen</div></div>
         </div>`;
     }
 
@@ -476,7 +478,7 @@ export const Reports: React.FC = () => {
       const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
       const summaryCards = `
         <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card purple"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el período</div></div>
+          <div class="card purple"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el per-odo</div></div>
           <div class="card"><div class="label">Incrementos</div><div class="value" style="color:#16a34a">+${pos}</div><div class="hint">stock sumado</div></div>
           <div class="card"><div class="label">Decrementos</div><div class="value" style="color:#dc2626">${neg}</div><div class="hint">stock reducido</div></div>
         </div>`;
@@ -487,7 +489,7 @@ export const Reports: React.FC = () => {
         return `<tr>
           <td>${format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
           <td><strong>${prod?.code||''}</strong> ${prod?.name||a.productId}</td>
-          <td style="opacity:.7">${loc?.name||'—'}</td>
+          <td style="opacity:.7">${loc?.name||'-'}</td>
           <td class="c">${a.previousQuantity}</td>
           <td class="c" style="font-weight:700">${a.newQuantity}</td>
           <td class="c" style="font-weight:700;color:${diff>0?'#16a34a':diff<0?'#dc2626':'#888'}">${diff>0?'+':''}${diff}</td>
@@ -497,8 +499,8 @@ export const Reports: React.FC = () => {
       }).join('');
       bodyHTML = summaryCards + `
         <table class="std-table">
-          <thead><tr><th>Fecha</th><th>Producto</th><th>Ubicación</th><th class="c">Antes</th><th class="c">Después</th><th class="c">Diff</th><th>Motivo</th><th>Usuario</th></tr></thead>
-          <tbody>${bodyRows||'<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el período</td></tr>'}</tbody>
+          <thead><tr><th>Fecha</th><th>Producto</th><th>Ubicacion</th><th class="c">Antes</th><th class="c">Despu-s</th><th class="c">Diff</th><th>Motivo</th><th>Usuario</th></tr></thead>
+          <tbody>${bodyRows||'<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el per-odo</td></tr>'}</tbody>
         </table>`;
     }
 
@@ -508,9 +510,9 @@ export const Reports: React.FC = () => {
       const cItems = abcData.filter(r => r.cls === 'C');
       const summaryCards = `
         <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card" style="border-color:#15803d;background:#f0fdf4"><div class="label" style="color:#15803d">Clase A — Alta rotación</div><div class="value" style="color:#15803d">${aItems.length} SKUs</div><div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
-          <div class="card" style="border-color:#b45309;background:#fffbeb"><div class="label" style="color:#b45309">Clase B — Media</div><div class="value" style="color:#b45309">${bItems.length} SKUs</div><div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
-          <div class="card dark"><div class="label">Clase C — Baja</div><div class="value">${cItems.length} SKUs</div><div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
+          <div class="card" style="border-color:#15803d;background:#f0fdf4"><div class="label" style="color:#15803d">Clase A · Alta rotacion</div><div class="value" style="color:#15803d">${aItems.length} SKUs</div><div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
+          <div class="card" style="border-color:#b45309;background:#fffbeb"><div class="label" style="color:#b45309">Clase B · Media</div><div class="value" style="color:#b45309">${bItems.length} SKUs</div><div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
+          <div class="card dark"><div class="label">Clase C · Baja</div><div class="value">${cItems.length} SKUs</div><div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
         </div>`;
       const clsStyle: Record<string,string> = { A:'color:#15803d', B:'color:#b45309', C:'opacity:.5' };
       const bodyRows = abcData.map(r => `
@@ -531,8 +533,8 @@ export const Reports: React.FC = () => {
       const critical = agingData.filter(r => r.daysSince !== null && r.daysSince >= 90).length;
       const summaryCards = `
         <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card purple"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">≥${agingDays} días sin movimiento</div></div>
-          <div class="card" style="${critical>0?'border-color:#dc2626;background:#fef2f2':''}"><div class="label">Críticos ≥90d</div><div class="value" style="color:${critical>0?'#dc2626':'#111'}">${critical}</div><div class="hint">alta prioridad</div></div>
+          <div class="card purple"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">=${agingDays} dias sin movimiento</div></div>
+          <div class="card" style="${critical>0?'border-color:#dc2626;background:#fef2f2':''}"><div class="label">Cr-ticos =90d</div><div class="value" style="color:${critical>0?'#dc2626':'#111'}">${critical}</div><div class="hint">alta prioridad</div></div>
           <div class="card"><div class="label">Unidades paradas</div><div class="value">${agingData.reduce((s,r)=>s+r.stock,0).toLocaleString('es-PE')}</div><div class="hint">en stock sin salida</div></div>
         </div>`;
       const bodyRows = agingData.map(r => {
@@ -540,20 +542,20 @@ export const Reports: React.FC = () => {
         return `<tr>
           <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.size].filter(Boolean).join(' ')}</span></td>
           <td class="c" style="font-weight:700">${r.stock}</td>
-          <td class="c" style="opacity:.7">${r.lastDispatch?format(new Date(r.lastDispatch),'dd/MM/yyyy'):'—'}</td>
+          <td class="c" style="opacity:.7">${r.lastDispatch?format(new Date(r.lastDispatch),'dd/MM/yyyy'):'-'}</td>
           <td class="c" style="font-weight:700;color:${daysColor}">${r.daysSince!==null?r.daysSince:'Sin despachos'}</td>
         </tr>`;
       }).join('');
       bodyHTML = summaryCards + `
         <table class="std-table">
-          <thead><tr><th>Producto</th><th class="c">Stock</th><th class="c">Último despacho</th><th class="c">Días sin movimiento</th></tr></thead>
+          <thead><tr><th>Producto</th><th class="c">Stock</th><th class="c">ultimo despacho</th><th class="c">D-as sin movimiento</th></tr></thead>
           <tbody>${bodyRows||'<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin productos estancados</td></tr>'}</tbody>
         </table>`;
     }
 
     const html = `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
-<title>${title} — LogixZazu</title>
+<title>${title} · LogixZazu</title>
 <style>${sharedCSS}</style>
 </head><body>
 ${headerHTML}
@@ -569,7 +571,7 @@ ${footerHTML}
     setTimeout(() => { win.print(); win.close(); }, 600);
   };
 
-  // ─── Datos Kanban por reporte ──────────────────────────────────────────────
+  // --- Datos Kanban por reporte ----------------------------------------------
 
   type KanbanCol = {
     key: string;
@@ -584,9 +586,9 @@ ${footerHTML}
   const kanbanCols = useMemo((): KanbanCol[] => {
     if (activeReport === 'abc') {
       const defs = [
-        { key: 'A', label: 'Clase A', sublabel: 'Alta rotación', headerBg: 'bg-[#14532d]', headerText: 'text-[#f0fdf4]', accentCss: '#16a34a' },
-        { key: 'B', label: 'Clase B', sublabel: 'Rotación media', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706' },
-        { key: 'C', label: 'Clase C', sublabel: 'Baja rotación', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99' },
+        { key: 'A', label: 'Clase A', sublabel: 'Alta rotacion', headerBg: 'bg-[#14532d]', headerText: 'text-[#f0fdf4]', accentCss: '#16a34a' },
+        { key: 'B', label: 'Clase B', sublabel: 'Rotacion media', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706' },
+        { key: 'C', label: 'Clase C', sublabel: 'Baja rotacion', headerBg: 'bg-[var(--ink)]', headerText: 'text-[var(--ink-inv)]', accentCss: '#9f9d99' },
       ];
       return defs.map(d => {
         const rows = abcData.filter(r => r.cls === d.key);
@@ -613,13 +615,13 @@ ${footerHTML}
         const rows = inventoryRows.filter(r => r.category === cat);
         const totalQty = rows.reduce((s, r) => s + r.qty, 0);
         const totalSell = rows.reduce((s, r) => s + r.totalSell, 0);
-        const hues = ['bg-[#141414]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]', 'bg-[#3d2b00]'];
+        const hues = ['bg-[var(--ink)]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]', 'bg-[#3d2b00]'];
         return {
           key: cat,
-          label: cat || 'Sin categoría',
+          label: cat || 'Sin categoria',
           sublabel: `${rows.length} SKUs · ${totalQty} uds · S/ ${totalSell.toFixed(0)}`,
           headerBg: hues[i % hues.length],
-          headerText: 'text-[#E4E3E0]',
+          headerText: 'text-[var(--ink-inv)]',
           accentCss: '#9f9d99',
           items: rows.map(r => ({
             id: r.id,
@@ -636,13 +638,13 @@ ${footerHTML}
 
     if (activeReport === 'aging') {
       const defs = [
-        { key: 'critical', label: '≥90 días', sublabel: 'Crítico — acción inmediata', headerBg: 'bg-[#7f1d1d]', headerText: 'text-[#fef2f2]', accentCss: '#dc2626',
+        { key: 'critical', label: '=90 dias', sublabel: 'Cr-tico · accion inmediata', headerBg: 'bg-[#7f1d1d]', headerText: 'text-[#fef2f2]', accentCss: '#dc2626',
           filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince >= 90 },
-        { key: 'warning', label: '30–89 días', sublabel: 'Alerta — revisar pronto', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706',
+        { key: 'warning', label: '30-89 dias', sublabel: 'Alerta · revisar pronto', headerBg: 'bg-[#78350f]', headerText: 'text-[#fffbeb]', accentCss: '#d97706',
           filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince >= 30 && r.daysSince < 90 },
-        { key: 'low', label: '<30 días', sublabel: 'Estancado — monitorear', headerBg: 'bg-[#374151]', headerText: 'text-[#f9fafb]', accentCss: '#6b7280',
+        { key: 'low', label: '<30 dias', sublabel: 'Estancado · monitorear', headerBg: 'bg-[#374151]', headerText: 'text-[#f9fafb]', accentCss: '#6b7280',
           filter: (r: typeof agingData[0]) => r.daysSince !== null && r.daysSince < 30 },
-        { key: 'never', label: 'Sin despachos', sublabel: 'Nunca despachado', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99',
+        { key: 'never', label: 'Sin despachos', sublabel: 'Nunca despachado', headerBg: 'bg-[var(--ink)]', headerText: 'text-[var(--ink-inv)]', accentCss: '#9f9d99',
           filter: (r: typeof agingData[0]) => r.daysSince === null },
       ];
       return defs.map(d => {
@@ -660,7 +662,7 @@ ${footerHTML}
             code: r.prod.code,
             name: r.prod.name,
             sub: [r.prod.color, r.prod.size].filter(Boolean).join(' · '),
-            badge: r.daysSince !== null ? `${r.daysSince}d` : '—',
+            badge: r.daysSince !== null ? `${r.daysSince}d` : '-',
             detail: `Stock: ${r.stock} uds`,
           })),
         };
@@ -673,7 +675,7 @@ ${footerHTML}
           filter: (a: typeof filteredAdj[0]) => a.newQuantity > a.previousQuantity },
         { key: 'down', label: 'Decrementos', sublabel: 'Stock reducido', headerBg: 'bg-[#7f1d1d]', headerText: 'text-[#fef2f2]', accentCss: '#dc2626',
           filter: (a: typeof filteredAdj[0]) => a.newQuantity < a.previousQuantity },
-        { key: 'zero', label: 'Sin cambio', sublabel: 'Misma cantidad', headerBg: 'bg-[#141414]', headerText: 'text-[#E4E3E0]', accentCss: '#9f9d99',
+        { key: 'zero', label: 'Sin cambio', sublabel: 'Misma cantidad', headerBg: 'bg-[var(--ink)]', headerText: 'text-[var(--ink-inv)]', accentCss: '#9f9d99',
           filter: (a: typeof filteredAdj[0]) => a.newQuantity === a.previousQuantity },
       ];
       return defs.map(d => {
@@ -703,13 +705,13 @@ ${footerHTML}
 
     if (activeReport === 'movements') {
       return movementsBySupplier.map((m, i) => {
-        const hues = ['bg-[#141414]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]'];
+        const hues = ['bg-[var(--ink)]', 'bg-[#1e3a5f]', 'bg-[#2d1b69]', 'bg-[#1a3a2a]', 'bg-[#4a1942]'];
         return {
           key: m.supplier.id,
           label: m.supplier.name,
           sublabel: `${m.total} uds · ${m.txs.length} recepciones`,
           headerBg: hues[i % hues.length],
-          headerText: 'text-[#E4E3E0]',
+          headerText: 'text-[var(--ink-inv)]',
           accentCss: '#9f9d99',
           items: m.txs.map(tx => {
             const prod = products.find(p => p.id === tx.productId);
@@ -729,7 +731,7 @@ ${footerHTML}
     return [];
   }, [activeReport, abcData, inventoryRows, agingData, filteredAdj, movementsBySupplier, products]);
 
-  // ─── Vista Kanban ──────────────────────────────────────────────────────────
+  // --- Vista Kanban ----------------------------------------------------------
 
   const renderKanban = () => {
     if (activeReport === 'valuation') return null;
@@ -743,7 +745,7 @@ ${footerHTML}
         {kanbanCols.map(col => (
           <div
             key={col.key}
-            className="flex flex-col border border-[#141414] shrink-0"
+            className="flex flex-col border border-[var(--border)] shrink-0"
             style={{ width: `calc((100% - ${(colCount - 1) * 12}px) / ${colCount})`, minWidth: 200 }}
           >
             {/* Cabecera de columna */}
@@ -751,8 +753,8 @@ ${footerHTML}
               <div className="font-mono font-black text-sm uppercase tracking-wide leading-none">{col.label}</div>
               <div className="font-mono text-[8.5px] opacity-70 mt-1.5 leading-tight">{col.sublabel}</div>
               {/* Barra de conteo */}
-              <div className="mt-2 h-0.5 bg-white/20">
-                <div className="h-full bg-white/60" style={{ width: `${Math.min((col.items.length / Math.max(...kanbanCols.map(c => c.items.length), 1)) * 100, 100)}%` }} />
+              <div className="mt-2 h-0.5 bg-[var(--surface-alt)]">
+                <div className="h-full bg-[var(--surface)]" style={{ width: `${Math.min((col.items.length / Math.max(...kanbanCols.map(c => c.items.length), 1)) * 100, 100)}%` }} />
               </div>
             </div>
 
@@ -761,7 +763,7 @@ ${footerHTML}
               {col.items.length === 0
                 ? <div className="py-6 text-center font-mono text-[9px] opacity-30 uppercase">Sin items</div>
                 : col.items.map(item => (
-                  <div key={item.id} className="px-3 py-2.5 hover:bg-white/50 transition-colors bg-white/20 group">
+                  <div key={item.id} className="px-3 py-2.5 hover:bg-[var(--surface)] transition-colors bg-[var(--surface-alt)] group">
                     <div className="flex items-start justify-between gap-1.5">
                       <span className="font-mono font-bold text-[10px] leading-tight">{item.code}</span>
                       <span
@@ -775,7 +777,7 @@ ${footerHTML}
                     {item.sub && <div className="font-mono text-[8px] opacity-45 mt-0.5">{item.sub}</div>}
                     <div className="font-mono text-[8px] opacity-55 mt-1">{item.detail}</div>
                     {item.barPct !== undefined && (
-                      <div className="mt-1.5 h-0.5 bg-[#141414]/10">
+                      <div className="mt-1.5 h-0.5 bg-[var(--ink)]/10">
                         <div className="h-full" style={{ width: `${item.barPct}%`, background: col.accentCss }} />
                       </div>
                     )}
@@ -784,7 +786,7 @@ ${footerHTML}
             </div>
 
             {/* Pie de columna con total */}
-            <div className="px-3 py-1.5 border-t border-[#141414]/20 bg-[#141414]/5">
+            <div className="px-3 py-1.5 border-t border-[var(--border)]/20 bg-[var(--ink)]/5">
               <span className="font-mono text-[8.5px] opacity-50 uppercase tracking-widest">{col.items.length} {col.items.length === 1 ? 'item' : 'items'}</span>
             </div>
           </div>
@@ -793,7 +795,7 @@ ${footerHTML}
     );
   };
 
-  // ─── Kanban en PDF ─────────────────────────────────────────────────────────
+  // --- Kanban en PDF ---------------------------------------------------------
 
   const buildKanbanHTML = () => {
     if (kanbanCols.length === 0) return '';
@@ -815,7 +817,7 @@ ${footerHTML}
           <div style="font-size:7px;opacity:.55;margin-top:2px;">${item.detail}</div>
           ${item.barPct !== undefined ? `<div style="margin-top:4px;height:2px;background:#f0f0f0;"><div style="height:100%;width:${item.barPct}%;background:${accent};"></div></div>` : ''}
         </div>`).join('');
-      const moreItems = col.items.length > 30 ? `<div style="padding:6px 8px;font-size:8px;opacity:.5;text-align:center;">+${col.items.length - 30} más…</div>` : '';
+      const moreItems = col.items.length > 30 ? `<div style="padding:6px 8px;font-size:8px;opacity:.5;text-align:center;">+${col.items.length - 30} mas-</div>` : '';
       return `
         <div style="width:${colPct}%;box-sizing:border-box;border:1.5px solid #141414;display:inline-block;vertical-align:top;margin-right:${kanbanCols.length > 1 ? '8px' : '0'};break-inside:avoid;">
           <div style="background:#141414;color:#E4E3E0;padding:10px 10px 8px;">
@@ -828,7 +830,7 @@ ${footerHTML}
     }).join('');
     return `
       <div class="section-header" style="margin-bottom:10px;">
-        <span>Vista Kanban — Segmentación por grupos</span>
+        <span>Vista Kanban · Segmentacion por grupos</span>
         <span>${kanbanCols.length} columnas</span>
       </div>
       <div style="display:flex;gap:8px;align-items:flex-start;width:100%;">
@@ -836,31 +838,31 @@ ${footerHTML}
       </div>`;
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // --- Render ----------------------------------------------------------------
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      <ModuleInfo number="10" title="Reportes" description="Generación y exportación de reportes operativos: inventario actual, movimientos por período, valorización de stock y alertas de stock bajo mínimo." />
+      <ModuleInfo number="10" title="Reportes" description="Generacion y exportacion de reportes operativos: inventario actual, movimientos por per-odo, valorizacion de stock y alertas de stock bajo m-nimo." />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">11 // REPORTES</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Exportación y visualización de datos.</p>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">11 // REPORTES</h2>
+          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Exportacion y visualizacion de datos.</p>
         </div>
         <div className="flex items-center gap-2">
           {activeReport !== 'valuation' && (
-            <div className="flex border border-[#141414]">
+            <div className="flex border border-[var(--border)]">
               <button
                 onClick={() => setViewMode('list')}
                 title="Vista lista"
-                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}
+                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}
               >
                 <List size={12} /> Lista
               </button>
               <button
                 onClick={() => setViewMode('kanban')}
                 title="Vista kanban"
-                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest border-l border-[#141414] transition-colors ${viewMode === 'kanban' ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}
+                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest border-l border-[var(--border)] transition-colors ${viewMode === 'kanban' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}
               >
                 <LayoutGrid size={12} /> Kanban
               </button>
@@ -875,13 +877,13 @@ ${footerHTML}
         {([
           { id: 'inventory', label: 'Inventario Valorizado', icon: Package },
           { id: 'movements', label: 'Movimientos Proveedor', icon: ArrowLeftRight },
-          { id: 'valuation', label: 'Valorización', icon: BarChart2 },
+          { id: 'valuation', label: 'Valorizacion', icon: BarChart2 },
           { id: 'adjustments', label: 'Ajustes de Stock', icon: Users },
-          { id: 'abc', label: 'Análisis ABC', icon: Star },
-          { id: 'aging', label: 'Antigüedad Stock', icon: Clock },
+          { id: 'abc', label: 'An-lisis ABC', icon: Star },
+          { id: 'aging', label: 'Antig-edad Stock', icon: Clock },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveReport(id)}
-            className={`flex items-center gap-2 p-3 border text-left transition-all ${activeReport === id ? 'bg-[#141414] text-[#E4E3E0] border-[#141414] shadow-[2px_2px_0_#9f9d99]' : 'border-[#141414] bg-white/30 hover:bg-white/60'}`}>
+            className={`flex items-center gap-2 p-3 border text-left transition-all ${activeReport === id ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
             <Icon size={16} className="shrink-0" />
             <span className="font-mono text-[10px] font-bold uppercase leading-tight">{label}</span>
           </button>
@@ -894,16 +896,16 @@ ${footerHTML}
           <div className="flex flex-col gap-1">
             <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Desde</label>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="border border-[#141414] bg-white/50 px-3 py-1.5 text-xs font-mono focus:outline-none" />
+              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-mono focus:outline-none" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Hasta</label>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="border border-[#141414] bg-white/50 px-3 py-1.5 text-xs font-mono focus:outline-none" />
+              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-mono focus:outline-none" />
           </div>
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[10px] opacity-60 hover:opacity-100 mt-4">✕ Limpiar</button>
+              className="font-mono text-[10px] opacity-60 hover:opacity-100 mt-4">? Limpiar</button>
           )}
         </div>
       )}
@@ -918,8 +920,8 @@ ${footerHTML}
           return (
             <table className="w-full text-[10px] font-mono border-collapse">
               <thead>
-                <tr className="border-b-2 border-[#141414]">
-                  <th className="text-left py-2 pr-3 font-bold uppercase">Código</th>
+                <tr className="border-b-2 border-[var(--border)]">
+                  <th className="text-left py-2 pr-3 font-bold uppercase">Codigo</th>
                   <th className="text-left py-2 pr-3 font-bold uppercase">Nombre</th>
                   <th className="text-left py-2 pr-3 font-bold uppercase">Color</th>
                   <th className="text-left py-2 pr-3 font-bold uppercase">Talla</th>
@@ -931,7 +933,7 @@ ${footerHTML}
                 {inventoryRows.map(r => {
                   const pct = totalUnits > 0 ? (r.qty / totalUnits) * 100 : 0;
                   return (
-                    <tr key={r.id} className="border-b border-[#141414]/20 hover:bg-white/40">
+                    <tr key={r.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
                       <td className="py-1.5 pr-3">{r.code}</td>
                       <td className="py-1.5 pr-3">{r.name}</td>
                       <td className="py-1.5 pr-3 opacity-70">{r.color}</td>
@@ -943,7 +945,7 @@ ${footerHTML}
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-[#141414]">
+                <tr className="border-t-2 border-[var(--border)]">
                   <td colSpan={4} className="py-2 pr-3 font-bold uppercase">TOTAL ({inventoryRows.length} SKUs)</td>
                   <td className="text-right py-2 px-3 font-black">{valuationTotal.units}</td>
                   <td className="text-right py-2 pl-3 font-black">100%</td>
@@ -956,15 +958,15 @@ ${footerHTML}
         {activeReport === 'movements' && (
           <div className="flex flex-col gap-6">
             {movementsBySupplier.length === 0
-              ? <div className="text-center font-mono text-xs opacity-50 py-12 uppercase tracking-widest">Sin recepciones en el período</div>
+              ? <div className="text-center font-mono text-xs opacity-50 py-12 uppercase tracking-widest">Sin recepciones en el per-odo</div>
               : movementsBySupplier.map(({ supplier, txs, total }) => (
-                <div key={supplier.id} className="border border-[#141414]">
-                  <div className="bg-[#141414] text-[#E4E3E0] px-4 py-2 flex justify-between">
+                <div key={supplier.id} className="border border-[var(--border)]">
+                  <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 flex justify-between">
                     <span className="font-mono font-bold text-xs uppercase">{supplier.name}</span>
                     <span className="font-mono text-xs">{total} unidades · {txs.length} recepciones</span>
                   </div>
                   <table className="w-full text-[10px] font-mono border-collapse">
-                    <thead><tr className="border-b border-[#141414]">
+                    <thead><tr className="border-b border-[var(--border)]">
                       <th className="text-left py-1.5 px-3 font-bold uppercase">Fecha</th>
                       <th className="text-left py-1.5 px-3 font-bold uppercase">Referencia</th>
                       <th className="text-left py-1.5 px-3 font-bold uppercase">Producto</th>
@@ -974,7 +976,7 @@ ${footerHTML}
                       {txs.map(tx => {
                         const prod = products.find(p => p.id === tx.productId);
                         return (
-                          <tr key={tx.id} className="border-b border-[#141414]/20 hover:bg-white/40">
+                          <tr key={tx.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
                             <td className="py-1.5 px-3">{format(new Date(tx.date), 'dd/MM/yyyy', { locale: es })}</td>
                             <td className="py-1.5 px-3 opacity-70">{tx.reference}</td>
                             <td className="py-1.5 px-3">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : tx.productId}</td>
@@ -993,11 +995,11 @@ ${footerHTML}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Total SKUs con stock', value: inventoryRows.length.toString(), sub: 'productos activos' },
-              { label: 'Unidades totales', value: valuationTotal.units.toLocaleString(), sub: 'unidades en almacén' },
+              { label: 'Unidades totales', value: valuationTotal.units.toLocaleString(), sub: 'unidades en almacen' },
             ].map(({ label, value, sub }) => (
-              <div key={label} className="border border-[#141414] bg-white/40 p-5">
+              <div key={label} className="border border-[var(--border)] bg-[var(--bg-card)] p-5">
                 <div className="font-mono text-[9px] uppercase tracking-widest opacity-60 mb-2">{label}</div>
-                <div className="font-mono font-black text-2xl text-[#141414]">{value}</div>
+                <div className="font-mono font-black text-2xl text-[var(--ink)]">{value}</div>
                 <div className="font-mono text-[9px] opacity-50 mt-1">{sub}</div>
               </div>
             ))}
@@ -1007,12 +1009,12 @@ ${footerHTML}
         {activeReport === 'adjustments' && (
           <table className="w-full text-[10px] font-mono border-collapse">
             <thead>
-              <tr className="border-b-2 border-[#141414]">
+              <tr className="border-b-2 border-[var(--border)]">
                 <th className="text-left py-2 pr-3 font-bold uppercase">Fecha</th>
                 <th className="text-left py-2 pr-3 font-bold uppercase">Producto</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Ubicación</th>
+                <th className="text-left py-2 pr-3 font-bold uppercase">Ubicacion</th>
                 <th className="text-right py-2 px-3 font-bold uppercase">Antes</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Después</th>
+                <th className="text-right py-2 px-3 font-bold uppercase">Despu-s</th>
                 <th className="text-right py-2 px-3 font-bold uppercase">Diff</th>
                 <th className="text-left py-2 px-3 font-bold uppercase">Motivo</th>
                 <th className="text-left py-2 pl-3 font-bold uppercase">Usuario</th>
@@ -1020,13 +1022,13 @@ ${footerHTML}
             </thead>
             <tbody>
               {filteredAdj.length === 0
-                ? <tr><td colSpan={8} className="text-center py-12 opacity-50 uppercase tracking-widest">Sin ajustes en el período</td></tr>
+                ? <tr><td colSpan={8} className="text-center py-12 opacity-50 uppercase tracking-widest">Sin ajustes en el per-odo</td></tr>
                 : filteredAdj.map(a => {
                   const prod = products.find(p => p.id === a.productId);
                   const loc = locations.find(l => l.id === a.locationId);
                   const diff = a.newQuantity - a.previousQuantity;
                   return (
-                    <tr key={a.id} className="border-b border-[#141414]/20 hover:bg-white/40">
+                    <tr key={a.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
                       <td className="py-1.5 pr-3">{format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
                       <td className="py-1.5 pr-3">{prod ? `${prod.code} ${prod.name}` : a.productId}</td>
                       <td className="py-1.5 pr-3 opacity-70">{loc?.name}</td>
@@ -1049,7 +1051,7 @@ ${footerHTML}
             <div className="flex gap-3 flex-wrap text-[10px] font-mono font-bold">
               {(['A','B','C'] as const).map(cls => {
                 const items = abcData.filter(r => r.cls === cls);
-                const colors = { A: 'bg-green-100 border-green-700 text-green-800', B: 'bg-amber-100 border-amber-700 text-amber-800', C: 'bg-[#f5f5f5] border-[#141414]' };
+                const colors = { A: 'bg-green-500/15 border-green-700 text-green-600', B: 'bg-amber-500/15 border-amber-700 text-amber-600', C: 'bg-[var(--surface)] border-[var(--border)]' };
                 const pctVol = items.reduce((s, r) => s + r.pct, 0);
                 return (
                   <div key={cls} className={`border px-3 py-2 ${colors[cls]}`}>
@@ -1061,7 +1063,7 @@ ${footerHTML}
             </div>
             <table className="w-full text-[10px] font-mono border-collapse">
               <thead>
-                <tr className="border-b-2 border-[#141414]">
+                <tr className="border-b-2 border-[var(--border)]">
                   <th className="text-left py-1.5 pr-3 font-bold uppercase">Clase</th>
                   <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
                   <th className="text-right py-1.5 px-3 font-bold uppercase">Despachos</th>
@@ -1072,7 +1074,7 @@ ${footerHTML}
                 {abcData.map((r, i) => {
                   const clsColors = { A: 'text-green-700', B: 'text-amber-700', C: 'opacity-60' };
                   return (
-                    <tr key={r.prod.id} className={`border-b border-[#141414]/15 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
+                    <tr key={r.prod.id} className={`border-b border-[var(--border)]/15 ${i % 2 === 0 ? '' : 'bg-[var(--surface-alt)]'}`}>
                       <td className={`py-1.5 pr-3 font-black text-base ${clsColors[r.cls as 'A'|'B'|'C']}`}>{r.cls}</td>
                       <td className="py-1.5 pr-3">
                         <span className="font-bold">{r.prod.code}</span>
@@ -1092,33 +1094,33 @@ ${footerHTML}
         {activeReport === 'aging' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-mono text-[9px] font-bold uppercase opacity-60">Mostrar stock sin movimiento en más de</span>
+              <span className="font-mono text-[9px] font-bold uppercase opacity-60">Mostrar stock sin movimiento en mas de</span>
               {[15, 30, 60, 90].map(d => (
                 <button key={d} onClick={() => setAgingDays(d)}
-                  className={`px-3 py-1 text-[9px] font-bold font-mono uppercase border border-[#141414] transition-colors ${agingDays === d ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}>
+                  className={`px-3 py-1 text-[9px] font-bold font-mono uppercase border border-[var(--border)] transition-colors ${agingDays === d ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}>
                   {d}D
                 </button>
               ))}
             </div>
             <table className="w-full text-[10px] font-mono border-collapse">
               <thead>
-                <tr className="border-b-2 border-[#141414]">
+                <tr className="border-b-2 border-[var(--border)]">
                   <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
                   <th className="text-right py-1.5 px-3 font-bold uppercase">Stock</th>
-                  <th className="text-right py-1.5 px-3 font-bold uppercase">Último despacho</th>
-                  <th className="text-right py-1.5 pl-3 font-bold uppercase">Días sin movimiento</th>
+                  <th className="text-right py-1.5 px-3 font-bold uppercase">ultimo despacho</th>
+                  <th className="text-right py-1.5 pl-3 font-bold uppercase">D-as sin movimiento</th>
                 </tr>
               </thead>
               <tbody>
                 {agingData.map((r, i) => (
-                  <tr key={r.prod.id} className={`border-b border-[#141414]/15 ${i % 2 === 0 ? '' : 'bg-white/30'}`}>
+                  <tr key={r.prod.id} className={`border-b border-[var(--border)]/15 ${i % 2 === 0 ? '' : 'bg-[var(--surface-alt)]'}`}>
                     <td className="py-1.5 pr-3">
                       <span className="font-bold">{r.prod.code}</span>
                       <span className="opacity-60 ml-2">{r.prod.name} {r.prod.color} {r.prod.size}</span>
                     </td>
                     <td className="text-right py-1.5 px-3 font-bold">{r.stock}</td>
                     <td className="text-right py-1.5 px-3 opacity-70">
-                      {r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—'}
+                      {r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '-'}
                     </td>
                     <td className={`text-right py-1.5 pl-3 font-bold ${r.daysSince !== null && r.daysSince >= 90 ? 'text-red-600' : r.daysSince !== null && r.daysSince >= 30 ? 'text-amber-700' : ''}`}>
                       {r.daysSince !== null ? r.daysSince : 'Sin despachos'}

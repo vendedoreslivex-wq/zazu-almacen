@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { QRCodeSVG } from 'qrcode.react';
@@ -173,7 +173,7 @@ export const Labels: React.FC = () => {
       const qrValue = getQRValue({ id });
       const barcodeValue = p.code;
       return (
-        <div key={id} className="border border-[#141414] p-2 flex flex-col items-center gap-1 bg-white" style={{ width: LABEL_W[labelSize] }}>
+        <div key={id} className="border border-[var(--border)] p-2 flex flex-col items-center gap-1 bg-[var(--bg-input)]" style={{ width: LABEL_W[labelSize] }}>
           <div className="font-mono text-[7px] font-bold uppercase tracking-widest opacity-60">{activeBrand.replace('_', ' ')}</div>
           {(labelStyle === 'qr' || labelStyle === 'both') && (
             <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} />
@@ -189,11 +189,11 @@ export const Labels: React.FC = () => {
           {(p.color || p.size) && <div className="font-mono text-[7px] opacity-60">{[p.color, p.size].filter(Boolean).join(' / ')}</div>}
           {showCategory && p.category && <div className="font-mono text-[7px] opacity-50 uppercase">{p.category}</div>}
           {showPrice && p.sellPrice != null && (
-            <div className="font-mono text-[9px] font-black border border-[#141414] px-1">
+            <div className="font-mono text-[9px] font-black border border-[var(--border)] px-1">
               S/ {p.sellPrice.toFixed(2)}
             </div>
           )}
-          {showStock && stock > 0 && <div className="font-mono text-[7px] bg-[#141414] text-[#E4E3E0] px-1.5 py-0.5">STOCK: {stock}</div>}
+          {showStock && stock > 0 && <div className="font-mono text-[7px] bg-[var(--ink)] text-[var(--ink-inv)] px-1.5 py-0.5">STOCK: {stock}</div>}
         </div>
       );
     } else {
@@ -201,7 +201,7 @@ export const Labels: React.FC = () => {
       if (!l) return null;
       const qrValue = getQRValue({ id });
       return (
-        <div key={id} className="border border-[#141414] p-2 flex flex-col items-center gap-1 bg-white" style={{ width: LABEL_W[labelSize] }}>
+        <div key={id} className="border border-[var(--border)] p-2 flex flex-col items-center gap-1 bg-[var(--bg-input)]" style={{ width: LABEL_W[labelSize] }}>
           <div className="font-mono text-[7px] font-bold uppercase tracking-widest opacity-60">{activeBrand.replace('_', ' ')}</div>
           {(labelStyle === 'qr' || labelStyle === 'both') && (
             <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} />
@@ -213,7 +213,7 @@ export const Labels: React.FC = () => {
             </div>
           )}
           <div className="font-mono text-[9px] font-black text-center">{l.name}</div>
-          <div className="font-mono text-[7px] opacity-60 bg-[#141414]/10 px-2 py-0.5">{l.type}</div>
+          <div className="font-mono text-[7px] opacity-60 bg-[var(--ink)]/10 px-2 py-0.5">{l.type}</div>
         </div>
       );
     }
@@ -222,45 +222,45 @@ export const Labels: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full">
       <ModuleInfo number="11" title="Etiquetas QR" description="Generación e impresión de etiquetas con código QR y/o código de barras para identificar productos físicamente en el almacén y agilizar las operaciones de picking." />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">12 // ETIQUETAS_QR</h2>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">12 // ETIQUETAS_QR</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Generación e impresión de etiquetas con código QR y de barras.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={labelSize} onChange={e => setLabelSize(e.target.value as 'sm' | 'md' | 'lg')}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="sm">PEQUEÑA</option>
             <option value="md">MEDIANA</option>
             <option value="lg">GRANDE</option>
           </select>
           <button onClick={handlePrint} disabled={selected.size === 0}
-            className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all border border-[#141414] disabled:opacity-30 disabled:cursor-not-allowed">
+            className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)] disabled:opacity-30 disabled:cursor-not-allowed">
             <Printer size={14} /> IMPRIMIR ({selected.size})
           </button>
         </div>
       </div>
 
       {/* Mode toggle */}
-      <div className="flex border border-[#141414]">
+      <div className="flex border border-[var(--border)]">
         <button onClick={() => { setMode('products'); clearSelection(); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all ${mode === 'products' ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white/30 hover:bg-white/60'}`}>
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all ${mode === 'products' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
           <Tag size={13} /> Productos
         </button>
         <button onClick={() => { setMode('locations'); clearSelection(); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all border-l border-[#141414] ${mode === 'locations' ? 'bg-[#141414] text-[#E4E3E0]' : 'bg-white/30 hover:bg-white/60'}`}>
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all border-l border-[var(--border)] ${mode === 'locations' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
           <MapPin size={13} /> Ubicaciones
         </button>
       </div>
 
       {/* Label style + extra fields */}
-      <div className="flex flex-wrap items-center gap-4 border border-[#141414]/30 bg-white/30 p-3">
+      <div className="flex flex-wrap items-center gap-4 border border-[var(--border)]/30 bg-[var(--surface-alt)] p-3">
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">CÓDIGO</span>
-          <div className="flex border border-[#141414]">
+          <div className="flex border border-[var(--border)]">
             {(['qr', 'barcode', 'both'] as LabelStyle[]).map(s => (
               <button key={s} onClick={() => setLabelStyle(s)}
-                className={`px-3 py-1.5 text-[9px] font-bold font-mono uppercase border-r last:border-r-0 border-[#141414] transition-colors ${labelStyle === s ? 'bg-[#141414] text-[#E4E3E0]' : 'hover:bg-white/60'}`}>
+                className={`px-3 py-1.5 text-[9px] font-bold font-mono uppercase border-r last:border-r-0 border-[var(--border)] transition-colors ${labelStyle === s ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}>
                 {s === 'qr' ? 'QR' : s === 'barcode' ? 'BARRAS' : 'AMBOS'}
               </button>
             ))}
@@ -276,7 +276,7 @@ export const Labels: React.FC = () => {
                 { key: 'cat', label: 'CATEGORÍA', value: showCategory, set: setShowCategory },
               ].map(opt => (
                 <button key={opt.key} onClick={() => opt.set(!opt.value)}
-                  className={`px-2 py-1.5 text-[9px] font-bold font-mono uppercase border transition-colors ${opt.value ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414]/40 hover:border-[#141414]'}`}>
+                  className={`px-2 py-1.5 text-[9px] font-bold font-mono uppercase border transition-colors ${opt.value ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)]/40 hover:border-[var(--border)]'}`}>
                   {opt.label}
                 </button>
               ))}
@@ -287,7 +287,7 @@ export const Labels: React.FC = () => {
 
       {/* Search + controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 border border-[#141414] bg-white/50 px-3 py-2 flex-1 min-w-48">
+        <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-3 py-2 flex-1 min-w-48">
           <Search size={13} className="opacity-40 shrink-0" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="bg-transparent flex-1 text-xs font-mono focus:outline-none placeholder:opacity-40" />
@@ -306,7 +306,7 @@ export const Labels: React.FC = () => {
             : item.name;
           return (
             <button key={item.id} onClick={() => toggleSelect(item.id)}
-              className={`text-left px-3 py-2 border text-[10px] font-mono transition-all ${isSelected ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414]/40 bg-white/30 hover:border-[#141414] hover:bg-white/60'}`}>
+              className={`text-left px-3 py-2 border text-[10px] font-mono transition-all ${isSelected ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)]/40 bg-[var(--surface-alt)] hover:border-[var(--border)] hover:bg-[var(--surface)]'}`}>
               <div className="font-bold truncate">{label}</div>
               {mode === 'products' && <div className="opacity-50 text-[8px] mt-0.5">{(item as typeof products[0]).category}</div>}
               {mode === 'locations' && <div className="opacity-50 text-[8px] mt-0.5">{(item as typeof locations[0]).type}</div>}
@@ -317,7 +317,7 @@ export const Labels: React.FC = () => {
 
       {/* Preview */}
       {selected.size > 0 && (
-        <div className="border-t border-[#141414] pt-4">
+        <div className="border-t border-[var(--border)] pt-4">
           <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-3">PREVISUALIZACIÓN</div>
           <div ref={printRef} className="flex flex-wrap gap-3">
             {[...selected].map(id => renderLabel(id))}
@@ -326,7 +326,7 @@ export const Labels: React.FC = () => {
       )}
 
       {selected.size === 0 && (
-        <div className="text-center font-mono text-xs opacity-40 py-8 uppercase tracking-widest border border-dashed border-[#141414]/30">
+        <div className="text-center font-mono text-xs opacity-40 py-8 uppercase tracking-widest border border-dashed border-[var(--border)]/30">
           Selecciona ítems arriba para previsualizar las etiquetas
         </div>
       )}

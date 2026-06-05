@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, XCircle, Package } from 'lucide-react';
@@ -69,12 +69,12 @@ function POCascadeSelector({ products, onAdd }: {
   const anySizeQty = sizes.some(s => parseInt(sizeQtys[s] ?? '', 10) > 0);
   const canAdd = needsSize ? anySizeQty : (!!singleProd && parseInt(qty, 10) > 0);
 
-  const selectCls = "border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none cursor-pointer w-full";
-  const inputCls = "border border-[#141414] bg-white px-2 py-1.5 text-[10px] font-mono focus:outline-none w-full text-center";
+  const selectCls = "border border-[var(--border)] bg-[var(--bg-input)] px-2 py-1.5 text-[10px] font-mono focus:outline-none cursor-pointer w-full";
+  const inputCls = "border border-[var(--border)] bg-[var(--bg-input)] px-2 py-1.5 text-[10px] font-mono focus:outline-none w-full text-center";
 
   return (
-    <div className="flex flex-col gap-2 border border-[#141414]/20 bg-white/40 rounded-sm p-3">
-      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[#141414]/50">Agregar productos</span>
+    <div className="flex flex-col gap-2 border border-[var(--border)]/20 bg-[var(--bg-card)] rounded-sm p-3">
+      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Agregar productos</span>
 
       {/* Modelo */}
       <select value={baseName} onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setSizesCosts({}); setQty(''); setCost(''); }} className={selectCls}>
@@ -94,13 +94,13 @@ function POCascadeSelector({ products, onAdd }: {
       {baseName && colorReady && needsSize && (
         <div className="flex flex-col gap-1">
           <div className="grid grid-cols-[80px_1fr_1fr] gap-1 mb-0.5">
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40">TALLA</span>
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 text-center">CANT.</span>
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 text-center">COSTO U.</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40">TALLA</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40 text-center">CANT.</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40 text-center">COSTO U.</span>
           </div>
           {sizes.map(size => (
             <div key={size} className="grid grid-cols-[80px_1fr_1fr] gap-1 items-center">
-              <span className="font-mono text-[10px] font-black uppercase text-[#141414]">{size}</span>
+              <span className="font-mono text-[10px] font-black uppercase text-[var(--ink)]">{size}</span>
               <input type="number" min="0" placeholder="0"
                 value={sizeQtys[size] ?? ''}
                 onChange={e => setSizeQtys(prev => ({ ...prev, [size]: e.target.value }))}
@@ -128,7 +128,7 @@ function POCascadeSelector({ products, onAdd }: {
 
       {baseName && colorReady && (
         <button type="button" onClick={handleAdd} disabled={!canAdd}
-          className="flex items-center justify-center gap-1.5 border border-[#141414] bg-[#141414] text-[#E4E3E0] hover:bg-white hover:text-[#141414] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest">
+          className="flex items-center justify-center gap-1.5 border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest">
           <Plus size={11} /> AGREGAR
         </button>
       )}
@@ -145,7 +145,7 @@ const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
 };
 
 const STATUS_STYLE: Record<PurchaseOrderStatus, string> = {
-  DRAFT: 'border-[#9f9d99] text-[#9f9d99]',
+  DRAFT: 'border-[var(--border-soft)] text-[var(--ink-50)]',
   APPROVED: 'border-amber-600 text-amber-700',
   PARTIAL: 'border-blue-600 text-blue-700',
   COMPLETED: 'border-green-700 text-green-700',
@@ -256,19 +256,19 @@ export const PurchaseOrders: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full relative">
       <ModuleInfo number="07" title="Órdenes de Compra" description="Gestión de órdenes de compra a proveedores. Crea, aprueba y recibe pedidos; el inventario se actualiza automáticamente al confirmar la recepción." />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">09 // ÓRDENES_COMPRA</h2>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">09 // ÓRDENES_COMPRA</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Gestión de órdenes a proveedores.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS</option>
             {(Object.keys(STATUS_LABEL) as PurchaseOrderStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
           {isAdmin && (
-            <button onClick={openAdd} className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all border border-[#141414]">
+            <button onClick={openAdd} className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)]">
               <Plus size={14} /> NUEVA OC
             </button>
           )}
@@ -284,11 +284,11 @@ export const PurchaseOrders: React.FC = () => {
           const supplier = contacts.find(c => c.id === po.supplierId);
           const isExpanded = expanded === po.id;
           return (
-            <div key={po.id} className="border border-[#141414] bg-white/40">
+            <div key={po.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
               <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExpanded ? null : po.id)}>
                 <div className="flex items-center gap-4 min-w-0 flex-wrap">
                   <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${STATUS_STYLE[po.status]}`}>{STATUS_LABEL[po.status]}</span>
-                  <span className="font-mono font-bold text-sm text-[#141414] shrink-0">{po.reference}</span>
+                  <span className="font-mono font-bold text-sm text-[var(--ink)] shrink-0">{po.reference}</span>
                   <span className="font-mono text-xs opacity-70 shrink-0">{supplier?.name || 'Proveedor desconocido'}</span>
                   <span className="font-mono text-[10px] opacity-50">{format(new Date(po.date), 'dd MMM yyyy', { locale: es })}</span>
                 </div>
@@ -299,11 +299,11 @@ export const PurchaseOrders: React.FC = () => {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-[#141414] p-4 flex flex-col gap-4">
+                <div className="border-t border-[var(--border)] p-4 flex flex-col gap-4">
                   <div className="overflow-x-auto">
                     <table className="w-full text-[10px] font-mono border-collapse">
                       <thead>
-                        <tr className="border-b border-[#141414]">
+                        <tr className="border-b border-[var(--border)]">
                           <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
                           <th className="text-right py-1.5 px-3 font-bold uppercase">Solicitado</th>
                           <th className="text-right py-1.5 px-3 font-bold uppercase">Recibido</th>
@@ -315,7 +315,7 @@ export const PurchaseOrders: React.FC = () => {
                         {po.items.map((item, i) => {
                           const prod = products.find(p => p.id === item.productId);
                           return (
-                            <tr key={i} className="border-b border-[#141414]/20">
+                            <tr key={i} className="border-b border-[var(--border)]/20">
                               <td className="py-1.5 pr-3">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : item.productId}</td>
                               <td className="text-right py-1.5 px-3">{item.quantity}</td>
                               <td className={`text-right py-1.5 px-3 font-bold ${item.receivedQuantity >= item.quantity ? 'text-green-700' : item.receivedQuantity > 0 ? 'text-amber-700' : ''}`}>{item.receivedQuantity}</td>
@@ -326,7 +326,7 @@ export const PurchaseOrders: React.FC = () => {
                         })}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t border-[#141414]">
+                        <tr className="border-t border-[var(--border)]">
                           <td colSpan={4} className="py-1.5 pr-3 font-bold text-right uppercase">Total OC:</td>
                           <td className="text-right py-1.5 pl-3 font-bold">S/ {totalValue(po).toFixed(2)}</td>
                         </tr>
@@ -352,7 +352,7 @@ export const PurchaseOrders: React.FC = () => {
                         </button>
                       )}
                       {isAdmin && (po.status === 'DRAFT' || po.status === 'CANCELLED') && (
-                        <button onClick={() => setConfirmDelete(po.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-[#141414]/30 hover:border-red-600 hover:text-red-600 transition-colors ml-auto">
+                        <button onClick={() => setConfirmDelete(po.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-[var(--border)]/30 hover:border-red-600 hover:text-red-600 transition-colors ml-auto">
                           <Trash2 size={12} /> ELIMINAR
                         </button>
                       )}
@@ -368,8 +368,8 @@ export const PurchaseOrders: React.FC = () => {
       {/* New PO Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center sticky top-0 bg-[#E4E3E0]">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center sticky top-0 bg-[var(--bg)]">
               <span className="font-mono font-bold text-xs uppercase tracking-widest">NUEVA ORDEN DE COMPRA</span>
               <button onClick={() => setShowModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
             </div>
@@ -378,12 +378,12 @@ export const PurchaseOrders: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Referencia *</label>
                   <input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}
-                    className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_#141414]" required />
+                    className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none focus:shadow-[2px_2px_0_var(--border)]" required />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Proveedor *</label>
                   <select value={form.supplierId} onChange={e => setForm(f => ({ ...f, supplierId: e.target.value }))}
-                    className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
+                    className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
                     <option value="">Seleccionar...</option>
                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -392,7 +392,7 @@ export const PurchaseOrders: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ubicación destino</label>
                 <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer">
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer">
                   <option value="">Sin asignar</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
@@ -412,27 +412,27 @@ export const PurchaseOrders: React.FC = () => {
                   <div className="flex flex-col gap-1 mt-1">
                     <div className="grid grid-cols-12 gap-2 px-1 mb-0.5">
                       {['PRODUCTO', 'CANT.', 'COSTO U.', ''].map(h => (
-                        <span key={h} className={`font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/40 ${h === 'PRODUCTO' ? 'col-span-5' : h === '' ? 'col-span-2 text-right' : 'col-span-2 text-center'}`}>{h}</span>
+                        <span key={h} className={`font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40 ${h === 'PRODUCTO' ? 'col-span-5' : h === '' ? 'col-span-2 text-right' : 'col-span-2 text-center'}`}>{h}</span>
                       ))}
                     </div>
                     {form.items.map((item, i) => {
                       if (!item.productId) return null;
                       const prod = products.find(p => p.id === item.productId);
                       return (
-                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-white/60 border border-[#141414]/10 px-2 py-1.5 rounded-sm">
+                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-[var(--surface)] border border-[var(--border)]/10 px-2 py-1.5 rounded-sm">
                           <div className="col-span-5 flex flex-col">
-                            <span className="font-mono text-[10px] font-bold text-[#141414] truncate">{prod?.name ?? '—'}</span>
-                            <span className="font-mono text-[8px] text-[#141414]/50 uppercase">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</span>
+                            <span className="font-mono text-[10px] font-bold text-[var(--ink)] truncate">{prod?.name ?? '—'}</span>
+                            <span className="font-mono text-[8px] text-[var(--ink)]/50 uppercase">{[prod?.color, prod?.size].filter(Boolean).join(' · ')}</span>
                           </div>
                           <div className="col-span-2">
                             <input type="number" min="1" value={item.quantity}
                               onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                              className="w-full border border-[#141414]/20 bg-white px-2 py-1 text-[10px] font-mono focus:outline-none text-center" />
+                              className="w-full border border-[var(--border)]/20 bg-[var(--bg-input)] px-2 py-1 text-[10px] font-mono focus:outline-none text-center" />
                           </div>
                           <div className="col-span-3">
                             <input type="number" min="0" step="0.01" value={item.unitCost}
                               onChange={e => updateItem(i, 'unitCost', parseFloat(e.target.value) || 0)}
-                              className="w-full border border-[#141414]/20 bg-white px-2 py-1 text-[10px] font-mono focus:outline-none" />
+                              className="w-full border border-[var(--border)]/20 bg-[var(--bg-input)] px-2 py-1 text-[10px] font-mono focus:outline-none" />
                           </div>
                           <div className="col-span-2 text-right">
                             <button type="button" onClick={() => removeItem(i)} className="text-red-600 hover:opacity-70 p-1">
@@ -449,12 +449,12 @@ export const PurchaseOrders: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Notas</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all">CREAR OC</button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50">CANCELAR</button>
+                <button type="submit" className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">CREAR OC</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">CANCELAR</button>
               </div>
             </form>
           </div>
@@ -464,8 +464,8 @@ export const PurchaseOrders: React.FC = () => {
       {/* Receive Modal */}
       {receiveModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
               <span className="font-mono font-bold text-xs uppercase tracking-widest">RECIBIR — {receiveModal.reference}</span>
               <button onClick={() => setReceiveModal(null)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
             </div>
@@ -474,23 +474,23 @@ export const PurchaseOrders: React.FC = () => {
                 const prod = products.find(p => p.id === item.productId);
                 const pending = item.quantity - item.receivedQuantity;
                 return (
-                  <div key={i} className="flex items-center justify-between gap-4 border-b border-[#141414]/20 pb-3">
+                  <div key={i} className="flex items-center justify-between gap-4 border-b border-[var(--border)]/20 pb-3">
                     <div className="min-w-0">
                       <div className="font-mono text-xs font-bold truncate">{prod?.code} {prod?.name} {prod?.color} {prod?.size}</div>
                       <div className="font-mono text-[10px] opacity-60">Pendiente: {pending} / {item.quantity}</div>
                     </div>
                     <input type="number" min="0" max={pending} value={receiveQtys[i] ?? pending}
                       onChange={e => setReceiveQtys(q => ({ ...q, [i]: Math.min(pending, parseInt(e.target.value) || 0) }))}
-                      className="w-20 border border-[#141414] bg-white px-2 py-1 text-xs font-mono text-center focus:outline-none" />
+                      className="w-20 border border-[var(--border)] bg-[var(--bg-input)] px-2 py-1 text-xs font-mono text-center focus:outline-none" />
                   </div>
                 );
               })}
               {receiveError && <p className="font-mono text-[10px] text-red-600 font-bold">{receiveError}</p>}
               <div className="flex gap-2 pt-2">
-                <button onClick={confirmReceive} disabled={receiving} className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">
+                <button onClick={confirmReceive} disabled={receiving} className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">
                   {receiving ? 'REGISTRANDO...' : 'CONFIRMAR RECEPCIÓN'}
                 </button>
-                <button onClick={() => setReceiveModal(null)} disabled={receiving} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">CANCELAR</button>
+                <button onClick={() => setReceiveModal(null)} disabled={receiving} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase disabled:opacity-50">CANCELAR</button>
               </div>
             </div>
           </div>
@@ -499,11 +499,11 @@ export const PurchaseOrders: React.FC = () => {
 
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] p-6 max-w-sm w-full">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] p-6 max-w-sm w-full">
             <p className="font-mono text-xs font-bold mb-4">¿Eliminar esta orden de compra?</p>
             <div className="flex gap-2">
               <button onClick={() => { deletePurchaseOrder(confirmDelete); setConfirmDelete(null); }} className="flex-1 bg-red-600 text-white py-2 text-xs font-bold font-mono uppercase">ELIMINAR</button>
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
             </div>
           </div>
         </div>

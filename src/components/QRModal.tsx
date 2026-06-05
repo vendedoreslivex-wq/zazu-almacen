@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
 
@@ -46,11 +46,11 @@ export const QRModal: React.FC<QRModalProps> = ({ item, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-[#E4E3E0] border-2 border-[#141414] shadow-[6px_6px_0_#141414] flex flex-col w-72"
+        className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[6px_6px_0_var(--border)] flex flex-col w-72"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-[#141414] px-4 py-3 flex justify-between items-center bg-[#D4D3D0]">
+        <div className="border-b border-[var(--border)] px-4 py-3 flex justify-between items-center bg-[var(--bg-sidebar)]">
           <span className="font-mono font-bold text-[10px] uppercase tracking-widest">
             {item.kind === 'product' ? 'QR PRODUCTO' : 'QR UBICACIÓN'}
           </span>
@@ -89,10 +89,10 @@ export const QRModal: React.FC<QRModalProps> = ({ item, onClose }) => {
         </div>
 
         {/* Actions */}
-        <div className="border-t border-[#141414] p-3">
+        <div className="border-t border-[var(--border)] p-3">
           <button
             onClick={handlePrint}
-            className="w-full flex items-center justify-center gap-2 bg-[#141414] text-[#E4E3E0] py-2.5 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all"
+            className="w-full flex items-center justify-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all"
           >
             <Printer size={13} /> IMPRIMIR ETIQUETA
           </button>

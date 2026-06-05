@@ -9,10 +9,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const REASON_LABEL: Record<AdjustmentReason, string> = {
-  DAMAGE: 'DAÑO / ROTURA',
-  LOSS: 'MERMA / PÉRDIDA',
-  COUNT: 'CONTEO FÍSICO',
-  RETURN: 'DEVOLUCIÓN',
+  DAMAGE: 'DANO / ROTURA',
+  LOSS: 'MERMA / PERDIDA',
+  COUNT: 'CONTEO FISICO',
+  RETURN: 'DEVOLUCION',
   OTHER: 'OTRO',
 };
 
@@ -21,7 +21,7 @@ const REASON_COLOR: Record<AdjustmentReason, string> = {
   LOSS: 'border-orange-600 text-orange-700',
   COUNT: 'border-blue-600 text-blue-700',
   RETURN: 'border-green-700 text-green-700',
-  OTHER: 'border-[#9f9d99] text-[#9f9d99]',
+  OTHER: 'border-[var(--border-soft)] text-[var(--ink-50)]',
 };
 
 const VALID_REASONS: Record<string, AdjustmentReason> = {
@@ -120,7 +120,7 @@ export const Adjustments: React.FC = () => {
     e.preventDefault();
     if (!selName) { setError('Selecciona un producto'); return; }
     if (!form.productId) { setError('Selecciona color y talla para identificar el SKU'); return; }
-    if (!form.locationId) { setError('Selecciona una ubicación'); return; }
+    if (!form.locationId) { setError('Selecciona una ubicacion'); return; }
     if (form.newQuantity < 0) { setError('La cantidad no puede ser negativa'); return; }
     addAdjustment({
       productId: form.productId,
@@ -151,7 +151,7 @@ export const Adjustments: React.FC = () => {
       const code = String(r['codigo'] ?? r['Codigo'] ?? r['CODIGO'] ?? '').trim();
       const qtyRaw = qtyKey.reduce<unknown>((found, k) => found !== '' && found !== undefined ? found : r[k], '');
       const qty = parseInt(String(qtyRaw), 10);
-      const reasonRaw = String(r['motivo'] ?? r['Motivo'] ?? r['MOTIVO'] ?? 'COUNT').toUpperCase().replace(/[^A-ZÁÉÍÓÚÑÜ]/g, '');
+      const reasonRaw = String(r['motivo'] ?? r['Motivo'] ?? r['MOTIVO'] ?? 'COUNT').toUpperCase().replace(/[^A-Za-z]/g, '');
       const reason: AdjustmentReason = VALID_REASONS[reasonRaw] ?? 'COUNT';
       const locationName = String(r['ubicacion'] ?? r['Ubicacion'] ?? r['UBICACION'] ?? '').trim();
       const notes = String(r['notas'] ?? r['Notas'] ?? r['NOTAS'] ?? '').trim();
@@ -166,10 +166,10 @@ export const Adjustments: React.FC = () => {
         : 0;
 
       let error: string | null = null;
-      if (!code) error = 'Código vacío';
-      else if (!prod) error = `Código "${code}" no encontrado`;
-      else if (isNaN(qty) || qty < 0) error = 'Cantidad inválida';
-      else if (!loc) error = `Ubicación "${locationName}" no encontrada`;
+      if (!code) error = 'Codigo vacio';
+      else if (!prod) error = `Codigo "${code}" no encontrado`;
+      else if (isNaN(qty) || qty < 0) error = 'Cantidad invalida';
+      else if (!loc) error = `Ubicacion "${locationName}" no encontrada`;
 
       return {
         line: i + 2,
@@ -300,7 +300,7 @@ export const Adjustments: React.FC = () => {
   const diffColor = (prev: number, next: number) => {
     if (next > prev) return 'text-green-700';
     if (next < prev) return 'text-red-600';
-    return 'text-[#9f9d99]';
+    return 'text-[var(--ink-50)]';
   };
 
   const openBulk = (mode: BulkMode) => {
@@ -314,29 +314,29 @@ export const Adjustments: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full relative">
       <ModuleInfo number="06" title="Ajustes de Inventario" description="Correcciones manuales de stock con motivo obligatorio. Permite incrementar o decrementar unidades de cualquier SKU con trazabilidad completa." />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">10 // AJUSTES_INVENTARIO</h2>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">10 // AJUSTES_INVENTARIO</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Correcciones de stock con motivo y trazabilidad.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterReason} onChange={e => { setFilterReason(e.target.value as any); setPage(1); }}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS LOS MOTIVOS</option>
             {(Object.keys(REASON_LABEL) as AdjustmentReason[]).map(r => <option key={r} value={r}>{REASON_LABEL[r]}</option>)}
           </select>
           {canAdjust && (
             <>
               <button onClick={() => openBulk('reception')}
-                className="flex items-center gap-2 border border-[#141414] bg-white/50 px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-white transition-all">
+                className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--bg-input)] transition-all">
                 <PackagePlus size={14} /> INGRESO MASIVO
               </button>
               <button onClick={() => openBulk('adjust')}
-                className="flex items-center gap-2 border border-[#141414] bg-white/50 px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-white transition-all">
+                className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--bg-input)] transition-all">
                 <SlidersHorizontal size={14} /> AJUSTE MASIVO
               </button>
               <button onClick={openAdd}
-                className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all border border-[#141414]">
+                className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)]">
                 <Plus size={14} /> NUEVO AJUSTE
               </button>
             </>
@@ -356,20 +356,20 @@ export const Adjustments: React.FC = () => {
           const isExp = expanded === adj.id;
 
           return (
-            <div key={adj.id} className="border border-[#141414] bg-white/40">
+            <div key={adj.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
               <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : adj.id)}>
                 <div className="flex items-center gap-3 min-w-0 flex-wrap">
                   <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>
                     {REASON_LABEL[adj.reason]}
                   </span>
-                  <span className="font-mono font-bold text-xs text-[#141414] truncate">
+                  <span className="font-mono font-bold text-xs text-[var(--ink)] truncate">
                     {prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : adj.productId}
                   </span>
                   <span className="font-mono text-[10px] opacity-60 shrink-0">{loc?.name}</span>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
-                    <div className="font-mono text-[10px] opacity-50">{adj.previousQuantity} → {adj.newQuantity}</div>
+                    <div className="font-mono text-[10px] opacity-50">{adj.previousQuantity} ? {adj.newQuantity}</div>
                     <div className={`font-mono font-bold text-xs ${diffColor(adj.previousQuantity, adj.newQuantity)}`}>
                       {diff > 0 ? `+${diff}` : diff}
                     </div>
@@ -378,7 +378,7 @@ export const Adjustments: React.FC = () => {
                 </div>
               </div>
               {isExp && (
-                <div className="border-t border-[#141414] px-4 py-3 flex flex-wrap gap-4 text-[10px] font-mono">
+                <div className="border-t border-[var(--border)] px-4 py-3 flex flex-wrap gap-4 text-[10px] font-mono">
                   <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(adj.date), 'dd MMM yyyy HH:mm', { locale: es })}</span></div>
                   <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{adj.user}</span></div>
                   {adj.notes && <div className="w-full"><span className="opacity-50 uppercase">Notas:</span> <span className="italic">{adj.notes}</span></div>}
@@ -397,21 +397,21 @@ export const Adjustments: React.FC = () => {
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="border border-[#141414] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-white transition-all">
-              ←
+              className="border border-[var(--border)] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-[var(--bg-input)] transition-all">
+              ?
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1).map((p, idx, arr) => (
               <React.Fragment key={p}>
                 {idx > 0 && arr[idx - 1] !== p - 1 && <span className="font-mono text-[10px] opacity-30 px-1">…</span>}
                 <button onClick={() => setPage(p)}
-                  className={`border px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${p === page ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] hover:bg-white'}`}>
+                  className={`border px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${p === page ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] hover:bg-[var(--bg-input)]'}`}>
                   {p}
                 </button>
               </React.Fragment>
             ))}
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="border border-[#141414] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-white transition-all">
-              →
+              className="border border-[var(--border)] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-[var(--bg-input)] transition-all">
+              ?
             </button>
           </div>
         </div>
@@ -423,7 +423,7 @@ export const Adjustments: React.FC = () => {
           {(Object.keys(REASON_LABEL) as AdjustmentReason[]).map(r => {
             const count = adjustments.filter(a => a.reason === r).length;
             return (
-              <div key={r} className={`border p-3 cursor-pointer transition-all ${filterReason === r ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/30 hover:bg-white/60'}`}
+              <div key={r} className={`border p-3 cursor-pointer transition-all ${filterReason === r ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}
                 onClick={() => { setFilterReason(filterReason === r ? 'ALL' : r); setPage(1); }}>
                 <div className="font-mono text-[18px] font-black">{count}</div>
                 <div className="font-mono text-[8px] uppercase tracking-widest opacity-70 mt-0.5">{REASON_LABEL[r]}</div>
@@ -436,16 +436,16 @@ export const Adjustments: React.FC = () => {
       {/* Single adjustment modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-md">
-            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-md">
+            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
               <span className="font-mono font-bold text-xs uppercase tracking-widest">NUEVO AJUSTE DE INVENTARIO</span>
-              <button onClick={() => setShowModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+              <button onClick={() => setShowModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Producto *</label>
                 <select value={selName} onChange={e => handleNameChange(e.target.value)}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
                   <option value="">Seleccionar producto...</option>
                   {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
@@ -456,7 +456,7 @@ export const Adjustments: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {colorsForName.map(c => (
                       <button key={c} type="button" onClick={() => handleColorChange(selColor === c ? '' : c)}
-                        className={`px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selColor === c ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                        className={`px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selColor === c ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
                         {c}
                       </button>
                     ))}
@@ -469,7 +469,7 @@ export const Adjustments: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {uniqueSizes.map(s => (
                       <button key={s} type="button" onClick={() => handleSizeChange(s)}
-                        className={`min-w-[40px] px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selSize === s ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]' : 'border-[#141414] bg-white/60 hover:bg-white'}`}>
+                        className={`min-w-[40px] px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selSize === s ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
                         {s}
                       </button>
                     ))}
@@ -479,27 +479,27 @@ export const Adjustments: React.FC = () => {
               {form.productId && (() => {
                 const p = products.find(x => x.id === form.productId);
                 return p ? (
-                  <div className="bg-white/50 border border-[#141414]/30 px-3 py-2 font-mono text-[10px] text-[#141414] font-bold uppercase">
-                    {p.code} — {p.name} {p.color} {p.size}
+                  <div className="bg-[var(--surface)] border border-[var(--border)]/30 px-3 py-2 font-mono text-[10px] text-[var(--ink)] font-bold uppercase">
+                    {p.code} · {p.name} {p.color} {p.size}
                   </div>
                 ) : null;
               })()}
               <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ubicación *</label>
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ubicacion *</label>
                 <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
                   <option value="">Seleccionar...</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name} ({l.type})</option>)}
                 </select>
               </div>
-              <div className="bg-white/50 border border-[#141414]/30 px-4 py-3 flex justify-between items-center">
-                <span className="font-mono text-[10px] opacity-60 uppercase">Stock actual en ubicación</span>
+              <div className="bg-[var(--surface)] border border-[var(--border)]/30 px-4 py-3 flex justify-between items-center">
+                <span className="font-mono text-[10px] opacity-60 uppercase">Stock actual en ubicacion</span>
                 <span className="font-mono font-black text-lg">{currentStock}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Nueva cantidad *</label>
                 <input type="number" min="0" value={form.newQuantity} onChange={e => setForm(f => ({ ...f, newQuantity: parseInt(e.target.value) || 0 }))}
-                  className="border border-[#141414] bg-white px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:shadow-[2px_2px_0_#141414] text-center" required />
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:shadow-[2px_2px_0_var(--border)] text-center" required />
                 {form.newQuantity !== currentStock && (
                   <div className={`font-mono text-[10px] font-bold text-center ${form.newQuantity > currentStock ? 'text-green-700' : 'text-red-600'}`}>
                     Diferencia: {form.newQuantity > currentStock ? '+' : ''}{form.newQuantity - currentStock} unidades
@@ -509,19 +509,19 @@ export const Adjustments: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Motivo *</label>
                 <select value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value as AdjustmentReason }))}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer">
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer">
                   {(Object.entries(REASON_LABEL) as [AdjustmentReason, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Notas</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="border border-[#141414] bg-white px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
               </div>
               {error && <p className="font-mono text-[10px] text-red-600 font-bold">{error}</p>}
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all">REGISTRAR AJUSTE</button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50">CANCELAR</button>
+                <button type="submit" className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">REGISTRAR AJUSTE</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">CANCELAR</button>
               </div>
             </form>
           </div>
@@ -531,41 +531,41 @@ export const Adjustments: React.FC = () => {
       {/* Bulk modal */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#E4E3E0] border border-[#141414] shadow-[4px_4px_0_#141414] w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div className="border-b border-[#141414] px-5 py-3 flex justify-between items-center shrink-0">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 {bulkMode === 'reception'
                   ? <PackagePlus size={14} className="opacity-60" />
                   : <SlidersHorizontal size={14} className="opacity-60" />}
                 <span className="font-mono font-bold text-xs uppercase tracking-widest">
-                  {bulkMode === 'reception' ? 'INGRESO MASIVO AL ALMACÉN' : 'AJUSTE MASIVO DE INVENTARIO'}
+                  {bulkMode === 'reception' ? 'INGRESO MASIVO AL ALMACEN' : 'AJUSTE MASIVO DE INVENTARIO'}
                 </span>
               </div>
-              <button onClick={() => setShowBulkModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
+              <button onClick={() => setShowBulkModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
             </div>
 
             <div className="p-5 flex flex-col gap-4 overflow-y-auto">
               {/* Mode explanation */}
-              <div className={`border px-3 py-2 text-[9px] font-mono leading-relaxed ${bulkMode === 'reception' ? 'border-green-600 bg-green-50 text-green-800' : 'border-blue-600 bg-blue-50 text-blue-800'}`}>
+              <div className={`border px-3 py-2 text-[9px] font-mono leading-relaxed ${bulkMode === 'reception' ? 'border-green-600 bg-green-500/10 text-green-600' : 'border-blue-600 bg-blue-500/10 text-blue-600'}`}>
                 {bulkMode === 'reception'
-                  ? '▸ INGRESO: suma las unidades al stock existente. Genera una transacción de RECEPCIÓN visible en el historial.'
-                  : '▸ AJUSTE: reemplaza el stock con el valor exacto que indiques. Útil para conteos físicos y correcciones.'}
+                  ? '? INGRESO: suma las unidades al stock existente. Genera una transaccion de RECEPCION visible en el historial.'
+                  : '? AJUSTE: reemplaza el stock con el valor exacto que indiques. Util para conteos fisicos y correcciones.'}
               </div>
 
               {/* Instructions */}
-              <div className="bg-white/40 border border-[#141414]/20 p-3 flex flex-col gap-1.5">
+              <div className="bg-[var(--bg-card)] border border-[var(--border)]/20 p-3 flex flex-col gap-1.5">
                 <p className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">
                   Columnas del archivo: {bulkMode === 'reception'
-                    ? 'codigo · cantidad_a_ingresar · ubicacion · notas'
-                    : 'codigo · nueva_cantidad · motivo · ubicacion · notas'}
+                    ? 'codigo | cantidad_a_ingresar | ubicacion | notas'
+                    : 'codigo | nueva_cantidad | motivo | ubicacion | notas'}
                 </p>
                 <p className="font-mono text-[9px] opacity-50 leading-relaxed">
-                  La plantilla incluye todos los productos del catálogo con su stock actual.<br />
-                  {bulkMode === 'adjust' && 'Motivos: COUNT, DAMAGE, LOSS, RETURN, OTHER (o en español). '}
-                  Deja vacía la cantidad si no quieres modificar ese producto.
+                  La plantilla incluye todos los productos del catalogo con su stock actual.<br />
+                  {bulkMode === 'adjust' && 'Motivos: COUNT, DAMAGE, LOSS, RETURN, OTHER (o en espanol). '}
+                  Deja vacia la cantidad si no quieres modificar ese producto.
                 </p>
                 <button onClick={() => downloadTemplate(bulkMode)}
-                  className="self-start flex items-center gap-1.5 border border-[#141414] px-3 py-1.5 text-[9px] font-mono font-bold uppercase hover:bg-white transition-all mt-1">
+                  className="self-start flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 text-[9px] font-mono font-bold uppercase hover:bg-[var(--bg-input)] transition-all mt-1">
                   <Download size={11} /> Descargar plantilla Excel
                 </button>
               </div>
@@ -575,7 +575,7 @@ export const Adjustments: React.FC = () => {
                 <>
                   <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBulkFile} />
                   <button onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[#141414]/40 py-6 flex flex-col items-center gap-2 hover:border-[#141414] hover:bg-white/30 transition-all cursor-pointer bg-white/20">
+                    className="w-full border-2 border-dashed border-[var(--border)]/40 py-6 flex flex-col items-center gap-2 hover:border-[var(--border)] hover:bg-[var(--surface-alt)] transition-all cursor-pointer bg-[var(--surface-alt)]">
                     <Upload size={20} className="opacity-40" />
                     <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">Haz click para seleccionar el archivo Excel (.xlsx)</span>
                   </button>
@@ -587,7 +587,7 @@ export const Adjustments: React.FC = () => {
                 <>
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[9px] uppercase tracking-widest opacity-60">
-                      {bulkRows.filter(r => !r.error).length} válidas · {bulkRows.filter(r => r.error).length} con errores
+                      {bulkRows.filter(r => !r.error).length} validas · {bulkRows.filter(r => r.error).length} con errores
                     </span>
                     <button onClick={() => fileRef.current?.click()}
                       className="font-mono text-[9px] uppercase tracking-widest underline opacity-60 hover:opacity-100">
@@ -597,9 +597,9 @@ export const Adjustments: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-[10px] font-mono border-collapse">
                       <thead>
-                        <tr className="border-b border-[#141414]">
+                        <tr className="border-b border-[var(--border)]">
                           <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide w-8">#</th>
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Código</th>
+                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Codigo</th>
                           <th className="text-right py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Stock actual</th>
                           <th className="text-right py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">
                             {bulkMode === 'reception' ? 'A ingresar' : 'Nueva cant.'}
@@ -610,13 +610,13 @@ export const Adjustments: React.FC = () => {
                           {bulkMode === 'adjust' && (
                             <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Motivo</th>
                           )}
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Ubicación</th>
+                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Ubicacion</th>
                           <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Estado</th>
                         </tr>
                       </thead>
                       <tbody>
                         {bulkRows.map(r => (
-                          <tr key={r.line} className={`border-b border-[#141414]/10 ${r.error ? 'bg-red-50' : 'bg-white/20'}`}>
+                          <tr key={r.line} className={`border-b border-[var(--border)]/10 ${r.error ? 'bg-red-500/10' : 'bg-[var(--surface-alt)]'}`}>
                             <td className="py-1.5 px-2 opacity-40">{r.line}</td>
                             <td className="py-1.5 px-2 font-bold">{r.code}</td>
                             <td className="py-1.5 px-2 text-right opacity-60">{r.stockActual}</td>
@@ -625,13 +625,13 @@ export const Adjustments: React.FC = () => {
                             </td>
                             {bulkMode === 'reception' && (
                               <td className="py-1.5 px-2 text-right font-bold">
-                                {!r.error ? r.stockActual + r.qty : '—'}
+                                {!r.error ? r.stockActual + r.qty : '-'}
                               </td>
                             )}
                             {bulkMode === 'adjust' && (
                               <td className="py-1.5 px-2 opacity-70">{REASON_LABEL[r.reason]}</td>
                             )}
-                            <td className="py-1.5 px-2 opacity-70 max-w-[140px] truncate">{r.locationName || '—'}</td>
+                            <td className="py-1.5 px-2 opacity-70 max-w-[140px] truncate">{r.locationName || '-'}</td>
                             <td className="py-1.5 px-2">
                               {r.error
                                 ? <span className="flex items-center gap-1 text-red-600"><XCircle size={11} />{r.error}</span>
@@ -644,21 +644,21 @@ export const Adjustments: React.FC = () => {
                   </div>
 
                   {bulkRows.some(r => r.error) && (
-                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 px-3 py-2">
+                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-300 px-3 py-2">
                       <AlertCircle size={13} className="text-amber-600 mt-0.5 shrink-0" />
-                      <p className="font-mono text-[9px] text-amber-700">Las filas con errores serán ignoradas. Solo se procesarán las filas válidas.</p>
+                      <p className="font-mono text-[9px] text-amber-700">Las filas con errores seran ignoradas. Solo se procesaran las filas validas.</p>
                     </div>
                   )}
 
                   <div className="flex gap-2 pt-1">
                     <button onClick={confirmBulk} disabled={bulkRows.every(r => !!r.error)}
-                      className="flex-1 bg-[#141414] text-[#E4E3E0] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       {bulkMode === 'reception'
                         ? `INGRESAR ${bulkRows.filter(r => !r.error).length} PRODUCTOS`
                         : `APLICAR ${bulkRows.filter(r => !r.error).length} AJUSTES`}
                     </button>
                     <button onClick={() => setShowBulkModal(false)}
-                      className="flex-1 border border-[#141414] py-2 text-xs font-bold font-mono uppercase hover:bg-white/50">
+                      className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
                       CANCELAR
                     </button>
                   </div>
@@ -670,10 +670,10 @@ export const Adjustments: React.FC = () => {
                 <div className="flex flex-col items-center gap-3 py-8">
                   <CheckCircle size={36} className="text-green-700" />
                   <p className="font-mono font-bold text-sm uppercase tracking-widest">
-                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacén` : `${bulkApplied} ajustes aplicados`}
+                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacen` : `${bulkApplied} ajustes aplicados`}
                   </p>
                   <button onClick={() => setShowBulkModal(false)}
-                    className="bg-[#141414] text-[#E4E3E0] px-6 py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all mt-2">
+                    className="bg-[var(--ink)] text-[var(--ink-inv)] px-6 py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all mt-2">
                     CERRAR
                   </button>
                 </div>

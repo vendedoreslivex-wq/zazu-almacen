@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -117,7 +117,7 @@ export const OperationHistory: React.FC = () => {
     return (
       <div className="flex flex-col gap-6 h-full relative">
         <ModuleInfo number="14" title="Historial General" description="Registro completo de todas las acciones del sistema." />
-        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest border border-[#141414]/20 bg-white/30">
+        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest border border-[var(--border)]/20 bg-[var(--surface-alt)]">
           Solo ADMIN_GENERAL puede ver el historial completo.
         </div>
       </div>
@@ -167,27 +167,27 @@ export const OperationHistory: React.FC = () => {
     <div className="flex flex-col gap-6 h-full relative">
       <ModuleInfo number="14" title="Historial General" description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock — qué se hizo, quién lo hizo y cuándo." />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#141414] pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">14 // AUDITORÍA_SISTEMA</h2>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">14 // AUDITORÍA_SISTEMA</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">
             {auditLog.length} entradas cargadas · últimas 1000 acciones
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 border border-[#141414] bg-white/50 px-2">
+          <div className="flex items-center gap-1 border border-[var(--border)] bg-[var(--surface)] px-2">
             <span className="font-mono text-[9px] opacity-40 uppercase shrink-0">DESDE</span>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               className="bg-transparent py-2 text-[10px] font-mono focus:outline-none w-32 cursor-pointer" />
           </div>
-          <div className="flex items-center gap-1 border border-[#141414] bg-white/50 px-2">
+          <div className="flex items-center gap-1 border border-[var(--border)] bg-[var(--surface)] px-2">
             <span className="font-mono text-[9px] opacity-40 uppercase shrink-0">HASTA</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
               className="bg-transparent py-2 text-[10px] font-mono focus:outline-none w-32 cursor-pointer" />
           </div>
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[9px] font-bold uppercase opacity-50 hover:opacity-100 border border-[#141414]/30 px-2 py-2">
+              className="font-mono text-[9px] font-bold uppercase opacity-50 hover:opacity-100 border border-[var(--border)]/30 px-2 py-2">
               ✕ LIMPIAR
             </button>
           )}
@@ -196,17 +196,17 @@ export const OperationHistory: React.FC = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="BUSCAR..."
-              className="border border-[#141414] bg-white/50 pl-3 pr-8 py-2 text-[10px] font-mono uppercase placeholder:opacity-40 focus:outline-none focus:shadow-[2px_2px_0_#141414] w-36"
+              className="border border-[var(--border)] bg-[var(--surface)] pl-3 pr-8 py-2 text-[10px] font-mono uppercase placeholder:opacity-40 focus:outline-none focus:shadow-[2px_2px_0_var(--border)] w-36"
             />
             <Filter size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40" />
           </div>
           <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODAS LAS TABLAS</option>
             {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
           </select>
           <select value={filterAction} onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
-            className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODAS</option>
             <option value="INSERT">CREÓ</option>
             <option value="UPDATE">EDITÓ</option>
@@ -214,17 +214,17 @@ export const OperationHistory: React.FC = () => {
           </select>
           {brands.length > 1 && (
             <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
-              className="border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
               <option value="ALL">TODAS MARCAS</option>
               {brands.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
             </select>
           )}
           <button onClick={handleRefresh} disabled={refreshing}
-            className="flex items-center gap-1.5 border border-[#141414] bg-white/50 px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-white/80 disabled:opacity-50 transition-all">
+            className="flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-[var(--bg-card-alt)] disabled:opacity-50 transition-all">
             <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> RECARGAR
           </button>
           <button onClick={() => exportCSV(filtered)}
-            className="flex items-center gap-2 bg-[#141414] text-[#E4E3E0] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_#9f9d99] transition-all shrink-0">
+            className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all shrink-0">
             <Download size={12} /> CSV ({filtered.length})
           </button>
         </div>
@@ -239,7 +239,7 @@ export const OperationHistory: React.FC = () => {
           const isExp = expanded === ev.id;
           const changes = changedFields(ev);
           return (
-            <div key={ev.id} className="border border-[#141414] bg-white/40">
+            <div key={ev.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
               <div
                 className="flex items-center justify-between gap-4 p-3 cursor-pointer"
                 onClick={() => setExpanded(isExp ? null : ev.id)}
@@ -248,15 +248,15 @@ export const OperationHistory: React.FC = () => {
                   <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${ACTION_COLOR[ev.action]}`}>
                     {ACTION_LABEL[ev.action]}
                   </span>
-                  <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[#141414]/30 text-[#141414]/80">
+                  <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[var(--border)]/30 text-[var(--ink)]/80">
                     {(TABLE_LABEL[ev.tableName] ?? ev.tableName).toUpperCase()}
                   </span>
                   {ev.brand && (
-                    <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[#141414]/20 text-[#141414]/60">
+                    <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[var(--border)]/20 text-[var(--ink)]/60">
                       {ev.brand.replace('_', ' ')}
                     </span>
                   )}
-                  <span className="font-mono font-bold text-xs text-[#141414] truncate">{summarize(ev)}</span>
+                  <span className="font-mono font-bold text-xs text-[var(--ink)] truncate">{summarize(ev)}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="font-mono text-[10px] font-bold opacity-80">{ev.userName ?? '—'}</span>
@@ -268,7 +268,7 @@ export const OperationHistory: React.FC = () => {
               </div>
 
               {isExp && (
-                <div className="border-t border-[#141414]/20 px-4 py-3 flex flex-col gap-2 text-[10px] font-mono bg-white/20">
+                <div className="border-t border-[var(--border)]/20 px-4 py-3 flex flex-col gap-2 text-[10px] font-mono bg-[var(--surface-alt)]">
                   <div className="flex flex-wrap gap-4">
                     <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(ev.occurredAt), 'dd MMM yyyy HH:mm:ss', { locale: es })}</span></div>
                     <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{ev.userName ?? '—'}</span></div>
@@ -278,7 +278,7 @@ export const OperationHistory: React.FC = () => {
                   </div>
 
                   {ev.action === 'UPDATE' && changes.length > 0 && (
-                    <div className="border-t border-[#141414]/15 pt-2 mt-1">
+                    <div className="border-t border-[var(--border)]/15 pt-2 mt-1">
                       <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest mb-1">Cambios</div>
                       <table className="w-full text-[10px]">
                         <thead>
@@ -290,7 +290,7 @@ export const OperationHistory: React.FC = () => {
                         </thead>
                         <tbody>
                           {changes.map(c => (
-                            <tr key={c.key} className="border-t border-[#141414]/10">
+                            <tr key={c.key} className="border-t border-[var(--border)]/10">
                               <td className="py-1 pr-3 font-bold opacity-70">{c.key}</td>
                               <td className="py-1 pr-3 text-red-700/80">{formatValue(c.from)}</td>
                               <td className="py-1 text-green-700/80">{formatValue(c.to)}</td>
@@ -302,16 +302,16 @@ export const OperationHistory: React.FC = () => {
                   )}
 
                   {ev.action === 'INSERT' && ev.newData && (
-                    <details className="border-t border-[#141414]/15 pt-2 mt-1">
+                    <details className="border-t border-[var(--border)]/15 pt-2 mt-1">
                       <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos creados</summary>
-                      <pre className="mt-1 text-[9px] bg-white/40 border border-[#141414]/10 p-2 overflow-x-auto">{JSON.stringify(ev.newData, null, 2)}</pre>
+                      <pre className="mt-1 text-[9px] bg-[var(--bg-card)] border border-[var(--border)]/10 p-2 overflow-x-auto">{JSON.stringify(ev.newData, null, 2)}</pre>
                     </details>
                   )}
 
                   {ev.action === 'DELETE' && ev.oldData && (
-                    <details className="border-t border-[#141414]/15 pt-2 mt-1">
+                    <details className="border-t border-[var(--border)]/15 pt-2 mt-1">
                       <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos eliminados</summary>
-                      <pre className="mt-1 text-[9px] bg-white/40 border border-[#141414]/10 p-2 overflow-x-auto">{JSON.stringify(ev.oldData, null, 2)}</pre>
+                      <pre className="mt-1 text-[9px] bg-[var(--bg-card)] border border-[var(--border)]/10 p-2 overflow-x-auto">{JSON.stringify(ev.oldData, null, 2)}</pre>
                     </details>
                   )}
                 </div>

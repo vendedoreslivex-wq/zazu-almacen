@@ -49,7 +49,7 @@ export const Inventory: React.FC = () => {
 
   const uniqueColors = Array.from(new Set(products.map(p => p.color).filter(Boolean))) as string[];
   const uniqueSizes = Array.from(new Set(products.map(p => p.size).filter(Boolean))) as string[];
-  const uniqueCategories = Array.from(new Set(products.map(p => p.category || 'SIN CATEGORÍA').filter(Boolean))).sort();
+  const uniqueCategories = Array.from(new Set(products.map(p => p.category || 'SIN CATEGORIA').filter(Boolean))).sort();
 
   // Calculate aggregated stock per product
   const inventoryData = products.map(p => {
@@ -61,7 +61,7 @@ export const Inventory: React.FC = () => {
     const searchMatch = p.name.toLowerCase().includes(s) || p.code.toLowerCase().includes(s);
     const colorMatch = filterColor ? p.color === filterColor : true;
     const sizeMatch = filterSize ? p.size === filterSize : true;
-    const categoryMatch = filterCategory ? (p.category || 'SIN CATEGORÍA') === filterCategory : true;
+    const categoryMatch = filterCategory ? (p.category || 'SIN CATEGORIA') === filterCategory : true;
     const statusMatch = filterStatus === 'LOW_STOCK' ? (p.lowStockThreshold !== undefined && p.totalStock <= p.lowStockThreshold) : true;
     return searchMatch && colorMatch && sizeMatch && categoryMatch && statusMatch;
   });
@@ -139,7 +139,7 @@ export const Inventory: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ["Código", "Nombre", "Color", "Talla", "Categoría", "Stock Total", "Umbral Bajo", "Costo Unitario", "Precio Venta"];
+    const headers = ["Codigo", "Nombre", "Color", "Talla", "Categor-a", "Stock Total", "Umbral Bajo", "Costo Unitario", "Precio Venta"];
     
     const rows = inventoryData.map(item => [
       item.code,
@@ -177,13 +177,13 @@ export const Inventory: React.FC = () => {
       skipEmptyLines: true,
       complete: (results) => {
         results.data.forEach((row: any) => {
-          if (row['Código'] && row['Nombre']) {
+          if (row['Codigo'] && row['Nombre']) {
             addProduct({
-              code: row['Código'],
+              code: row['Codigo'],
               name: row['Nombre'],
               color: row['Color'],
               size: row['Talla'],
-              category: row['Categoría'] || 'General',
+              category: row['Categor-a'] || 'General',
               lowStockThreshold: row['Umbral Bajo'] ? Number(row['Umbral Bajo']) : undefined
             });
           }
@@ -248,35 +248,35 @@ export const Inventory: React.FC = () => {
         <option value="Marron / M" />
       </datalist>
 
-      {/* ── Tarjetas de resumen ── */}
+      {/* -- Tarjetas de resumen -- */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col gap-1.5 border border-[#141414] bg-white/50 p-3 shadow-[3px_3px_0_#141414]">
+        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[3px_3px_0_var(--border)]">
           <div className="flex items-center gap-2">
             <ArrowDownLeft size={14} className="text-green-700 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/50">Total Recepcionado</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Total Recepcionado</span>
           </div>
-          <span className="font-mono font-black text-2xl text-[#141414] leading-none">{totalRecepcionado.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[#141414]/40 uppercase tracking-widest">unidades ingresadas</span>
+          <span className="font-mono font-black text-2xl text-[var(--ink)] leading-none">{totalRecepcionado.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[var(--ink)]/40 uppercase tracking-widest">unidades ingresadas</span>
         </div>
-        <div className="flex flex-col gap-1.5 border border-[#141414] bg-[#141414] p-3 shadow-[3px_3px_0_#141414]">
+        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--ink)] p-3 shadow-[3px_3px_0_var(--border)]">
           <div className="flex items-center gap-2">
-            <Package size={14} className="text-[#E4E3E0]/70 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#E4E3E0]/50">Total Disponible</span>
+            <Package size={14} className="text-[var(--ink-inv)]/70 shrink-0" />
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink-inv)]/50">Total Disponible</span>
           </div>
-          <span className="font-mono font-black text-2xl text-[#E4E3E0] leading-none">{totalDisponible.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[#E4E3E0]/40 uppercase tracking-widest">en stock ahora</span>
+          <span className="font-mono font-black text-2xl text-[var(--ink-inv)] leading-none">{totalDisponible.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[var(--ink-inv)]/40 uppercase tracking-widest">en stock ahora</span>
         </div>
-        <div className="flex flex-col gap-1.5 border border-[#141414] bg-white/50 p-3 shadow-[3px_3px_0_#141414]">
+        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[3px_3px_0_var(--border)]">
           <div className="flex items-center gap-2">
             <ArrowUpRight size={14} className="text-red-700 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[#141414]/50">Total Despachado</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Total Despachado</span>
           </div>
-          <span className="font-mono font-black text-2xl text-[#141414] leading-none">{totalDespachado.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[#141414]/40 uppercase tracking-widest">unidades salidas</span>
+          <span className="font-mono font-black text-2xl text-[var(--ink)] leading-none">{totalDespachado.toLocaleString()}</span>
+          <span className="font-mono text-[8px] text-[var(--ink)]/40 uppercase tracking-widest">unidades salidas</span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-b border-[#141414] pb-3">
+      <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-3">
         {/* Title row + primary actions */}
         <div className="flex justify-between items-end">
           <div>
@@ -289,7 +289,7 @@ export const Inventory: React.FC = () => {
                 <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-white hover:bg-[#141414] border border-[#141414] text-[#141414] hover:text-[#E4E3E0] shadow-[2px_2px_0_#141414] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                  className="bg-[var(--bg-input)] hover:bg-[var(--ink)] border border-[var(--border)] text-[var(--ink)] hover:text-[var(--ink-inv)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
                   title="IMPORTAR CSV"
                 >
                   <Upload size={13} /><span className="hidden sm:inline">IMPORTAR</span>
@@ -298,7 +298,7 @@ export const Inventory: React.FC = () => {
             )}
             <button
               onClick={exportCSV}
-              className="bg-white hover:bg-[#141414] border border-[#141414] text-[#141414] hover:text-[#E4E3E0] shadow-[2px_2px_0_#141414] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+              className="bg-[var(--bg-input)] hover:bg-[var(--ink)] border border-[var(--border)] text-[var(--ink)] hover:text-[var(--ink-inv)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
               title="EXPORTAR CSV"
             >
               <Download size={13} /><span className="hidden sm:inline">EXPORTAR</span>
@@ -306,7 +306,7 @@ export const Inventory: React.FC = () => {
             {canEdit(currentUser.role, 'inventory') && (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="bg-[#141414] hover:bg-white text-[#E4E3E0] hover:text-[#141414] border border-[#141414] shadow-[2px_2px_0_#141414] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                className="bg-[var(--ink)] hover:bg-[var(--bg-input)] text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
               >
                 <Plus size={13} /><span className="hidden xs:inline">NUEVO SKU</span><span className="xs:hidden">NUEVO</span>
               </button>
@@ -314,12 +314,12 @@ export const Inventory: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter row — scrollable on mobile */}
+        {/* Filter row · scrollable on mobile */}
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
           <select
             value={activeBrand}
             onChange={(e) => setActiveBrand(e.target.value as any)}
-            className="shrink-0 bg-white/50 border border-[#141414] py-1.5 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer h-[32px] w-28"
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28"
           >
             <option value="OVERSHARK">OVERSHARK</option>
             <option value="BRAVOS">BRAVOS URBAN</option>
@@ -329,26 +329,26 @@ export const Inventory: React.FC = () => {
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50" />
             <input
               type="text" placeholder="BUSCAR..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full bg-white/50 border border-[#141414] px-7 py-1.5 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase h-[32px]"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] px-7 py-1.5 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase h-[32px]"
             />
           </div>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
-            className="shrink-0 bg-white/50 border border-[#141414] py-1.5 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
-            <option value="">CATEGORÍA</option>
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
+            <option value="">CATEGORIA</option>
             {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)}
-            className="shrink-0 bg-white/50 border border-[#141414] py-1.5 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
             <option value="">COLOR</option>
             {uniqueColors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterSize} onChange={(e) => setFilterSize(e.target.value)}
-            className="shrink-0 bg-white/50 border border-[#141414] py-1.5 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
             <option value="">TALLA</option>
             {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="shrink-0 bg-white/50 border border-[#141414] py-1.5 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
             <option value="ALL">ESTADO</option>
             <option value="LOW_STOCK">STOCK BAJO</option>
           </select>
@@ -363,7 +363,7 @@ export const Inventory: React.FC = () => {
 
         <div className="flex-1 overflow-auto">
           {sortedProductNames.length === 0 && (
-            <div className="p-12 flex items-center justify-center text-[#141414] opacity-50 font-mono text-sm uppercase">NO HAY PRODUCTOS COINCIDENTES</div>
+            <div className="p-12 flex items-center justify-center text-[var(--ink)] opacity-50 font-mono text-sm uppercase">NO HAY PRODUCTOS COINCIDENTES</div>
           )}
           {sortedProductNames.map(productName => {
             const productItems = groupedByProduct[productName];
@@ -384,14 +384,14 @@ export const Inventory: React.FC = () => {
               <React.Fragment key={productName}>
                 {/* Product header */}
                 <div
-                  className="flex items-center justify-between px-3 py-3 bg-[#E4E3E0] text-[#141414] border-b-2 border-b-[#141414] border-l-4 border-l-[#141414] cursor-pointer select-none hover:bg-white/90 transition-colors"
+                  className="flex items-center justify-between px-3 py-3 bg-[var(--bg)] text-[var(--ink)] border-b-2 border-b-[#141414] border-l-4 border-l-[#141414] cursor-pointer select-none hover:bg-[var(--bg-input)]/90 transition-colors"
                   onClick={() => toggleProduct(productName)}
                 >
                   <div className="flex items-center gap-2 md:gap-3 min-w-0">
                     {isProductExpanded ? <ChevronDown size={15} className="shrink-0" /> : <ChevronRight size={15} className="shrink-0" />}
                     <span className="font-mono font-black text-[12px] uppercase tracking-widest truncate">{productName}</span>
-                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[#141414]/25 px-1.5 py-0.5 shrink-0">{sortedColors.length} col.</span>
-                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[#141414]/25 px-1.5 py-0.5 shrink-0">{totalVariants} SKU</span>
+                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[var(--border)]/25 px-1.5 py-0.5 shrink-0">{sortedColors.length} col.</span>
+                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[var(--border)]/25 px-1.5 py-0.5 shrink-0">{totalVariants} SKU</span>
                     {productLowCount > 0 && (
                       <span className="font-mono text-[9px] bg-red-700 text-white px-1.5 py-0.5 flex items-center gap-1 shrink-0">
                         <AlertTriangle size={10} /> {productLowCount}
@@ -413,13 +413,13 @@ export const Inventory: React.FC = () => {
                     <React.Fragment key={colorKey}>
                       {/* Color header */}
                       <div
-                        className="flex items-center justify-between pl-7 md:pl-9 pr-3 py-2 bg-[#D4D3D0] border-b border-[#141414]/20 border-l-2 border-l-[#141414]/30 cursor-pointer select-none hover:bg-[#C8C7C4] transition-colors"
+                        className="flex items-center justify-between pl-7 md:pl-9 pr-3 py-2 bg-[var(--bg-sidebar)] border-b border-[var(--border)]/20 border-l-2 border-l-[#141414]/30 cursor-pointer select-none hover:bg-[var(--bg-sidebar)] transition-colors"
                         onClick={() => toggleColor(colorKey)}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           {isColorExpanded ? <ChevronDown size={12} className="shrink-0" /> : <ChevronRight size={12} className="shrink-0" />}
                           <span className="font-mono font-bold text-[11px] uppercase tracking-wide">{color}</span>
-                          <span className="font-mono text-[9px] opacity-50 border border-[#141414]/20 px-1.5 py-0.5 shrink-0">{colorItems.length}t</span>
+                          <span className="font-mono text-[9px] opacity-50 border border-[var(--border)]/20 px-1.5 py-0.5 shrink-0">{colorItems.length}t</span>
                           {colorLowCount > 0 && (
                             <span className="font-mono text-[9px] bg-red-700 text-white px-1.5 py-0.5 flex items-center gap-1 shrink-0">
                               <AlertTriangle size={9} />
@@ -437,17 +437,17 @@ export const Inventory: React.FC = () => {
                         return (
                           <React.Fragment key={item.id}>
                             <div
-                              className={`flex items-center pl-12 md:pl-16 pr-3 py-2 cursor-pointer select-none transition-colors border-b border-[#141414]/10 ${
+                              className={`flex items-center pl-12 md:pl-16 pr-3 py-2 cursor-pointer select-none transition-colors border-b border-[var(--border)]/10 ${
                                 isLowStock
-                                  ? (isExpanded ? 'bg-red-100/80' : 'bg-red-50/60 hover:bg-red-100/80')
-                                  : (isExpanded ? 'bg-white/80' : 'bg-white/20 hover:bg-white/50')
+                                  ? (isExpanded ? 'bg-red-500/15' : 'bg-red-500/10 hover:bg-red-500/15')
+                                  : (isExpanded ? 'bg-[var(--bg-card-alt)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]')
                               }`}
                               onClick={() => toggleExpand(item.id)}
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <span className="opacity-40 shrink-0">{isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
                                 <span className="font-mono text-[10px] font-black opacity-60 w-24 shrink-0">{item.code}</span>
-                                <span className="font-mono text-[11px] font-bold uppercase">{item.size || 'ÚNICO'}</span>
+                                <span className="font-mono text-[11px] font-bold uppercase">{item.size || 'UNICO'}</span>
                                 {isLowStock && <span className="bg-red-700 text-white text-[8px] px-1.5 py-0.5 shrink-0 font-mono">BAJO</span>}
                               </div>
                               <div className="font-mono text-right text-sm font-black flex items-center gap-1.5 shrink-0">
@@ -457,11 +457,11 @@ export const Inventory: React.FC = () => {
                             </div>
 
                             {isExpanded && (
-                              <div className={`border-b border-[#141414] p-3 md:p-4 pl-12 md:pl-16 flex flex-col gap-4 ${isLowStock ? 'bg-red-50/40' : 'bg-white/30'}`}>
+                              <div className={`border-b border-[var(--border)] p-3 md:p-4 pl-12 md:pl-16 flex flex-col gap-4 ${isLowStock ? 'bg-red-500/10' : 'bg-[var(--surface-alt)]'}`}>
                                 <div className="flex justify-between items-start">
                                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 flex-1">
                                     <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">CÓDIGO SKU</span>
+                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">CODIGO SKU</span>
                                       <span className="text-xs font-bold font-mono">{item.code}</span>
                                     </div>
                                     <div className="flex flex-col gap-1">
@@ -482,7 +482,7 @@ export const Inventory: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col gap-1">
                                       <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">STOCK TOTAL</span>
-                                      <span className={`text-xs font-bold font-mono px-2 py-0.5 w-fit ${isLowStock ? 'bg-red-700 text-white' : 'bg-[#141414] text-[#E4E3E0]'}`}>
+                                      <span className={`text-xs font-bold font-mono px-2 py-0.5 w-fit ${isLowStock ? 'bg-red-700 text-white' : 'bg-[var(--ink)] text-[var(--ink-inv)]'}`}>
                                         {item.totalStock}{isLowStock ? ' (BAJO)' : ''}
                                       </span>
                                     </div>
@@ -496,15 +496,15 @@ export const Inventory: React.FC = () => {
                                     </div>
                                   </div>
                                   <div className="flex flex-col gap-2 shrink-0 ml-4">
-                                    <button onClick={(e) => { e.stopPropagation(); setQrProduct(item); }} className="bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors p-2" title="VER QR">
+                                    <button onClick={(e) => { e.stopPropagation(); setQrProduct(item); }} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="VER QR">
                                       <QrCode size={14} />
                                     </button>
                                     {canEdit(currentUser.role, 'inventory') && (
                                       <>
-                                        <button onClick={(e) => openEditModal(item, e)} className="bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors p-2" title="EDITAR SKU">
+                                        <button onClick={(e) => openEditModal(item, e)} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="EDITAR SKU">
                                           <Edit2 size={14} />
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }} className="bg-white border border-red-700 text-red-700 hover:bg-red-700 hover:text-white transition-colors p-2" title="ELIMINAR SKU">
+                                        <button onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }} className="bg-[var(--bg-input)] border border-red-700 text-red-700 hover:bg-red-700 hover:text-white transition-colors p-2" title="ELIMINAR SKU">
                                           <Trash2 size={14} />
                                         </button>
                                       </>
@@ -518,12 +518,12 @@ export const Inventory: React.FC = () => {
                                     {item.locations.length > 0 ? item.locations.map(loc => {
                                       const locName = locations.find(l => l.id === loc.locationId)?.name;
                                       return (
-                                        <div key={loc.id} className="flex justify-between items-center bg-white border border-[#141414] px-3 py-2 text-[10px] uppercase font-bold shadow-[2px_2px_0_rgba(20,20,20,0.15)]">
-                                          <span className="opacity-70 font-mono text-[#141414] truncate" title={locName}>{locName}</span>
+                                        <div key={loc.id} className="flex justify-between items-center bg-[var(--bg-input)] border border-[var(--border)] px-3 py-2 text-[10px] uppercase font-bold shadow-[2px_2px_0_rgba(20,20,20,0.15)]">
+                                          <span className="opacity-70 font-mono text-[var(--ink)] truncate" title={locName}>{locName}</span>
                                           <span className="font-mono font-black text-sm">{loc.quantity}</span>
                                         </div>
                                       );
-                                    }) : <span className="text-[9px] opacity-60 font-mono italic">SIN_STOCK_EN_ALMACÉN</span>}
+                                    }) : <span className="text-[9px] opacity-60 font-mono italic">SIN_STOCK_EN_ALMACEN</span>}
                                   </div>
                                 </div>
                               </div>
@@ -543,12 +543,12 @@ export const Inventory: React.FC = () => {
       {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[#E4E3E0] border-4 border-[#141414] w-full max-w-md shadow-[8px_8px_0_#141414] flex flex-col">
-            <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center">
+          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-md shadow-[8px_8px_0_var(--border)] flex flex-col">
+            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
               <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">REGISTRO // NUEVO_SKU</h2>
               <button 
                 onClick={() => setShowAddModal(false)} 
-                className="opacity-60 hover:opacity-100 hover:bg-[#141414] hover:text-[#E4E3E0] p-1 border border-transparent hover:border-[#141414] transition-all"
+                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
               >
                 <X size={16}/>
               </button>
@@ -556,12 +556,12 @@ export const Inventory: React.FC = () => {
             
             <form onSubmit={handleAddSubmit} className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CÓDIGO SKU</label>
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CODIGO SKU</label>
                 <input 
                   required
                   value={newProduct.code}
                   onChange={e => setNewProduct({...newProduct, code: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: SKU-0010"
                 />
               </div>
@@ -572,7 +572,7 @@ export const Inventory: React.FC = () => {
                   list="product-names"
                   value={newProduct.name}
                   onChange={e => setNewProduct({...newProduct, name: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: CAMISA WAFFLE"
                 />
               </div>
@@ -581,7 +581,7 @@ export const Inventory: React.FC = () => {
                 <input 
                   value={newProduct.color}
                   onChange={e => setNewProduct({...newProduct, color: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: NEGRO"
                 />
               </div>
@@ -590,17 +590,17 @@ export const Inventory: React.FC = () => {
                 <input 
                   value={newProduct.size}
                   onChange={e => setNewProduct({...newProduct, size: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: XL"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORÍA</label>
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORIA</label>
                 <input 
                   list="category-list"
                   value={newProduct.category}
                   onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: POLOS"
                 />
               </div>
@@ -610,7 +610,7 @@ export const Inventory: React.FC = () => {
                   type="number"
                   value={newProduct.lowStockThreshold}
                   onChange={e => setNewProduct({...newProduct, lowStockThreshold: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 10"
                 />
               </div>
@@ -621,7 +621,7 @@ export const Inventory: React.FC = () => {
                   step="0.01"
                   value={newProduct.costPrice}
                   onChange={e => setNewProduct({...newProduct, costPrice: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 15.50"
                 />
               </div>
@@ -632,7 +632,7 @@ export const Inventory: React.FC = () => {
                   step="0.01"
                   value={newProduct.sellPrice}
                   onChange={e => setNewProduct({...newProduct, sellPrice: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 45.00"
                 />
               </div>
@@ -640,7 +640,7 @@ export const Inventory: React.FC = () => {
               <div className="mt-4 flex justify-end">
                 <button 
                   type="submit" 
-                  className="bg-[#141414] text-[#E4E3E0] border border-[#141414] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_#141414] hover:bg-white hover:text-[#141414] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
+                  className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
                 >
                   CREAR_REGISTRO
                 </button>
@@ -653,12 +653,12 @@ export const Inventory: React.FC = () => {
       {/* Edit Product Modal */}
       {showEditModal && editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[#E4E3E0] border-4 border-[#141414] w-full max-w-md shadow-[8px_8px_0_#141414] flex flex-col">
-            <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">EDICIÓN // SKU</h2>
+          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-md shadow-[8px_8px_0_var(--border)] flex flex-col">
+            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
+              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">EDICION // SKU</h2>
               <button 
                 onClick={() => {setShowEditModal(false); setEditingProduct(null);}} 
-                className="opacity-60 hover:opacity-100 hover:bg-[#141414] hover:text-[#E4E3E0] p-1 border border-transparent hover:border-[#141414] transition-all"
+                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
               >
                 <X size={16}/>
               </button>
@@ -666,12 +666,12 @@ export const Inventory: React.FC = () => {
             
             <form onSubmit={handleEditSubmit} className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CÓDIGO SKU</label>
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CODIGO SKU</label>
                 <input 
                   required
                   value={editingProduct.code}
                   onChange={e => setEditingProduct({...editingProduct, code: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: SKU-0010"
                 />
               </div>
@@ -682,7 +682,7 @@ export const Inventory: React.FC = () => {
                   list="product-names"
                   value={editingProduct.name}
                   onChange={e => setEditingProduct({...editingProduct, name: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: CAMISA WAFFLE"
                 />
               </div>
@@ -691,7 +691,7 @@ export const Inventory: React.FC = () => {
                 <input 
                   value={editingProduct.color || ''}
                   onChange={e => setEditingProduct({...editingProduct, color: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: NEGRO"
                 />
               </div>
@@ -700,17 +700,17 @@ export const Inventory: React.FC = () => {
                 <input 
                   value={editingProduct.size || ''}
                   onChange={e => setEditingProduct({...editingProduct, size: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: XL"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORÍA</label>
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORIA</label>
                 <input 
                   list="category-list"
                   value={editingProduct.category}
                   onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: POLOS"
                 />
               </div>
@@ -720,7 +720,7 @@ export const Inventory: React.FC = () => {
                   type="number"
                   value={editingProduct.lowStockThreshold ?? ''}
                   onChange={e => setEditingProduct({...editingProduct, lowStockThreshold: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 10"
                 />
               </div>
@@ -731,7 +731,7 @@ export const Inventory: React.FC = () => {
                   step="0.01"
                   value={editingProduct.costPrice ?? ''}
                   onChange={e => setEditingProduct({...editingProduct, costPrice: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 15.50"
                 />
               </div>
@@ -742,7 +742,7 @@ export const Inventory: React.FC = () => {
                   step="0.01"
                   value={editingProduct.sellPrice ?? ''}
                   onChange={e => setEditingProduct({...editingProduct, sellPrice: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-white/70 border border-[#141414] p-2 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:shadow-[2px_2px_0_#141414] transition-all rounded-none"
+                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
                   placeholder="EJ: 45.00"
                 />
               </div>
@@ -750,7 +750,7 @@ export const Inventory: React.FC = () => {
               <div className="mt-4 flex justify-end">
                 <button 
                   type="submit" 
-                  className="bg-[#141414] text-[#E4E3E0] border border-[#141414] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_#141414] hover:bg-white hover:text-[#141414] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
+                  className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
                 >
                   GUARDAR_CAMBIOS
                 </button>
@@ -762,30 +762,30 @@ export const Inventory: React.FC = () => {
       {/* Delete Confirmation Modal */}
       {productToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[#E4E3E0] border-4 border-[#141414] w-full max-w-sm shadow-[8px_8px_0_#141414] flex flex-col">
-            <div className="p-3 border-b border-[#141414] bg-[#D4D3D0] flex gap-2 items-center">
+          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-sm shadow-[8px_8px_0_var(--border)] flex flex-col">
+            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex gap-2 items-center">
               <AlertTriangle size={16} className="text-red-600" />
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[#141414]">ELIMINAR SKU</h2>
+              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">ELIMINAR SKU</h2>
             </div>
             
             <div className="p-5 flex flex-col gap-6">
               <p className="font-mono text-sm font-bold text-center leading-relaxed">
                 Are you sure you want to delete this product? This action cannot be undone.
               </p>
-              <div className="text-center bg-white/50 border border-[#141414]/20 p-2">
+              <div className="text-center bg-[var(--surface)] border border-[var(--border)]/20 p-2">
                 <span className="font-mono text-xs font-bold">{productToDelete.code}</span>
                 <span className="block text-[10px] font-mono opacity-70 mt-1">{productToDelete.name}</span>
               </div>
               <div className="flex justify-between gap-4 mt-2">
                 <button 
                   onClick={() => setProductToDelete(null)}
-                  className="flex-1 bg-white border border-[#141414] text-[#141414] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[#141414] hover:text-white transition-all shadow-[2px_2px_0_#141414]"
+                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-white transition-all shadow-[2px_2px_0_var(--border)]"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={confirmDelete}
-                  className="flex-1 bg-red-700 text-white border border-[#141414] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-black transition-all shadow-[2px_2px_0_#141414]"
+                  className="flex-1 bg-red-700 text-white border border-[var(--border)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-black transition-all shadow-[2px_2px_0_var(--border)]"
                 >
                   Confirm
                 </button>

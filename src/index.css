@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700;900&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -7,41 +7,82 @@
   --font-serif: "Georgia", ui-serif, Cambria, "Times New Roman", Times, serif;
 }
 
+/* ── Light mode (default) ── */
 :root {
-  --bg-color: #E4E3E0;
-  --card-bg: rgba(255, 255, 255, 0.5);
-  --card-border: #141414;
-  --text-primary: #141414;
-  --text-secondary: rgba(20, 20, 20, 0.7);
+  --bg:          #E4E3E0;
+  --bg-sidebar:  #D4D3D0;
+  --bg-header:   #E4E3E0;
+  --bg-card:     rgba(255,255,255,0.4);
+  --bg-card-alt: rgba(255,255,255,0.6);
+  --bg-input:    #ffffff;
+  --bg-modal:    #f5f4f1;
+  --ink:         #141414;
+  --ink-inv:     #E4E3E0;
+  --ink-50:      rgba(20,20,20,0.5);
+  --ink-20:      rgba(20,20,20,0.2);
+  --border:      #141414;
+  --border-soft: rgba(20,20,20,0.15);
+  --row-hover:   rgba(255,255,255,0.85);
+  --row-bg:      rgba(255,255,255,0.4);
+  --surface:     rgba(255,255,255,0.5);
+  --surface-alt: rgba(255,255,255,0.3);
+  --table-foot:  #f0efec;
+  --scrollbar-track: #E4E3E0;
+
+  /* semantic — unchanged in both modes */
   --accent-orange: #d97706;
-  --danger-red: #dc2626;
+  --danger-red:    #dc2626;
   --success-green: #16a34a;
-  --line: #141414;
+
+  /* legacy aliases (keep for components that still use them) */
+  --bg-color:    var(--bg);
+  --card-bg:     var(--bg-card);
+  --card-border: var(--border);
+  --text-primary:   var(--ink);
+  --text-secondary: var(--ink-50);
+  --line: var(--border);
+}
+
+/* ── Dark mode ── */
+.dark {
+  --bg:          #0f0f0f;
+  --bg-sidebar:  #1a1a1a;
+  --bg-header:   #141414;
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-card-alt: rgba(255,255,255,0.08);
+  --bg-input:    #242424;
+  --bg-modal:    #1c1c1c;
+  --ink:         #E4E3E0;
+  --ink-inv:     #0f0f0f;
+  --ink-50:      rgba(228,227,224,0.5);
+  --ink-20:      rgba(228,227,224,0.12);
+  --border:      #3a3a3a;
+  --border-soft: rgba(228,227,224,0.1);
+  --row-hover:   rgba(255,255,255,0.07);
+  --row-bg:      rgba(255,255,255,0.03);
+  --surface:     rgba(255,255,255,0.05);
+  --surface-alt: rgba(255,255,255,0.03);
+  --table-foot:  #1e1e1e;
+  --scrollbar-track: #1a1a1a;
 }
 
 body {
-  background-color: var(--bg-color);
-  color: var(--text-primary);
+  background-color: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
+  transition: background-color 0.2s, color 0.2s;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track {
-  background: var(--bg-color);
-  border-left: 1px solid var(--line);
+  background: var(--scrollbar-track);
+  border-left: 1px solid var(--border);
 }
-::-webkit-scrollbar-thumb {
-  background: #141414;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #333;
-}
+::-webkit-scrollbar-thumb { background: var(--ink); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-50); }
 
 .data-table-container {
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--border);
   background: transparent;
   overflow: hidden;
 }
@@ -49,27 +90,31 @@ body {
 .data-row {
   display: grid;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
   transition: background 0.1s ease;
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--row-bg);
 }
-
-.data-row:last-child {
-  border-bottom: none;
-}
-
-.data-row:hover {
-  background: rgba(255, 255, 255, 0.9);
-}
+.data-row:last-child { border-bottom: none; }
+.data-row:hover { background: var(--row-hover); }
 
 .data-header {
   font-family: var(--font-serif);
   font-size: 11px;
   font-weight: bold;
   text-transform: uppercase;
-  color: var(--text-primary);
+  color: var(--ink);
   letter-spacing: 0.1em;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  background: #D4D3D0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
 }
+
+/* ── Theme-aware Tailwind helpers ── */
+/* Use these classes instead of bg-[var(--ink)] / bg-[var(--bg)] in new code */
+.theme-bg       { background-color: var(--bg); }
+.theme-sidebar  { background-color: var(--bg-sidebar); }
+.theme-header   { background-color: var(--bg-header); }
+.theme-card     { background-color: var(--bg-card); }
+.theme-ink      { color: var(--ink); }
+.theme-ink-inv  { color: var(--ink-inv); }
+.theme-border   { border-color: var(--border); }

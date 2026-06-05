@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes, Sun, Moon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../store/AppContext';
+import { useTheme } from '../store/ThemeContext';
 import { canView } from '../lib/permissions';
 
 type NavItem = {
@@ -12,11 +13,7 @@ type NavItem = {
   icon: React.ElementType;
 };
 
-const BRAND_ICON: Record<string, string> = {
-  OVERSHARK: '/img-icono/Img-barra/over-icon.png',
-  BRAVOS: '/img-icono/Img-barra/brav-icon.png',
-  BOX_PRIME: '/img-icono/Img-barra/box.icon.png',
-};
+const BRAND_ABBR: Record<string, string> = { OVERSHARK: 'OS', BRAVOS: 'BU', BOX_PRIME: 'BP' };
 const BRAND_NAME: Record<string, string> = { OVERSHARK: 'OVERSHARK', BRAVOS: 'BRAVOS URBAN', BOX_PRIME: 'BOX PRIME' };
 const BRAND_LEGAL: Record<string, string> = { OVERSHARK: 'OVERSHARK PERU S.A.C.', BRAVOS: 'BRAVOS URBAN CO.', BOX_PRIME: 'BOX PRIME PERU' };
 
@@ -54,6 +51,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { activeBrand, setActiveBrand, currentUser, rolePermissions, refreshAll } = useAppContext();
+  const { theme, toggle: toggleTheme } = useTheme();
   const location = useLocation();
 
   const handleRefresh = async () => {
@@ -70,7 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNavLabel = navItems.find(n => location.pathname === `/${n.id}`)?.label ?? 'DASHBOARD';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg-color)]">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
@@ -81,38 +79,38 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Sidebar */}
       <aside
+        style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--border)' }}
         className={cn(
-          "fixed md:relative top-0 left-0 h-full flex-shrink-0 border-r border-[#141414] bg-[#D4D3D0] flex flex-col z-20 transition-all duration-300 ease-in-out",
+          "fixed md:relative top-0 left-0 h-full flex-shrink-0 border-r flex flex-col z-20 transition-all duration-300 ease-in-out",
           sidebarOpen ? "translate-x-0 w-[260px]" : "-translate-x-full md:translate-x-0 w-[260px] md:w-16"
         )}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[#141414]">
+        <div className="h-16 flex items-center justify-between px-4" style={{ borderBottom: '1px solid var(--border)' }}>
           {sidebarOpen && (
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-7 h-7 flex-shrink-0 overflow-hidden">
-                <img
-                  src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
-                  alt={BRAND_NAME[activeBrand] ?? activeBrand}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="font-mono font-bold tracking-wider text-sm text-[#141414] whitespace-nowrap">
+              <img
+                src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+                alt="Zazu Express"
+                className="w-8 h-8 object-contain flex-shrink-0"
+              />
+              <span className="font-mono font-bold tracking-wider text-sm whitespace-nowrap" style={{ color: 'var(--ink)' }}>
                 {BRAND_NAME[activeBrand] ?? activeBrand}
               </span>
             </div>
           )}
           {!sidebarOpen && (
-            <div className="hidden md:flex w-7 h-7 flex-shrink-0 overflow-hidden mx-auto">
+            <div className="hidden md:flex w-8 h-8 flex-shrink-0 items-center justify-center mx-auto">
               <img
-                src={BRAND_ICON[activeBrand] ?? BRAND_ICON.BOX_PRIME}
-                alt={BRAND_NAME[activeBrand] ?? activeBrand}
-                className="w-full h-full object-contain"
+                src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+                alt="Zazu Express"
+                className="w-8 h-8 object-contain"
               />
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-[#141414] opacity-60 hover:opacity-100 transition-colors p-1 shrink-0"
+            className="opacity-60 hover:opacity-100 transition-colors p-1 shrink-0"
+            style={{ color: 'var(--ink)' }}
           >
             <Menu size={20} />
           </button>
@@ -125,11 +123,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               to={`/${item.id}`}
               onClick={() => { if (window.innerWidth < 768) setSidebarOpen(false); }}
               className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border border-transparent",
-                isActive
-                  ? "bg-[#141414] text-[#E4E3E0] shadow-[2px_2px_0_#9f9d99]"
-                  : "text-[#141414] opacity-60 hover:opacity-100 hover:border-[#141414] hover:bg-white/50"
+                "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border",
+                isActive ? "shadow-[2px_2px_0_var(--border)]" : "border-transparent opacity-60 hover:opacity-100"
               )}
+              style={({ isActive }) => isActive
+                ? { background: 'var(--ink)', color: 'var(--ink-inv)', borderColor: 'var(--ink)' }
+                : { color: 'var(--ink)' }
+              }
               title={item.label}
             >
               {({ isActive }) => (
@@ -147,13 +147,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {sidebarOpen && (
-          <div className="p-4 border-t border-[#141414] flex flex-col gap-2">
+          <div className="p-4 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
             <div className="flex flex-col gap-1">
               <label className="font-mono text-[9px] opacity-60 font-bold uppercase tracking-widest">MÓDULO ACTIVO:</label>
               <select
                 value={activeBrand}
                 onChange={(e) => setActiveBrand(e.target.value as any)}
-                className="w-full bg-white/50 border border-[#141414] py-1 px-2 text-[10px] font-bold text-[#141414] focus:outline-none focus:bg-white focus:shadow-[2px_2px_0_#141414] transition-all font-mono uppercase cursor-pointer"
+                className="w-full py-1 px-2 text-[10px] font-bold focus:outline-none transition-all font-mono uppercase cursor-pointer"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--ink)' }}
               >
                 <option value="OVERSHARK">OVERSHARK</option>
                 <option value="BRAVOS">BRAVOS URBAN</option>
@@ -168,28 +169,38 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden min-w-0">
         {/* Top Header */}
-        <header className="h-14 md:h-16 border-b border-[#141414] bg-[#E4E3E0] flex items-center justify-between px-3 md:px-6 gap-2">
+        <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 gap-2" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-header)', color: 'var(--ink)' }}>
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <button
-              className="md:hidden p-1.5 border border-[#141414] shrink-0"
+              className="md:hidden p-1.5 shrink-0"
+              style={{ border: '1px solid var(--border)' }}
               onClick={() => setSidebarOpen(true)}
             >
               <Menu size={16} />
             </button>
-            <img src="/img-icono/zazu_icon.png" alt="LogixZazu" className="w-7 h-7 md:w-8 md:h-8 object-contain shrink-0" />
+            <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center shrink-0" style={{ background: 'var(--ink)' }}>
+              <span className="font-mono font-black text-[8px] md:text-[9px] tracking-wider" style={{ color: 'var(--ink-inv)' }}>LZ</span>
+            </div>
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
-            <span className="hidden sm:inline text-[10px] font-mono bg-[#141414] text-[#E4E3E0] px-2 py-0.5 border border-[#141414] whitespace-nowrap shrink-0">/ {currentNavLabel}</span>
+            <span className="hidden sm:inline text-[10px] font-mono px-2 py-0.5 whitespace-nowrap shrink-0" style={{ background: 'var(--ink)', color: 'var(--ink-inv)', border: '1px solid var(--border)' }}>/ {currentNavLabel}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex flex-col items-end gap-0.5">
-              <span className="font-mono font-black text-[11px] text-[#141414] uppercase tracking-wider">{currentUser.username || '—'}</span>
+              <span className="font-mono font-black text-[11px] uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{currentUser.username || '—'}</span>
               <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">{ROLE_LABELS[currentUser.role] ?? currentUser.role}</span>
             </div>
+            <button
+              onClick={toggleTheme}
+              title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+              className="p-1.5 border border-transparent hover:border-[var(--border)] transition-colors"
+            >
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+            </button>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
               title="Actualizar registros"
-              className="p-1.5 border border-transparent hover:border-[#141414] transition-colors disabled:opacity-40"
+              className="p-1.5 border border-transparent hover:border-[var(--border)] transition-colors disabled:opacity-40"
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../store/ThemeContext';
 
 export const ResetPassword: React.FC = () => {
+  const { theme } = useTheme();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -11,8 +13,8 @@ export const ResetPassword: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return; }
-    if (password !== confirm) { setError('Las contraseñas no coinciden.'); return; }
+    if (password.length < 6) { setError('La contrasena debe tener al menos 6 caracteres.'); return; }
+    if (password !== confirm) { setError('Las contrasenas no coinciden.'); return; }
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
@@ -26,46 +28,50 @@ export const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#E4E3E0] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <img src="/img-icono/zazu_icon.png" alt="LogixZazu" className="w-16 h-16 object-contain mx-auto mb-4" />
-          <h1 className="font-mono font-black text-lg tracking-widest text-[#141414] uppercase">LOGIXZAZU</h1>
-          <p className="font-mono text-[10px] opacity-40 tracking-[0.3em] uppercase mt-1">Restablecer contraseña</p>
+          <img
+            src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+            alt="Zazu Express"
+            className="w-32 h-32 object-contain mx-auto mb-2"
+          />
+          <h1 className="font-mono font-black text-lg tracking-widest text-[var(--ink)] uppercase">LOGIXZAZU</h1>
+          <p className="font-mono text-[10px] opacity-40 tracking-[0.3em] uppercase mt-1">Restablecer contrasena</p>
         </div>
 
-        <div className="border-2 border-[#141414] bg-white shadow-[6px_6px_0_#141414]">
-          <div className="border-b-2 border-[#141414]">
-            <div className="py-3 text-center font-mono text-[10px] font-bold tracking-widest uppercase bg-[#141414] text-[#E4E3E0]">
-              {done ? 'CONTRASEÑA ACTUALIZADA' : 'NUEVA CONTRASEÑA'}
+        <div className="border-2 border-[var(--border)] bg-[var(--bg-input)] shadow-[6px_6px_0_var(--border)]">
+          <div className="border-b-2 border-[var(--border)]">
+            <div className="py-3 text-center font-mono text-[10px] font-bold tracking-widest uppercase bg-[var(--ink)] text-[var(--ink-inv)]">
+              {done ? 'CONTRASENA ACTUALIZADA' : 'NUEVA CONTRASENA'}
             </div>
           </div>
 
           {!done && (
             <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
               {error && (
-                <div className="border border-red-600 bg-red-50 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
+                <div className="border border-red-600 bg-red-500/10 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
                   {error}
                 </div>
               )}
-              <Field label="Nueva contraseña">
+              <Field label="Nueva contrasena">
                 <input
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="--------"
                   className="auth-input"
                   autoComplete="new-password"
                   minLength={6}
                   required
                 />
               </Field>
-              <Field label="Confirmar contraseña">
+              <Field label="Confirmar contrasena">
                 <input
                   type="password"
                   value={confirm}
                   onChange={e => setConfirm(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="--------"
                   className="auth-input"
                   autoComplete="new-password"
                   minLength={6}
@@ -75,23 +81,23 @@ export const ResetPassword: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] disabled:opacity-50 transition-all"
+                className="mt-2 w-full bg-[var(--ink)] text-[var(--ink-inv)] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_var(--border)] disabled:opacity-50 transition-all"
               >
-                {loading ? 'GUARDANDO...' : 'ACTUALIZAR CONTRASEÑA'}
+                {loading ? 'GUARDANDO...' : 'ACTUALIZAR CONTRASENA'}
               </button>
             </form>
           )}
 
           {done && (
             <div className="p-6 flex flex-col gap-4 items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-[#141414]/10 flex items-center justify-center text-2xl">✓</div>
+              <div className="w-12 h-12 rounded-full bg-[var(--ink)]/10 flex items-center justify-center text-2xl">?</div>
               <p className="font-mono text-[10px] font-bold uppercase tracking-wide">
-                Tu contraseña fue actualizada correctamente.
+                Tu contrasena fue actualizada correctamente.
               </p>
               <button
                 type="button"
                 onClick={() => { supabase.auth.signOut(); }}
-                className="mt-2 w-full bg-[#141414] text-[#E4E3E0] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_#9f9d99] transition-all"
+                className="mt-2 w-full bg-[var(--ink)] text-[var(--ink-inv)] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all"
               >
                 IR AL LOGIN
               </button>
