@@ -16,6 +16,7 @@ type NavItem = {
 const BRAND_ABBR: Record<string, string> = { OVERSHARK: 'OS', BRAVOS: 'BU', BOX_PRIME: 'BP' };
 const BRAND_NAME: Record<string, string> = { OVERSHARK: 'OVERSHARK', BRAVOS: 'BRAVOS URBAN', BOX_PRIME: 'BOX PRIME' };
 const BRAND_LEGAL: Record<string, string> = { OVERSHARK: 'OVERSHARK PERU S.A.C.', BRAVOS: 'BRAVOS URBAN CO.', BOX_PRIME: 'BOX PRIME PERU' };
+const BRAND_ICON: Record<string, string> = { OVERSHARK: '/icon-marca/over-icon.png', BRAVOS: '/icon-marca/brav-icon.png', BOX_PRIME: '/icon-marca/box.icon.png' };
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN_GENERAL: 'ADMIN GENERAL',
@@ -178,8 +179,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               <Menu size={16} />
             </button>
-            <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center shrink-0" style={{ background: 'var(--ink)' }}>
-              <span className="font-mono font-black text-[8px] md:text-[9px] tracking-wider" style={{ color: 'var(--ink-inv)' }}>LZ</span>
+            <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center shrink-0">
+              <img
+                src={BRAND_ICON[activeBrand] ?? '/icon-marca/over-icon.png'}
+                alt={BRAND_NAME[activeBrand] ?? activeBrand}
+                className="w-7 h-7 md:w-8 md:h-8 object-contain"
+              />
             </div>
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
             <span className="hidden sm:inline text-[10px] font-mono px-2 py-0.5 whitespace-nowrap shrink-0" style={{ background: 'var(--ink)', color: 'var(--ink-inv)', border: '1px solid var(--border)' }}>/ {currentNavLabel}</span>
