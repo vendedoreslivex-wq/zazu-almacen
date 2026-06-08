@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './store/AppContext';
-import { ThemeProvider } from './store/ThemeContext';
+import { ThemeProvider, useTheme } from './store/ThemeContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -57,6 +57,14 @@ function AppShell() {
 }
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppRoot />
+    </ThemeProvider>
+  );
+}
+
+function AppRoot() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [recoveryMode, setRecoveryMode] = useState(false);
 
@@ -77,26 +85,29 @@ export default function App() {
   if (!session) return <Login />;
 
   return (
-    <ThemeProvider>
-      <HashRouter>
-        <ErrorBoundary>
-          <AppProvider>
-            <AppShell />
-          </AppProvider>
-        </ErrorBoundary>
-      </HashRouter>
-    </ThemeProvider>
+    <HashRouter>
+      <ErrorBoundary>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </ErrorBoundary>
+    </HashRouter>
   );
 }
 
 function SplashScreen({ label = 'INICIANDO...' }: { label?: string }) {
+  const { theme } = useTheme();
   return (
     <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center gap-6">
       <div className="relative flex items-center justify-center">
         <div className="absolute w-24 h-24 border-2 border-[var(--border)]/20 rounded-full animate-ping" />
         <div className="absolute w-20 h-20 border border-[var(--border)]/10 rounded-full animate-pulse" />
-        <div className="w-16 h-16 bg-[var(--ink)] flex items-center justify-center relative z-10 animate-pulse" style={{ animationDuration: '1.5s' }}>
-          <span className="font-mono font-black text-[var(--ink-inv)] text-xs tracking-widest">LZ</span>
+        <div className="w-16 h-16 relative z-10 animate-pulse" style={{ animationDuration: '1.5s' }}>
+          <img
+            src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+            alt="Zazu Express"
+            className="w-16 h-16 object-contain"
+          />
         </div>
       </div>
       <div className="flex flex-col items-center gap-2">
