@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
+import { TutorialModal, OPERATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
@@ -302,6 +303,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
 
 export const Operations: React.FC = () => {
   const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Read sessionStorage filter set by Dashboard KPI cards
   const storedFilter = (() => {
@@ -311,11 +313,30 @@ export const Operations: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
-      <ModuleInfo
-        number="05"
-        title="Operaciones"
-        description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta m-ltiples productos por operacion."
+      <TutorialModal
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        steps={OPERATIONS_TUTORIAL_STEPS}
       />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo
+            number="05"
+            title="Operaciones"
+            description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta m-ltiples productos por operacion."
+          />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       {/* Main tabs */}
       <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)]">
