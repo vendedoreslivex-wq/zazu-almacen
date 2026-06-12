@@ -296,8 +296,8 @@ export const Reports: React.FC = () => {
     const sharedCSS = `
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: Inter, Arial, sans-serif; background: white; color: #111; padding: 36px 44px; font-size: 11px; }
-      @page { size: A4; margin: 14mm 12mm; }
+      body { font-family: Inter, Arial, sans-serif; background: white; color: #111; padding: 28px 40px; font-size: 11px; width: 257mm; }
+      @page { size: A4 landscape; margin: 12mm 14mm; }
       @media print { body { padding: 0; } }
 
       /* -- Header -- */
@@ -482,7 +482,7 @@ export const Reports: React.FC = () => {
           : `<tr><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;">TOTAL</td><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:10px;font-weight:900;text-align:center;">${totalQty}</td></tr>`;
 
         return `
-          <table style="width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:avoid;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:14px;break-inside:avoid;">
             <thead>
               <tr>
                 <td colspan="${(hasColor ? 1 : 0) + (hasSize ? 1 : 0) + 1}" style="padding:6px 10px;background:#6B21A8;color:#fff;">
@@ -508,7 +508,9 @@ export const Reports: React.FC = () => {
             </div>
             <div style="font-size:8px;color:#aaa;text-align:right;line-height:1.6;">${brand} · ${now}</div>
           </div>
-          ${productTables}
+          <div style="column-count:3;column-gap:18px;column-fill:balance;">
+            ${productTables}
+          </div>
         </div>`;
 
       bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO') + variantSection;
@@ -643,7 +645,7 @@ ${footerHTML}
     const target = (container.querySelector('body') || container) as HTMLElement;
     html2canvas(target, { scale: 2, useCORS: true, logging: false }).then(canvas => {
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
       const margin = 12;
