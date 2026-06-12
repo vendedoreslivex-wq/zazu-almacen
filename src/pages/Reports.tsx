@@ -296,11 +296,11 @@ export const Reports: React.FC = () => {
     const usableW = PW - ML - MR;
 
     // Paleta: carbón + arena + acentos tinta
-    const INK:    [number,number,number] = [28, 28, 28];
-    const SLATE:  [number,number,number] = [72, 72, 80];
-    const RULE:   [number,number,number] = [190, 185, 175];   // líneas
-    const SAND:   [number,number,number] = [248, 246, 241];   // fila alterna
-    const CHALK:  [number,number,number] = [235, 232, 225];   // encabezado col
+    const INK:    [number,number,number] = [55, 30, 80];       // morado oscuro texto
+    const SLATE:  [number,number,number] = [110, 75, 145];     // morado medio subtítulos
+    const RULE:   [number,number,number] = [195, 175, 220];    // líneas morado pálido
+    const SAND:   [number,number,number] = [248, 244, 255];    // fila alterna lila muy pálido
+    const CHALK:  [number,number,number] = [225, 210, 245];    // encabezado col morado pastel
     const WHITE:  [number,number,number] = [255, 255, 255];
     const GREEN:  [number,number,number] = [34, 139, 70];
     const RED:    [number,number,number] = [185, 40, 40];
@@ -413,7 +413,9 @@ export const Reports: React.FC = () => {
       y += 6;
 
       // Tabla pivote MODELO × TALLA
-      const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort();
+      const SIZE_ORDER = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA','S/T'];
+      const sizeRank = (s: string) => { const i = SIZE_ORDER.indexOf(s.toUpperCase()); return i >= 0 ? i : SIZE_ORDER.length; };
+      const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort((a, b) => sizeRank(a) - sizeRank(b));
       const models: string[]   = Array.from(new Set<string>(inventoryRows.map(r => r.name))).sort();
       const pivot: Record<string, Record<string, number>> = {};
       inventoryRows.forEach(r => {
@@ -475,34 +477,76 @@ export const Reports: React.FC = () => {
         const hasColor = variants.some(v => v.color && v.color.trim() !== '');
         const hasSize  = variants.some(v => v.size  && v.size.trim()  !== '');
 
-        const cols: string[] = [];
-        if (hasColor) cols.push('COLOR');
-        if (hasSize)  cols.push('TALLA');
-        cols.push('CANTIDAD');
+        // Tallas presentes en este producto, en orden lógico
+        const prodSizes: string[] = hasSize
+          ? Array.from(new Set<string>(variants.map(v => v.size?.trim() || 'S/T')))
+              .sort((a, b) => sizeRank(a) - sizeRank(b))
+          : [];
 
-        const body = variants
-          .sort((a, b) => (a.color || '').localeCompare(b.color || '') || (a.size || '').localeCompare(b.size || ''))
-          .map(v => {
-            const row: string[] = [];
-            if (hasColor) row.push(v.color?.trim() || '—');
-            if (hasSize)  row.push(v.size?.trim()  || '—');
-            row.push(String(v.qty));
-            return row;
+        let cols: string[];
+        let body: string[][];
+        let colStyles: Record<number, object>;
+
+        if (hasColor && hasSize) {
+          // Pivote: COLOR | S | M | L | XL … | TOTAL
+          cols = ['COLOR', ...prodSizes, 'TOTAL'];
+
+          // Agrupar por color
+          const colorMap: Record<string, Record<string, number>> = {};
+          variants.forEach(v => {
+            const c = v.color?.trim() || '—';
+            const s = v.size?.trim()  || 'S/T';
+            if (!colorMap[c]) colorMap[c] = {};
+            colorMap[c][s] = (colorMap[c][s] || 0) + v.qty;
           });
 
-        const totalRow: string[] = Array(cols.length).fill('');
-        totalRow[0] = 'TOTAL';
-        totalRow[cols.length - 1] = String(totalQty);
+          const colors = Object.keys(colorMap).sort((a, b) => a.localeCompare(b));
+          body = colors.map(c => {
+            const rowTotal = prodSizes.reduce((acc, s) => acc + (colorMap[c]?.[s] ?? 0), 0);
+            return [c, ...prodSizes.map(s => { const v = colorMap[c]?.[s]; return v ? String(v) : '—'; }), String(rowTotal)];
+          });
 
-        const qtyW    = 30;
-        const otherW  = (usableW - qtyW) / Math.max(cols.length - 1, 1);
-        const colStyles: Record<number, object> = {};
-        cols.forEach((_c, i) => {
-          colStyles[i] = i < cols.length - 1
-            ? { cellWidth: otherW, halign: 'left' as const }
-            : { cellWidth: qtyW,   halign: 'center' as const, fontStyle: 'bold' as const };
-        });
+          // Fila TOTAL por columna de talla
+          const sizeTotals = prodSizes.map(s => colors.reduce((acc, c) => acc + (colorMap[c]?.[s] ?? 0), 0));
+          body.push(['TOTAL', ...sizeTotals.map(String), String(totalQty)]);
 
+          const colorW  = Math.min(55, usableW * 0.35);
+          const totalW  = 22;
+          const sizeW   = (usableW - colorW - totalW) / Math.max(prodSizes.length, 1);
+          colStyles = {
+            0: { cellWidth: colorW, halign: 'left' as const },
+            ...Object.fromEntries(prodSizes.map((_s, i) => [i + 1, { cellWidth: sizeW, halign: 'center' as const }])),
+            [prodSizes.length + 1]: { cellWidth: totalW, halign: 'center' as const, fontStyle: 'bold' as const },
+          };
+
+        } else if (hasSize && !hasColor) {
+          // Sin color: TALLA | CANTIDAD en fila, pero pivot de una sola columna no aplica — lista simple
+          cols = ['TALLA', 'CANTIDAD'];
+          body = prodSizes.map(s => {
+            const qty = variants.filter(v => (v.size?.trim() || 'S/T') === s).reduce((acc, v) => acc + v.qty, 0);
+            return [s, String(qty)];
+          });
+          body.push(['TOTAL', String(totalQty)]);
+          const tallaW = usableW - 30;
+          colStyles = {
+            0: { cellWidth: tallaW, halign: 'left' as const },
+            1: { cellWidth: 30,     halign: 'center' as const, fontStyle: 'bold' as const },
+          };
+
+        } else {
+          // Solo color o sin variantes
+          cols = hasColor ? ['COLOR', 'CANTIDAD'] : ['CANTIDAD'];
+          body = variants
+            .sort((a, b) => (a.color || '').localeCompare(b.color || ''))
+            .map(v => hasColor ? [v.color?.trim() || '—', String(v.qty)] : [String(v.qty)]);
+          body.push(hasColor ? ['TOTAL', String(totalQty)] : [String(totalQty)]);
+          const colorW2 = usableW - 30;
+          colStyles = hasColor
+            ? { 0: { cellWidth: colorW2, halign: 'left' as const }, 1: { cellWidth: 30, halign: 'center' as const, fontStyle: 'bold' as const } }
+            : { 0: { cellWidth: usableW, halign: 'center' as const, fontStyle: 'bold' as const } };
+        }
+
+        const totalRowIdx = body.length - 1;
         const estimatedH = (body.length + 3) * 7.5;
         if (y + estimatedH > PH - MB - 15) {
           pdf.addPage();
@@ -522,7 +566,7 @@ export const Reports: React.FC = () => {
         autoTable(pdf, {
           startY: y,
           head: [cols],
-          body: [...body, totalRow],
+          body: body,
           margin: { left: ML, right: MR },
           tableWidth: usableW,
           ...baseStyles,
@@ -531,7 +575,7 @@ export const Reports: React.FC = () => {
             if (data.section === 'head') {
               data.cell.styles.fillColor = CHALK;
             }
-            if (data.section === 'body' && data.row.index === body.length) {
+            if (data.section === 'body' && data.row.index === totalRowIdx) {
               data.cell.styles.fillColor = CHALK;
               data.cell.styles.fontStyle = 'bold';
               data.cell.styles.lineColor = INK;
