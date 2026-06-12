@@ -448,68 +448,79 @@ export const Reports: React.FC = () => {
         grouped[r.name].push(r);
       });
 
-      const productTables = Object.entries(grouped).map(([name, variants]) => {
+      const buildProductTable = (name: string, variants: typeof inventoryRows) => {
         const totalQty = variants.reduce((s, v) => s + v.qty, 0);
         const code = variants[0]?.code || '';
         const hasColor = variants.some(v => v.color);
         const hasSize  = variants.some(v => v.size);
 
         const headerCols = [
-          hasColor ? '<th style="text-align:left;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Color</th>' : '',
-          hasSize  ? '<th style="text-align:left;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Talla</th>' : '',
-          '<th style="text-align:center;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Cantidad</th>',
+          hasColor ? '<th style="text-align:left;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Color</th>' : '',
+          hasSize  ? '<th style="text-align:left;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Talla</th>' : '',
+          '<th style="text-align:center;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Cant.</th>',
         ].join('');
 
         const bodyRows = variants
           .sort((a, b) => (a.color || '').localeCompare(b.color || '') || (a.size || '').localeCompare(b.size || ''))
           .map((v, i) => {
-            const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            const bg = i % 2 === 0 ? '#fff' : '#f7f7f7';
             return `<tr style="background:${bg};">
-              ${hasColor ? `<td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;color:#333;">${v.color || '—'}</td>` : ''}
-              ${hasSize  ? `<td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;color:#333;">${v.size  || '—'}</td>` : ''}
-              <td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;font-weight:700;text-align:center;color:#111;">${v.qty}</td>
+              ${hasColor ? `<td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;color:#333;">${v.color || '—'}</td>` : ''}
+              ${hasSize  ? `<td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;color:#333;">${v.size  || '—'}</td>` : ''}
+              <td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;font-weight:700;text-align:center;color:#111;">${v.qty}</td>
             </tr>`;
           }).join('');
 
-        const totalCols = [
-          hasColor ? '<td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;" colspan="1">TOTAL</td>' : '',
-          hasSize  ? '<td style="border:1px solid #ccc;background:#f0f0f0;"></td>' : '',
-          `<td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:10px;font-weight:900;text-align:center;color:#111;">${totalQty}</td>`,
-        ].join('');
-        // Si no hay color ni talla, el total ocupa solo 1 columna
-        const totalRow = (hasColor || hasSize)
-          ? `<tr>${totalCols}</tr>`
-          : `<tr><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;">TOTAL</td><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:10px;font-weight:900;text-align:center;">${totalQty}</td></tr>`;
+        const colspan = (hasColor ? 1 : 0) + (hasSize ? 1 : 0) + 1;
+        const totalRow = `<tr>
+          <td colspan="${colspan}" style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;text-align:right;color:#111;">
+            TOTAL: <strong>${totalQty}</strong>
+          </td>
+        </tr>`;
 
-        return `
-          <table style="width:100%;border-collapse:collapse;margin-bottom:14px;break-inside:avoid;">
-            <thead>
-              <tr>
-                <td colspan="${(hasColor ? 1 : 0) + (hasSize ? 1 : 0) + 1}" style="padding:6px 10px;background:#6B21A8;color:#fff;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;">${name}</span>
-                    <span style="font-size:8px;opacity:.8;letter-spacing:.06em;">${code} · ${variants.length} SKU${variants.length !== 1 ? 's' : ''}</span>
-                  </div>
-                </td>
-              </tr>
-              <tr>${headerCols}</tr>
-            </thead>
-            <tbody>${bodyRows}</tbody>
-            <tfoot>${totalRow}</tfoot>
-          </table>`;
-      }).join('');
+        return `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+          <thead>
+            <tr>
+              <td colspan="${colspan}" style="padding:5px 8px;background:#6B21A8;color:#fff;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;">${name}</span>
+                  <span style="font-size:7px;opacity:.8;">${code} · ${variants.length} SKU${variants.length !== 1 ? 's' : ''}</span>
+                </div>
+              </td>
+            </tr>
+            <tr>${headerCols}</tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+          <tfoot>${totalRow}</tfoot>
+        </table>`;
+      };
 
+      // Distribuir productos en 3 columnas manualmente para evitar cortes con html2canvas
+      const entries = Object.entries(grouped);
+      const col0: string[] = [];
+      const col1: string[] = [];
+      const col2: string[] = [];
+      entries.forEach(([name, variants], i) => {
+        const table = buildProductTable(name, variants);
+        if (i % 3 === 0) col0.push(table);
+        else if (i % 3 === 1) col1.push(table);
+        else col2.push(table);
+      });
+
+      const colStyle = 'style="flex:1;min-width:0;"';
       const variantSection = `
         <div style="page-break-before:always;padding-top:4px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:18px;">
             <div>
               <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#111;">Detalle por Producto y Variantes</div>
               <div style="font-size:8.5px;color:#888;margin-top:4px;letter-spacing:.05em;">${Object.keys(grouped).length} PRODUCTOS · ${inventoryRows.length} SKUs CON STOCK</div>
             </div>
             <div style="font-size:8px;color:#aaa;text-align:right;line-height:1.6;">${brand} · ${now}</div>
           </div>
-          <div style="column-count:3;column-gap:18px;column-fill:balance;">
-            ${productTables}
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <div ${colStyle}>${col0.join('')}</div>
+            <div ${colStyle}>${col1.join('')}</div>
+            <div ${colStyle}>${col2.join('')}</div>
           </div>
         </div>`;
 
