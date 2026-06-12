@@ -5,7 +5,8 @@ import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clo
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
@@ -639,17 +640,23 @@ ${footerHTML}
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.appendChild(container);
-    html2pdf()
-      .set({
-        margin: [14, 12, 14, 12],
-        filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(container.querySelector('body') || container)
-      .save()
-      .finally(() => document.body.removeChild(container));
+    const target = (container.querySelector('body') || container) as HTMLElement;
+    html2canvas(target, { scale: 2, useCORS: true, logging: false }).then(canvas => {
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height * usableW) / canvas.width;
+      let y = 0;
+      while (y < imgH) {
+        if (y > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, margin - y, usableW, imgH);
+        y += pageH - margin * 2;
+      }
+      pdf.save(filename);
+    }).finally(() => document.body.removeChild(container));
   };
 
   // --- Datos Kanban por reporte ----------------------------------------------
