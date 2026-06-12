@@ -1713,16 +1713,16 @@ function buildBulletinHTML(p: BulletinData): string {
       </div>` : '';
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<style>*{box-sizing:border-box}body{margin:0;padding:20px;background:#f0efec;font-family:'Courier New',monospace}</style>
+<style>*{box-sizing:border-box}body{margin:0;padding:24px 32px;background:#f0efec;font-family:'Courier New',monospace}</style>
 </head><body>
-  <div style="max-width:560px;margin:0 auto;background:#E4E3E0;border:2px solid #141414;box-shadow:6px 6px 0 #141414">
-    <div style="background:#141414;color:#E4E3E0;padding:24px 28px">
+  <div style="max-width:680px;margin:0 auto;background:#E4E3E0;border:2px solid #141414;box-shadow:6px 6px 0 #141414">
+    <div style="background:#141414;color:#E4E3E0;padding:28px 36px">
       <div style="font-size:9px;letter-spacing:.35em;opacity:.5;text-transform:uppercase">${brandDisplay} — SISTEMA DE ALMACÉN</div>
-      <div style="display:inline-block;background:${color};color:#fff;padding:5px 14px;font-size:10px;font-weight:900;letter-spacing:.3em;margin-top:12px;text-transform:uppercase">${label}</div>
-      <div style="font-size:24px;font-weight:900;letter-spacing:.08em;margin-top:8px;text-transform:uppercase">${p.reference}</div>
+      <div style="display:inline-block;background:${color};color:#fff;padding:6px 16px;font-size:10px;font-weight:900;letter-spacing:.3em;margin-top:14px;text-transform:uppercase">${label}</div>
+      <div style="font-size:28px;font-weight:900;letter-spacing:.08em;margin-top:10px;text-transform:uppercase">${p.reference}</div>
       <div style="font-size:10px;opacity:.4;margin-top:4px;letter-spacing:.15em">${p.date}</div>
     </div>
-    <div style="padding:24px 28px">
+    <div style="padding:28px 36px">
       <table style="width:100%;border-collapse:collapse">
         ${row('Operador', p.operator)}
         ${p.contact ? row(contactLabel, p.contact) : ''}
@@ -1731,7 +1731,7 @@ function buildBulletinHTML(p: BulletinData): string {
       </table>
       ${itemsHTML}${sigHTML}${photoHTML}
     </div>
-    <div style="background:#D4D3D0;border-top:1px solid #141414;padding:10px 28px;font-size:9px;opacity:.45;letter-spacing:.15em;text-transform:uppercase">
+    <div style="background:#D4D3D0;border-top:1px solid #141414;padding:12px 36px;font-size:9px;opacity:.45;letter-spacing:.15em;text-transform:uppercase">
       LogixZazu v3.0 — Comprobante generado automáticamente // ${p.date}
     </div>
   </div>
@@ -1750,14 +1750,14 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
       <div
-        className="w-full max-w-xl flex flex-col"
-        style={{ background: 'var(--bg-card)', border: '2px solid var(--border)', boxShadow: '8px 8px 0 var(--border)', maxHeight: '90vh' }}
+        className="w-full flex flex-col"
+        style={{ background: 'var(--bg-card)', border: '2px solid var(--border)', boxShadow: '8px 8px 0 var(--border)', maxWidth: '780px', height: '92vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+        <div className="flex items-center justify-between px-5 py-3 border-b shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
           <div className="flex items-center gap-2">
             <Mail size={13} style={{ color: 'var(--ink)' }} />
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--ink)' }}>
@@ -1778,12 +1778,12 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
           </div>
         </div>
 
-        {/* iframe preview */}
-        <div className="flex-1 overflow-hidden" style={{ minHeight: '400px' }}>
+        {/* iframe preview — ocupa todo el espacio restante */}
+        <div className="flex-1 overflow-hidden">
           <iframe
             srcDoc={html}
             title="Comprobante de operación"
-            style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none' }}
+            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
             sandbox="allow-same-origin"
           />
         </div>
