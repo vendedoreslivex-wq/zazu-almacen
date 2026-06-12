@@ -288,87 +288,106 @@ export const Reports: React.FC = () => {
       .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
       .catch(() => '');
 
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    // A4 VERTICAL (portrait)
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const filename = `${activeReport}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
-    const PW = pdf.internal.pageSize.getWidth();
-    const PH = pdf.internal.pageSize.getHeight();
-    const ML = 14; const MR = 14; const MT = 12; const MB = 12;
-    const usableW = PW - ML - MR;
+    const PW = pdf.internal.pageSize.getWidth();   // 210mm
+    const PH = pdf.internal.pageSize.getHeight();  // 297mm
+    const ML = 14; const MR = 14; const MT = 10; const MB = 14;
+    const usableW = PW - ML - MR;                  // 182mm
 
-    // Colores
     const PURPLE: [number,number,number] = [107, 33, 168];
     const BLACK:  [number,number,number] = [17, 17, 17];
-    const GRAY:   [number,number,number] = [240, 240, 240];
+    const GRAY:   [number,number,number] = [230, 230, 230];
     const WHITE:  [number,number,number] = [255, 255, 255];
-    const LIGHT:  [number,number,number] = [249, 249, 249];
+    const LIGHT:  [number,number,number] = [250, 249, 255];
+    const PURPLELIGHT: [number,number,number] = [237, 233, 254];
 
-    // Dibuja encabezado en la página actual
-    const drawHeader = (pageTitle: string) => {
+    const drawHeader = (pageTitle: string): number => {
       let y = MT;
-      // Logo placeholder
-      if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, y, 14, 14); } catch {}
-      }
+
+      // Banda superior morada
       pdf.setFillColor(...PURPLE);
-      pdf.rect(ML + (logoB64 ? 16 : 0), y, usableW - (logoB64 ? 16 : 0), 6, 'F');
+      pdf.rect(0, 0, PW, 14, 'F');
+
+      // Logo
+      if (logoB64) {
+        try { pdf.addImage(logoB64, 'PNG', ML, 1.5, 11, 11); } catch {}
+      }
+
       pdf.setTextColor(...WHITE);
-      pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
-      pdf.text('LOGIXZAZU · Tecnologia y Distribucion Logistica del Peru S.A.C.', ML + (logoB64 ? 18 : 2), y + 4.2);
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
-      pdf.text(`RUC: 20614699842  ·  ${brand}  ·  ${now}`, PW - MR, y + 4.2, { align: 'right' });
-      y += 8;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+      pdf.text('LOGIXZAZU', ML + (logoB64 ? 14 : 0), 7.5);
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      pdf.text('Tecnologia y Distribucion Logistica del Peru S.A.C.  ·  RUC 20614699842', ML + (logoB64 ? 14 : 0), 11.5);
+      pdf.setFontSize(7);
+      pdf.text(`${brand}  ·  ${now}`, PW - MR, 9, { align: 'right' });
+
+      y = 20;
+
+      // Título del reporte
       pdf.setTextColor(...BLACK);
-      pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
-      pdf.text(pageTitle.toUpperCase(), PW / 2, y + 5, { align: 'center' });
-      y += 8;
+      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+      pdf.text(pageTitle.toUpperCase(), PW / 2, y, { align: 'center' });
+      y += 6;
+
       if (dateRangeLabel) {
         pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(100, 100, 100);
-        pdf.text(dateRangeLabel, PW / 2, y + 3, { align: 'center' });
-        y += 6;
+        pdf.text(dateRangeLabel, PW / 2, y, { align: 'center' });
+        y += 5;
       }
-      pdf.setDrawColor(200, 200, 200);
+
+      // Línea divisoria
+      pdf.setDrawColor(...PURPLE);
+      pdf.setLineWidth(0.5);
       pdf.line(ML, y, PW - MR, y);
-      return y + 4;
+      pdf.setLineWidth(0.2);
+
+      return y + 5;
     };
 
-    // Pie de página
     const drawFooter = () => {
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(180, 180, 180);
-      pdf.text(`LOGIXZAZU · ${title}`, ML, PH - MB + 4);
-      pdf.text(`Pag. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}  ·  ${now}`, PW - MR, PH - MB + 4, { align: 'right' });
+      pdf.setFillColor(245, 243, 255);
+      pdf.rect(0, PH - 10, PW, 10, 'F');
+      pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(130, 100, 180);
+      pdf.text(`LOGIXZAZU  ·  ${title}  ·  ${brand}`, ML, PH - 4);
+      pdf.text(
+        `Pagina ${(pdf as any).internal.getCurrentPageInfo().pageNumber}  ·  ${now}`,
+        PW - MR, PH - 4, { align: 'right' }
+      );
     };
 
     // ── REPORTE: INVENTARIO ───────────────────────────────────────────────────
     if (activeReport === 'inventory') {
       let y = drawHeader(title);
 
-      // Resumen
+      // Cards de resumen (2 columnas)
       const cards = [
         { label: 'SKUs con stock', value: String(inventoryRows.length), sub: 'productos activos' },
         { label: 'Unidades totales', value: valuationTotal.units.toLocaleString('es-PE'), sub: 'en almacen' },
       ];
-      const cardW = (usableW - 6) / cards.length;
+      const cardW = (usableW - 4) / 2;
       cards.forEach((c, i) => {
-        const cx = ML + i * (cardW + 6);
-        const fc = i === 1 ? PURPLE : GRAY;
-        pdf.setFillColor(fc[0], fc[1], fc[2]);
-        pdf.rect(cx, y, cardW, 14, 'F');
-        const tc = i === 1 ? WHITE : BLACK;
+        const cx = ML + i * (cardW + 4);
+        const bg = i === 1 ? PURPLE : PURPLELIGHT;
+        const tc = i === 1 ? WHITE : PURPLE;
+        pdf.setFillColor(bg[0], bg[1], bg[2]);
+        pdf.roundedRect(cx, y, cardW, 16, 2, 2, 'F');
         pdf.setTextColor(tc[0], tc[1], tc[2]);
         pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-        pdf.text(c.label.toUpperCase(), cx + 3, y + 4);
-        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
-        pdf.text(c.value, cx + 3, y + 10);
+        pdf.text(c.label.toUpperCase(), cx + 4, y + 5);
+        pdf.setFontSize(16); pdf.setFont('helvetica', 'bold');
+        pdf.text(c.value, cx + 4, y + 12.5);
         pdf.setFontSize(6); pdf.setFont('helvetica', 'normal');
-        pdf.text(c.sub.toUpperCase(), cx + 3, y + 13.5);
+        pdf.text(c.sub.toUpperCase(), cx + 4, y + 15.5);
       });
-      y += 18;
+      y += 22;
 
       // Tabla pivote MODELO × TALLA
-      const allSizes = [...new Set(inventoryRows.map(r => r.size?.trim() || 'S/T'))].sort();
-      const models   = [...new Set(inventoryRows.map(r => r.name))].sort();
+      const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort();
+      const models: string[]   = Array.from(new Set<string>(inventoryRows.map(r => r.name))).sort();
       const pivot: Record<string, Record<string, number>> = {};
       inventoryRows.forEach(r => {
         const sz = r.size?.trim() || 'S/T';
@@ -376,36 +395,44 @@ export const Reports: React.FC = () => {
         pivot[r.name][sz] = (pivot[r.name][sz] || 0) + r.qty;
       });
       const colTotals: Record<string, number> = {};
-      allSizes.forEach(s => { colTotals[s] = models.reduce((a, m) => a + (pivot[m]?.[s] || 0), 0); });
+      allSizes.forEach(sz => { colTotals[sz] = models.reduce((a, m) => a + (pivot[m]?.[sz] ?? 0), 0); });
       const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
 
-      const pivotHead = [['MODELO', ...allSizes, 'TOTAL']];
       const pivotBody = models.map(m => {
-        const rowTotal = allSizes.reduce((a, s) => a + (pivot[m]?.[s] || 0), 0);
-        return [m, ...allSizes.map(s => String(pivot[m]?.[s] || 0)), String(rowTotal)];
+        const rowTotal = allSizes.reduce((a, sz) => a + (pivot[m]?.[sz] ?? 0), 0);
+        return [m, ...allSizes.map(sz => { const v = pivot[m]?.[sz]; return v ? String(v) : '-'; }), String(rowTotal)];
       });
-      pivotBody.push(['TOTAL GENERAL', ...allSizes.map(s => String(colTotals[s])), String(grandTotal)]);
+      pivotBody.push(['TOTAL GENERAL', ...allSizes.map(sz => String(colTotals[sz] ?? 0)), String(grandTotal)]);
+
+      const modelColW = Math.min(70, usableW * 0.45);
+      const sizeColW = (usableW - modelColW) / (allSizes.length + 1);
 
       autoTable(pdf, {
         startY: y,
-        head: pivotHead,
+        head: [['MODELO', ...allSizes, 'TOTAL']],
         body: pivotBody,
         margin: { left: ML, right: MR },
-        styles: { fontSize: 8, cellPadding: 2.5, lineColor: [200,200,200], lineWidth: 0.2 },
-        headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
-        columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 55 } },
+        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
+        headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+        columnStyles: {
+          0: { halign: 'left', fontStyle: 'bold', cellWidth: modelColW },
+          ...Object.fromEntries(allSizes.map((_, i) => [i + 1, { halign: 'center', cellWidth: sizeColW }])),
+          [allSizes.length + 1]: { halign: 'center', fontStyle: 'bold', cellWidth: sizeColW, fillColor: PURPLELIGHT },
+        },
         alternateRowStyles: { fillColor: LIGHT },
         didParseCell: (data) => {
           if (data.row.index === pivotBody.length - 1) {
-            data.cell.styles.fillColor = GRAY;
+            data.cell.styles.fillColor = PURPLE;
+            data.cell.styles.textColor = WHITE;
             data.cell.styles.fontStyle = 'bold';
           }
         },
+        didDrawPage: () => drawFooter(),
       });
 
       drawFooter();
 
-      // ── Página 2+: detalle por producto ─────────────────────────────────
+      // ── Página 2+: detalle por producto (UNA tabla vertical por producto) ──
       const grouped: Record<string, typeof inventoryRows> = {};
       inventoryRows.forEach(r => {
         if (!grouped[r.name]) grouped[r.name] = [];
@@ -415,80 +442,77 @@ export const Reports: React.FC = () => {
       pdf.addPage();
       y = drawHeader('Detalle por Producto y Variantes');
 
-      // Distribuir en 3 columnas con autoTable side-by-side
       const entries = Object.entries(grouped);
-      const colW = (usableW - 10) / 3;
-      const col0 = entries.filter((_, i) => i % 3 === 0);
-      const col1 = entries.filter((_, i) => i % 3 === 1);
-      const col2 = entries.filter((_, i) => i % 3 === 2);
+      for (const [name, variants] of entries) {
+        const totalQty = variants.reduce((s, v) => s + v.qty, 0);
+        const hasColor = variants.some(v => v.color && v.color.trim() !== '');
+        const hasSize  = variants.some(v => v.size && v.size.trim() !== '');
 
-      const renderCol = (colEntries: typeof entries, startX: number) => {
-        let cy = y;
-        colEntries.forEach(([name, variants]) => {
-          const totalQty = variants.reduce((s, v) => s + v.qty, 0);
-          const hasColor = variants.some(v => v.color);
-          const hasSize  = variants.some(v => v.size);
-          const head: string[][] = [[name.toUpperCase()]];
-          const subHead: string[] = [];
-          if (hasColor) subHead.push('COLOR');
-          if (hasSize)  subHead.push('TALLA');
-          subHead.push('CANT.');
-          const body = variants
-            .sort((a, b) => (a.color||'').localeCompare(b.color||'') || (a.size||'').localeCompare(b.size||''))
-            .map(v => {
-              const row: string[] = [];
-              if (hasColor) row.push(v.color || '—');
-              if (hasSize)  row.push(v.size  || '—');
-              row.push(String(v.qty));
-              return row;
-            });
-          const footRow: string[] = Array(subHead.length - 1).fill('');
-          footRow.push(String(totalQty));
+        // Construir columnas dinámicamente
+        const cols: string[] = [];
+        if (hasColor) cols.push('COLOR');
+        if (hasSize)  cols.push('TALLA');
+        cols.push('CANTIDAD');
 
-          autoTable(pdf, {
-            startY: cy,
-            head: [head[0].length === 1
-              ? [{ content: name.toUpperCase(), colSpan: subHead.length, styles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 8 } }]
-              : head[0],
-              subHead,
-            ],
-            body: [...body, footRow],
-            margin: { left: startX, right: PW - startX - colW },
-            tableWidth: colW,
-            styles: { fontSize: 7.5, cellPadding: 2, lineColor: [220,220,220], lineWidth: 0.15 },
-            headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center', fontSize: 7 },
-            columnStyles: { [subHead.length - 1]: { halign: 'center', fontStyle: 'bold' } },
-            alternateRowStyles: { fillColor: LIGHT },
-            didParseCell: (data) => {
-              // Fila de total al final
-              if (data.section === 'body' && data.row.index === body.length) {
-                data.cell.styles.fillColor = GRAY;
-                data.cell.styles.fontStyle = 'bold';
-                data.cell.styles.halign = 'right';
-              }
-              // Fila del nombre del producto (primera fila de head)
-              if (data.section === 'head' && data.row.index === 0) {
-                data.cell.styles.fillColor = PURPLE;
-                data.cell.styles.textColor = WHITE;
-              }
-            },
-            didDrawPage: () => { drawFooter(); },
+        const body = variants
+          .sort((a, b) => (a.color || '').localeCompare(b.color || '') || (a.size || '').localeCompare(b.size || ''))
+          .map(v => {
+            const row: string[] = [];
+            if (hasColor) row.push(v.color?.trim() || '—');
+            if (hasSize)  row.push(v.size?.trim()  || '—');
+            row.push(String(v.qty));
+            return row;
           });
 
-          cy = (pdf as any).lastAutoTable.finalY + 4;
+        // Fila de total
+        const totalRow: string[] = Array(cols.length - 1).fill('');
+        totalRow[0] = 'TOTAL';
+        totalRow[cols.length - 1] = String(totalQty);
 
-          // Nueva página si se agota el espacio
-          if (cy > PH - MB - 20) {
-            pdf.addPage();
-            cy = drawHeader('Detalle por Producto y Variantes (cont.)');
-            drawFooter();
+        // Anchos de columna proporcionales
+        const qtyColW = 28;
+        const remainW = usableW - qtyColW;
+        const otherW  = cols.length > 1 ? remainW / (cols.length - 1) : remainW;
+        const colStyles: Record<number, object> = {};
+        cols.forEach((_, i) => {
+          if (i < cols.length - 1) {
+            colStyles[i] = { cellWidth: otherW, halign: 'left' as const };
+          } else {
+            colStyles[i] = { cellWidth: qtyColW, halign: 'center' as const, fontStyle: 'bold' as const };
           }
         });
-      };
 
-      renderCol(col0, ML);
-      renderCol(col1, ML + colW + 5);
-      renderCol(col2, ML + (colW + 5) * 2);
+        // Verificar si hay espacio; si no, nueva página
+        const estimatedH = (body.length + 3) * 7;
+        if (y + estimatedH > PH - MB - 15) {
+          pdf.addPage();
+          y = drawHeader('Detalle por Producto y Variantes (cont.)');
+        }
+
+        autoTable(pdf, {
+          startY: y,
+          head: [
+            [{ content: name.toUpperCase(), colSpan: cols.length, styles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 9, halign: 'left' as const } }],
+            cols.map(c => ({ content: c, styles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center' as const, fontSize: 8 } })),
+          ],
+          body: [...body, totalRow],
+          margin: { left: ML, right: MR },
+          tableWidth: usableW,
+          styles: { fontSize: 8, cellPadding: 2.8, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          columnStyles: colStyles,
+          alternateRowStyles: { fillColor: LIGHT },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.row.index === body.length) {
+              data.cell.styles.fillColor = PURPLELIGHT;
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.textColor = PURPLE;
+            }
+          },
+          didDrawPage: () => drawFooter(),
+        });
+
+        y = (pdf as any).lastAutoTable.finalY + 6;
+      }
 
       drawFooter();
     }
@@ -498,8 +522,6 @@ export const Reports: React.FC = () => {
       let y = drawHeader(title);
 
       if (activeReport === 'adjustments') {
-        const pos = filteredAdj.filter(a => a.newQuantity > a.previousQuantity).length;
-        const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
         autoTable(pdf, {
           startY: y,
           head: [['Fecha', 'Producto', 'Ubicacion', 'Antes', 'Despues', 'Diff', 'Motivo', 'Usuario']],
@@ -509,7 +531,7 @@ export const Reports: React.FC = () => {
             const diff = a.newQuantity - a.previousQuantity;
             return [
               format(new Date(a.date), 'dd/MM/yy HH:mm'),
-              `${prod?.code || ''} ${prod?.name || a.productId}`,
+              `${prod?.code || ''} ${prod?.name || a.productId}`.trim(),
               loc?.name || '-',
               String(a.previousQuantity),
               String(a.newQuantity),
@@ -519,14 +541,15 @@ export const Reports: React.FC = () => {
             ];
           }),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 7.5, cellPadding: 2.5 },
-          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index === 5) {
               const v = String(data.cell.raw);
               if (v.startsWith('+')) data.cell.styles.textColor = [22, 163, 74];
               else if (v.startsWith('-')) data.cell.styles.textColor = [220, 38, 38];
+              data.cell.styles.fontStyle = 'bold';
             }
           },
           didDrawPage: () => drawFooter(),
@@ -536,17 +559,24 @@ export const Reports: React.FC = () => {
       else if (activeReport === 'abc') {
         autoTable(pdf, {
           startY: y,
-          head: [['Clase', 'Codigo', 'Producto', 'Despachos', '% Volumen']],
+          head: [['Clase', 'Codigo', 'Producto', 'Color', 'Talla', 'Despachos', '% Volumen']],
           body: abcData.map(r => [
             r.cls,
             r.prod.code,
-            `${r.prod.name}${r.prod.size ? ' ' + r.prod.size : ''}`,
+            r.prod.name,
+            r.prod.color || '-',
+            r.prod.size  || '-',
             String(r.dispatched),
             `${r.pct.toFixed(1)}%`,
           ]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5 },
-          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 14, halign: 'center', fontStyle: 'bold', fontSize: 11 },
+            5: { halign: 'center' },
+            6: { halign: 'center' },
+          },
           alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index === 0) {
@@ -554,8 +584,6 @@ export const Reports: React.FC = () => {
               if (cls === 'A') data.cell.styles.textColor = [21, 128, 61];
               else if (cls === 'B') data.cell.styles.textColor = [180, 83, 9];
               else data.cell.styles.textColor = [150, 150, 150];
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fontSize = 12;
             }
           },
           didDrawPage: () => drawFooter(),
@@ -565,19 +593,27 @@ export const Reports: React.FC = () => {
       else if (activeReport === 'aging') {
         autoTable(pdf, {
           startY: y,
-          head: [['Producto', 'Stock', 'Ultimo despacho', 'Dias sin movimiento']],
+          head: [['Codigo', 'Producto', 'Color', 'Talla', 'Stock', 'Ultimo despacho', 'Dias sin mov.']],
           body: agingData.map(r => [
-            `${r.prod.code} ${r.prod.name}${r.prod.size ? ' ' + r.prod.size : ''}`,
+            r.prod.code,
+            r.prod.name,
+            r.prod.color || '-',
+            r.prod.size  || '-',
             String(r.stock),
             r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '-',
             r.daysSince !== null ? String(r.daysSince) : 'Sin despachos',
           ]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5 },
-          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          columnStyles: {
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+            6: { halign: 'center', fontStyle: 'bold' },
+          },
           alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
-            if (data.section === 'body' && data.column.index === 3) {
+            if (data.section === 'body' && data.column.index === 6) {
               const d = Number(data.cell.raw);
               if (d >= 90) data.cell.styles.textColor = [220, 38, 38];
               else if (d >= 30) data.cell.styles.textColor = [180, 83, 9];
@@ -589,27 +625,38 @@ export const Reports: React.FC = () => {
 
       else if (activeReport === 'movements') {
         movementsBySupplier.forEach(({ supplier, txs, total }) => {
-          pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+          // Encabezado de proveedor
+          if (y > PH - 60) { pdf.addPage(); y = drawHeader(title); }
           pdf.setFillColor(...PURPLE);
-          pdf.rect(ML, y, usableW, 7, 'F');
+          pdf.roundedRect(ML, y, usableW, 8, 1.5, 1.5, 'F');
           pdf.setTextColor(...WHITE);
-          pdf.text(supplier.name.toUpperCase(), ML + 3, y + 5);
-          pdf.text(`${total} uds · ${txs.length} recepciones`, PW - MR - 3, y + 5, { align: 'right' });
-          y += 9;
+          pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+          pdf.text(supplier.name.toUpperCase(), ML + 4, y + 5.5);
+          pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+          pdf.text(`${total} uds  ·  ${txs.length} recepciones`, PW - MR - 4, y + 5.5, { align: 'right' });
+          y += 11;
           autoTable(pdf, {
             startY: y,
-            head: [['Producto', 'Talla', 'Cantidad']],
+            head: [['Fecha', 'Referencia', 'Producto', 'Color', 'Talla', 'Cantidad']],
             body: txs.map(tx => {
               const prod = products.find(p => p.id === tx.productId);
-              return [prod?.name || tx.productId, prod?.size || '-', String(tx.quantity)];
+              return [
+                format(new Date(tx.date), 'dd/MM/yy HH:mm'),
+                tx.reference || '-',
+                prod?.name || tx.productId,
+                prod?.color || '-',
+                prod?.size  || '-',
+                String(tx.quantity),
+              ];
             }),
             margin: { left: ML, right: MR },
-            styles: { fontSize: 7.5, cellPadding: 2 },
+            styles: { fontSize: 7.5, cellPadding: 2.2, lineColor: [220, 210, 240], lineWidth: 0.2 },
             headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+            columnStyles: { 5: { halign: 'center', fontStyle: 'bold' } },
             alternateRowStyles: { fillColor: LIGHT },
             didDrawPage: () => drawFooter(),
           });
-          y = (pdf as any).lastAutoTable.finalY + 6;
+          y = (pdf as any).lastAutoTable.finalY + 8;
         });
       }
 
@@ -619,8 +666,9 @@ export const Reports: React.FC = () => {
           head: [['Codigo', 'Producto', 'Color', 'Talla', 'Stock']],
           body: inventoryRows.map(r => [r.code, r.name, r.color || '-', r.size || '-', String(r.qty)]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5 },
-          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } },
           alternateRowStyles: { fillColor: LIGHT },
           didDrawPage: () => drawFooter(),
         });

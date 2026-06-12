@@ -20,7 +20,7 @@ export default defineConfig({
           'charts': ['recharts'],
           'icons': ['lucide-react'],
           'qr': ['qrcode.react', '@zxing/browser'],
-          'pdf': ['jspdf', 'html2canvas'],
+          'pdf': ['jspdf', 'jspdf-autotable'],
           'utils': ['date-fns', 'papaparse', 'signature_pad', 'clsx', 'tailwind-merge', 'uuid'],
         },
       },
