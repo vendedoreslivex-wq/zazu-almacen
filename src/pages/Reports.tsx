@@ -288,102 +288,129 @@ export const Reports: React.FC = () => {
       .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
       .catch(() => '');
 
-    // A4 VERTICAL (portrait)
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const filename = `${activeReport}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
-    const PW = pdf.internal.pageSize.getWidth();   // 210mm
-    const PH = pdf.internal.pageSize.getHeight();  // 297mm
-    const ML = 14; const MR = 14; const MT = 10; const MB = 14;
-    const usableW = PW - ML - MR;                  // 182mm
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const ML = 16; const MR = 16; const MB = 12;
+    const usableW = PW - ML - MR;
 
-    const PURPLE: [number,number,number] = [107, 33, 168];
-    const BLACK:  [number,number,number] = [17, 17, 17];
-    const GRAY:   [number,number,number] = [230, 230, 230];
+    // Paleta: carbón + arena + acentos tinta
+    const INK:    [number,number,number] = [28, 28, 28];
+    const SLATE:  [number,number,number] = [72, 72, 80];
+    const RULE:   [number,number,number] = [190, 185, 175];   // líneas
+    const SAND:   [number,number,number] = [248, 246, 241];   // fila alterna
+    const CHALK:  [number,number,number] = [235, 232, 225];   // encabezado col
     const WHITE:  [number,number,number] = [255, 255, 255];
-    const LIGHT:  [number,number,number] = [250, 249, 255];
-    const PURPLELIGHT: [number,number,number] = [237, 233, 254];
+    const GREEN:  [number,number,number] = [34, 139, 70];
+    const RED:    [number,number,number] = [185, 40, 40];
+    const AMBER:  [number,number,number] = [160, 90, 15];
 
+    // ── Encabezado ────────────────────────────────────────────────────────────
     const drawHeader = (pageTitle: string): number => {
-      let y = MT;
+      // Línea superior gruesa (acento de marca)
+      pdf.setDrawColor(...INK);
+      pdf.setLineWidth(1.2);
+      pdf.line(ML, 10, PW - MR, 10);
+      pdf.setLineWidth(0.2);
 
-      // Banda superior morada
-      pdf.setFillColor(...PURPLE);
-      pdf.rect(0, 0, PW, 14, 'F');
-
-      // Logo
+      // Logo a la izquierda
       if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, 1.5, 11, 11); } catch {}
+        try { pdf.addImage(logoB64, 'PNG', ML, 12, 10, 10); } catch {}
       }
+      const textX = logoB64 ? ML + 13 : ML;
 
-      pdf.setTextColor(...WHITE);
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
-      pdf.text('LOGIXZAZU', ML + (logoB64 ? 14 : 0), 7.5);
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-      pdf.text('Tecnologia y Distribucion Logistica del Peru S.A.C.  ·  RUC 20614699842', ML + (logoB64 ? 14 : 0), 11.5);
-      pdf.setFontSize(7);
-      pdf.text(`${brand}  ·  ${now}`, PW - MR, 9, { align: 'right' });
+      // Empresa
+      pdf.setTextColor(...INK);
+      pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold');
+      pdf.text('LOGIXZAZU', textX, 17);
+      pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...SLATE);
+      pdf.text('Tecnologia y Distribucion Logistica del Peru S.A.C.  ·  RUC 20614699842', textX, 21.5);
 
-      y = 20;
+      // Fecha y brand alineados a la derecha
+      pdf.setFontSize(6.5);
+      pdf.text(`${brand}`, PW - MR, 17, { align: 'right' });
+      pdf.text(now, PW - MR, 21.5, { align: 'right' });
+
+      let y = 28;
 
       // Título del reporte
-      pdf.setTextColor(...BLACK);
-      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
-      pdf.text(pageTitle.toUpperCase(), PW / 2, y, { align: 'center' });
-      y += 6;
+      pdf.setTextColor(...INK);
+      pdf.setFontSize(15); pdf.setFont('helvetica', 'bold');
+      pdf.text(pageTitle.toUpperCase(), ML, y);
+      y += 5;
 
       if (dateRangeLabel) {
-        pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(dateRangeLabel, PW / 2, y, { align: 'center' });
-        y += 5;
+        pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...SLATE);
+        pdf.text(dateRangeLabel, ML, y);
+        y += 4;
       }
 
-      // Línea divisoria
-      pdf.setDrawColor(...PURPLE);
-      pdf.setLineWidth(0.5);
+      // Línea divisoria delgada
+      pdf.setDrawColor(...RULE);
+      pdf.setLineWidth(0.4);
       pdf.line(ML, y, PW - MR, y);
       pdf.setLineWidth(0.2);
 
       return y + 5;
     };
 
+    // ── Pie de página ─────────────────────────────────────────────────────────
     const drawFooter = () => {
-      pdf.setFillColor(245, 243, 255);
-      pdf.rect(0, PH - 10, PW, 10, 'F');
+      pdf.setDrawColor(...RULE);
+      pdf.setLineWidth(0.3);
+      pdf.line(ML, PH - 10, PW - MR, PH - 10);
+      pdf.setLineWidth(0.2);
       pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(130, 100, 180);
-      pdf.text(`LOGIXZAZU  ·  ${title}  ·  ${brand}`, ML, PH - 4);
+      pdf.setTextColor(...SLATE);
+      pdf.text(`${title}  ·  ${brand}`, ML, PH - 6);
       pdf.text(
-        `Pagina ${(pdf as any).internal.getCurrentPageInfo().pageNumber}  ·  ${now}`,
-        PW - MR, PH - 4, { align: 'right' }
+        `Pag. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}  ·  ${now}`,
+        PW - MR, PH - 6, { align: 'right' }
       );
+    };
+
+    // Estilos base de tabla (sin relleno en head, solo líneas)
+    const baseStyles = {
+      styles: { fontSize: 8, cellPadding: 2.8, lineColor: RULE, lineWidth: 0.25, textColor: INK },
+      headStyles: { fillColor: WHITE, textColor: INK, fontStyle: 'bold' as const, lineColor: INK, lineWidth: 0.4 },
+      alternateRowStyles: { fillColor: SAND },
+      bodyStyles: { fillColor: WHITE },
     };
 
     // ── REPORTE: INVENTARIO ───────────────────────────────────────────────────
     if (activeReport === 'inventory') {
       let y = drawHeader(title);
 
-      // Cards de resumen (2 columnas)
-      const cards = [
-        { label: 'SKUs con stock', value: String(inventoryRows.length), sub: 'productos activos' },
-        { label: 'Unidades totales', value: valuationTotal.units.toLocaleString('es-PE'), sub: 'en almacen' },
+      // Resumen en línea (sin cuadros — solo texto con separadores)
+      const summaryItems = [
+        { label: 'SKUs CON STOCK', value: String(inventoryRows.length) },
+        { label: 'UNIDADES TOTALES', value: valuationTotal.units.toLocaleString('es-PE') },
       ];
-      const cardW = (usableW - 4) / 2;
-      cards.forEach((c, i) => {
-        const cx = ML + i * (cardW + 4);
-        const bg = i === 1 ? PURPLE : PURPLELIGHT;
-        const tc = i === 1 ? WHITE : PURPLE;
-        pdf.setFillColor(bg[0], bg[1], bg[2]);
-        pdf.roundedRect(cx, y, cardW, 16, 2, 2, 'F');
-        pdf.setTextColor(tc[0], tc[1], tc[2]);
-        pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-        pdf.text(c.label.toUpperCase(), cx + 4, y + 5);
-        pdf.setFontSize(16); pdf.setFont('helvetica', 'bold');
-        pdf.text(c.value, cx + 4, y + 12.5);
-        pdf.setFontSize(6); pdf.setFont('helvetica', 'normal');
-        pdf.text(c.sub.toUpperCase(), cx + 4, y + 15.5);
+      const colW2 = usableW / summaryItems.length;
+      summaryItems.forEach((item, i) => {
+        const x = ML + i * colW2;
+        if (i > 0) {
+          pdf.setDrawColor(...RULE);
+          pdf.setLineWidth(0.3);
+          pdf.line(x, y - 1, x, y + 14);
+        }
+        pdf.setTextColor(...SLATE);
+        pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
+        pdf.text(item.label, x + (i > 0 ? 6 : 0), y + 3);
+        pdf.setTextColor(...INK);
+        pdf.setFontSize(18); pdf.setFont('helvetica', 'bold');
+        pdf.text(item.value, x + (i > 0 ? 6 : 0), y + 12);
       });
-      y += 22;
+      y += 18;
+
+      // Línea debajo del resumen
+      pdf.setDrawColor(...RULE);
+      pdf.setLineWidth(0.3);
+      pdf.line(ML, y, PW - MR, y);
+      y += 6;
 
       // Tabla pivote MODELO × TALLA
       const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort();
@@ -400,31 +427,32 @@ export const Reports: React.FC = () => {
 
       const pivotBody = models.map(m => {
         const rowTotal = allSizes.reduce((a, sz) => a + (pivot[m]?.[sz] ?? 0), 0);
-        return [m, ...allSizes.map(sz => { const v = pivot[m]?.[sz]; return v ? String(v) : '-'; }), String(rowTotal)];
+        return [m, ...allSizes.map(sz => { const v = pivot[m]?.[sz]; return v ? String(v) : '—'; }), String(rowTotal)];
       });
-      pivotBody.push(['TOTAL GENERAL', ...allSizes.map(sz => String(colTotals[sz] ?? 0)), String(grandTotal)]);
+      pivotBody.push(['TOTAL', ...allSizes.map(sz => String(colTotals[sz] ?? 0)), String(grandTotal)]);
 
-      const modelColW = Math.min(70, usableW * 0.45);
-      const sizeColW = (usableW - modelColW) / (allSizes.length + 1);
+      const modelColW = Math.min(68, usableW * 0.42);
+      const sizeColW  = (usableW - modelColW) / (allSizes.length + 1);
 
       autoTable(pdf, {
         startY: y,
         head: [['MODELO', ...allSizes, 'TOTAL']],
         body: pivotBody,
         margin: { left: ML, right: MR },
-        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
-        headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+        ...baseStyles,
         columnStyles: {
           0: { halign: 'left', fontStyle: 'bold', cellWidth: modelColW },
-          ...Object.fromEntries(allSizes.map((_, i) => [i + 1, { halign: 'center', cellWidth: sizeColW }])),
-          [allSizes.length + 1]: { halign: 'center', fontStyle: 'bold', cellWidth: sizeColW, fillColor: PURPLELIGHT },
+          ...Object.fromEntries(allSizes.map((_sz, i) => [i + 1, { halign: 'center', cellWidth: sizeColW }])),
+          [allSizes.length + 1]: { halign: 'center', fontStyle: 'bold', cellWidth: sizeColW },
         },
-        alternateRowStyles: { fillColor: LIGHT },
         didParseCell: (data) => {
-          if (data.row.index === pivotBody.length - 1) {
-            data.cell.styles.fillColor = PURPLE;
-            data.cell.styles.textColor = WHITE;
+          if (data.section === 'body' && data.row.index === pivotBody.length - 1) {
+            data.cell.styles.fillColor = CHALK;
             data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.lineColor = INK;
+          }
+          if (data.section === 'head') {
+            data.cell.styles.fillColor = CHALK;
           }
         },
         didDrawPage: () => drawFooter(),
@@ -432,7 +460,7 @@ export const Reports: React.FC = () => {
 
       drawFooter();
 
-      // ── Página 2+: detalle por producto (UNA tabla vertical por producto) ──
+      // ── Detalle por producto: UNA tabla por producto ──
       const grouped: Record<string, typeof inventoryRows> = {};
       inventoryRows.forEach(r => {
         if (!grouped[r.name]) grouped[r.name] = [];
@@ -442,13 +470,11 @@ export const Reports: React.FC = () => {
       pdf.addPage();
       y = drawHeader('Detalle por Producto y Variantes');
 
-      const entries = Object.entries(grouped);
-      for (const [name, variants] of entries) {
+      for (const [name, variants] of Object.entries(grouped)) {
         const totalQty = variants.reduce((s, v) => s + v.qty, 0);
         const hasColor = variants.some(v => v.color && v.color.trim() !== '');
-        const hasSize  = variants.some(v => v.size && v.size.trim() !== '');
+        const hasSize  = variants.some(v => v.size  && v.size.trim()  !== '');
 
-        // Construir columnas dinámicamente
         const cols: string[] = [];
         if (hasColor) cols.push('COLOR');
         if (hasSize)  cols.push('TALLA');
@@ -464,60 +490,63 @@ export const Reports: React.FC = () => {
             return row;
           });
 
-        // Fila de total
-        const totalRow: string[] = Array(cols.length - 1).fill('');
+        const totalRow: string[] = Array(cols.length).fill('');
         totalRow[0] = 'TOTAL';
         totalRow[cols.length - 1] = String(totalQty);
 
-        // Anchos de columna proporcionales
-        const qtyColW = 28;
-        const remainW = usableW - qtyColW;
-        const otherW  = cols.length > 1 ? remainW / (cols.length - 1) : remainW;
+        const qtyW    = 30;
+        const otherW  = (usableW - qtyW) / Math.max(cols.length - 1, 1);
         const colStyles: Record<number, object> = {};
-        cols.forEach((_, i) => {
-          if (i < cols.length - 1) {
-            colStyles[i] = { cellWidth: otherW, halign: 'left' as const };
-          } else {
-            colStyles[i] = { cellWidth: qtyColW, halign: 'center' as const, fontStyle: 'bold' as const };
-          }
+        cols.forEach((_c, i) => {
+          colStyles[i] = i < cols.length - 1
+            ? { cellWidth: otherW, halign: 'left' as const }
+            : { cellWidth: qtyW,   halign: 'center' as const, fontStyle: 'bold' as const };
         });
 
-        // Verificar si hay espacio; si no, nueva página
-        const estimatedH = (body.length + 3) * 7;
+        const estimatedH = (body.length + 3) * 7.5;
         if (y + estimatedH > PH - MB - 15) {
           pdf.addPage();
           y = drawHeader('Detalle por Producto y Variantes (cont.)');
         }
 
+        // Nombre del producto como texto + línea (no bloque relleno)
+        pdf.setTextColor(...INK);
+        pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold');
+        pdf.text(name.toUpperCase(), ML, y);
+        pdf.setDrawColor(...INK);
+        pdf.setLineWidth(0.4);
+        pdf.line(ML, y + 1.5, PW - MR, y + 1.5);
+        pdf.setLineWidth(0.2);
+        y += 5;
+
         autoTable(pdf, {
           startY: y,
-          head: [
-            [{ content: name.toUpperCase(), colSpan: cols.length, styles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 9, halign: 'left' as const } }],
-            cols.map(c => ({ content: c, styles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center' as const, fontSize: 8 } })),
-          ],
+          head: [cols],
           body: [...body, totalRow],
           margin: { left: ML, right: MR },
           tableWidth: usableW,
-          styles: { fontSize: 8, cellPadding: 2.8, lineColor: [220, 210, 240], lineWidth: 0.2 },
+          ...baseStyles,
           columnStyles: colStyles,
-          alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
+            if (data.section === 'head') {
+              data.cell.styles.fillColor = CHALK;
+            }
             if (data.section === 'body' && data.row.index === body.length) {
-              data.cell.styles.fillColor = PURPLELIGHT;
+              data.cell.styles.fillColor = CHALK;
               data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.textColor = PURPLE;
+              data.cell.styles.lineColor = INK;
             }
           },
           didDrawPage: () => drawFooter(),
         });
 
-        y = (pdf as any).lastAutoTable.finalY + 6;
+        y = (pdf as any).lastAutoTable.finalY + 7;
       }
 
       drawFooter();
     }
 
-    // ── OTROS REPORTES (autoTable simple) ────────────────────────────────────
+    // ── OTROS REPORTES ────────────────────────────────────────────────────────
     else {
       let y = drawHeader(title);
 
@@ -541,14 +570,13 @@ export const Reports: React.FC = () => {
             ];
           }),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
-          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
-          alternateRowStyles: { fillColor: LIGHT },
+          ...baseStyles,
+          headStyles: { ...baseStyles.headStyles, fillColor: CHALK },
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index === 5) {
               const v = String(data.cell.raw);
-              if (v.startsWith('+')) data.cell.styles.textColor = [22, 163, 74];
-              else if (v.startsWith('-')) data.cell.styles.textColor = [220, 38, 38];
+              if (v.startsWith('+')) data.cell.styles.textColor = GREEN;
+              else if (v.startsWith('-')) data.cell.styles.textColor = RED;
               data.cell.styles.fontStyle = 'bold';
             }
           },
@@ -564,26 +592,25 @@ export const Reports: React.FC = () => {
             r.cls,
             r.prod.code,
             r.prod.name,
-            r.prod.color || '-',
-            r.prod.size  || '-',
+            r.prod.color || '—',
+            r.prod.size  || '—',
             String(r.dispatched),
             `${r.pct.toFixed(1)}%`,
           ]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
-          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          ...baseStyles,
+          headStyles: { ...baseStyles.headStyles, fillColor: CHALK },
           columnStyles: {
-            0: { cellWidth: 14, halign: 'center', fontStyle: 'bold', fontSize: 11 },
+            0: { cellWidth: 14, halign: 'center', fontStyle: 'bold', fontSize: 12 },
             5: { halign: 'center' },
             6: { halign: 'center' },
           },
-          alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index === 0) {
               const cls = String(data.cell.raw);
-              if (cls === 'A') data.cell.styles.textColor = [21, 128, 61];
-              else if (cls === 'B') data.cell.styles.textColor = [180, 83, 9];
-              else data.cell.styles.textColor = [150, 150, 150];
+              if      (cls === 'A') data.cell.styles.textColor = GREEN;
+              else if (cls === 'B') data.cell.styles.textColor = AMBER;
+              else                  data.cell.styles.textColor = SLATE;
             }
           },
           didDrawPage: () => drawFooter(),
@@ -597,26 +624,25 @@ export const Reports: React.FC = () => {
           body: agingData.map(r => [
             r.prod.code,
             r.prod.name,
-            r.prod.color || '-',
-            r.prod.size  || '-',
+            r.prod.color || '—',
+            r.prod.size  || '—',
             String(r.stock),
-            r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '-',
+            r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—',
             r.daysSince !== null ? String(r.daysSince) : 'Sin despachos',
           ]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
-          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          ...baseStyles,
+          headStyles: { ...baseStyles.headStyles, fillColor: CHALK },
           columnStyles: {
             4: { halign: 'center' },
             5: { halign: 'center' },
             6: { halign: 'center', fontStyle: 'bold' },
           },
-          alternateRowStyles: { fillColor: LIGHT },
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index === 6) {
               const d = Number(data.cell.raw);
-              if (d >= 90) data.cell.styles.textColor = [220, 38, 38];
-              else if (d >= 30) data.cell.styles.textColor = [180, 83, 9];
+              if      (d >= 90) data.cell.styles.textColor = RED;
+              else if (d >= 30) data.cell.styles.textColor = AMBER;
             }
           },
           didDrawPage: () => drawFooter(),
@@ -625,16 +651,21 @@ export const Reports: React.FC = () => {
 
       else if (activeReport === 'movements') {
         movementsBySupplier.forEach(({ supplier, txs, total }) => {
-          // Encabezado de proveedor
           if (y > PH - 60) { pdf.addPage(); y = drawHeader(title); }
-          pdf.setFillColor(...PURPLE);
-          pdf.roundedRect(ML, y, usableW, 8, 1.5, 1.5, 'F');
-          pdf.setTextColor(...WHITE);
+
+          // Encabezado de proveedor: texto + línea (sin bloque relleno)
+          pdf.setTextColor(...INK);
           pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
-          pdf.text(supplier.name.toUpperCase(), ML + 4, y + 5.5);
-          pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
-          pdf.text(`${total} uds  ·  ${txs.length} recepciones`, PW - MR - 4, y + 5.5, { align: 'right' });
-          y += 11;
+          pdf.text(supplier.name.toUpperCase(), ML, y + 5);
+          pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(...SLATE);
+          pdf.text(`${total} uds  ·  ${txs.length} recepciones`, PW - MR, y + 5, { align: 'right' });
+          pdf.setDrawColor(...INK);
+          pdf.setLineWidth(0.4);
+          pdf.line(ML, y + 7, PW - MR, y + 7);
+          pdf.setLineWidth(0.2);
+          y += 10;
+
           autoTable(pdf, {
             startY: y,
             head: [['Fecha', 'Referencia', 'Producto', 'Color', 'Talla', 'Cantidad']],
@@ -642,21 +673,20 @@ export const Reports: React.FC = () => {
               const prod = products.find(p => p.id === tx.productId);
               return [
                 format(new Date(tx.date), 'dd/MM/yy HH:mm'),
-                tx.reference || '-',
+                tx.reference || '—',
                 prod?.name || tx.productId,
-                prod?.color || '-',
-                prod?.size  || '-',
+                prod?.color || '—',
+                prod?.size  || '—',
                 String(tx.quantity),
               ];
             }),
             margin: { left: ML, right: MR },
-            styles: { fontSize: 7.5, cellPadding: 2.2, lineColor: [220, 210, 240], lineWidth: 0.2 },
-            headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+            ...baseStyles,
+            headStyles: { ...baseStyles.headStyles, fillColor: CHALK },
             columnStyles: { 5: { halign: 'center', fontStyle: 'bold' } },
-            alternateRowStyles: { fillColor: LIGHT },
             didDrawPage: () => drawFooter(),
           });
-          y = (pdf as any).lastAutoTable.finalY + 8;
+          y = (pdf as any).lastAutoTable.finalY + 10;
         });
       }
 
@@ -664,12 +694,11 @@ export const Reports: React.FC = () => {
         autoTable(pdf, {
           startY: y,
           head: [['Codigo', 'Producto', 'Color', 'Talla', 'Stock']],
-          body: inventoryRows.map(r => [r.code, r.name, r.color || '-', r.size || '-', String(r.qty)]),
+          body: inventoryRows.map(r => [r.code, r.name, r.color || '—', r.size || '—', String(r.qty)]),
           margin: { left: ML, right: MR },
-          styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 210, 240], lineWidth: 0.2 },
-          headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold' },
+          ...baseStyles,
+          headStyles: { ...baseStyles.headStyles, fillColor: CHALK },
           columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } },
-          alternateRowStyles: { fillColor: LIGHT },
           didDrawPage: () => drawFooter(),
         });
       }
