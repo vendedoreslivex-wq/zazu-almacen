@@ -6,7 +6,7 @@ import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
   BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
-  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search,
+  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -1410,6 +1410,155 @@ const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: st
   );
 };
 
+// --- Bulletin Modal -------------------------------------------------------------
+
+interface BulletinData {
+  type: TransactionType;
+  reference: string;
+  date: string;
+  operator: string;
+  brand: string;
+  items: { productName: string; productCode: string; quantity: number }[];
+  fromLocation?: string;
+  toLocation?: string;
+  contact?: string;
+  signature?: string;
+  photo?: string;
+}
+
+function buildBulletinHTML(p: BulletinData): string {
+  const TYPE_LABEL: Record<TransactionType, string> = { RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: 'TRASLADO' };
+  const TYPE_COLOR: Record<TransactionType, string> = { RECEPTION: '#16a34a', DISPATCH: '#dc2626', TRANSFER: '#0891b2' };
+  const label = TYPE_LABEL[p.type];
+  const color = TYPE_COLOR[p.type];
+  const brandDisplay = p.brand.replace('_', ' ');
+  const totalQty = p.items.reduce((s, i) => s + i.quantity, 0);
+  const contactLabel = p.type === 'RECEPTION' ? 'Proveedor' : 'Cliente';
+
+  const row = (lbl: string, val: string) =>
+    `<tr>
+      <td style="padding:8px 0;font-size:11px;letter-spacing:.15em;opacity:.5;text-transform:uppercase;font-weight:700;border-bottom:1px solid rgba(20,20,20,.1);width:40%">${lbl}</td>
+      <td style="padding:8px 0;font-size:11px;font-weight:900;text-transform:uppercase;text-align:right;border-bottom:1px solid rgba(20,20,20,.1)">${val}</td>
+    </tr>`;
+
+  const itemsHTML = p.items.length === 1
+    ? `<div style="border:2px solid #141414;padding:16px;margin:20px 0;background:#fff">
+        <div style="font-size:9px;letter-spacing:.25em;opacity:.4;text-transform:uppercase;margin-bottom:4px">${p.items[0].productCode}</div>
+        <div style="font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">${p.items[0].productName}</div>
+        <div style="display:inline-block;background:#141414;color:#E4E3E0;font-size:22px;font-weight:900;padding:8px 18px;margin-top:12px;letter-spacing:.05em">${p.items[0].quantity} UND</div>
+      </div>`
+    : `<div style="margin:20px 0">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.4;text-transform:uppercase;margin-bottom:8px;font-weight:700">PRODUCTOS — ${p.items.length} LÍNEAS</div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border:2px solid #141414">
+          <thead><tr style="background:#141414;color:#E4E3E0">
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Código</td>
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Producto</td>
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-align:right">Cant.</td>
+          </tr></thead>
+          <tbody>${p.items.map(it => `<tr style="border-bottom:1px solid #eee">
+            <td style="padding:6px 10px;font-size:9px;font-weight:700;opacity:.5">${it.productCode}</td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-transform:uppercase">${it.productName}</td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-align:right">${it.quantity}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr style="background:#f5f5f5">
+            <td colspan="2" style="padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em">TOTAL UNIDADES</td>
+            <td style="padding:8px 10px;font-size:14px;font-weight:900;text-align:right">${totalQty}</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+
+  const sigHTML = p.signature
+    ? `<div style="margin-top:16px;padding-top:16px;border-top:1px dashed rgba(20,20,20,.3)">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.5;text-transform:uppercase;margin-bottom:8px;font-weight:700">FIRMA DE CONFORMIDAD</div>
+        <img src="${p.signature}" alt="Firma" style="max-width:200px;max-height:80px;border:1px solid #141414;padding:4px;background:#fff;display:block">
+      </div>` : '';
+
+  const photoHTML = p.photo
+    ? `<div style="margin-top:16px;padding-top:16px;border-top:1px dashed rgba(20,20,20,.3)">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.5;text-transform:uppercase;margin-bottom:8px;font-weight:700">EVIDENCIA FOTOGRÁFICA</div>
+        <img src="${p.photo}" alt="Evidencia" style="max-width:100%;max-height:240px;border:1px solid #141414;padding:4px;background:#fff;display:block">
+      </div>` : '';
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>*{box-sizing:border-box}body{margin:0;padding:20px;background:#f0efec;font-family:'Courier New',monospace}</style>
+</head><body>
+  <div style="max-width:560px;margin:0 auto;background:#E4E3E0;border:2px solid #141414;box-shadow:6px 6px 0 #141414">
+    <div style="background:#141414;color:#E4E3E0;padding:24px 28px">
+      <div style="font-size:9px;letter-spacing:.35em;opacity:.5;text-transform:uppercase">${brandDisplay} — SISTEMA DE ALMACÉN</div>
+      <div style="display:inline-block;background:${color};color:#fff;padding:5px 14px;font-size:10px;font-weight:900;letter-spacing:.3em;margin-top:12px;text-transform:uppercase">${label}</div>
+      <div style="font-size:24px;font-weight:900;letter-spacing:.08em;margin-top:8px;text-transform:uppercase">${p.reference}</div>
+      <div style="font-size:10px;opacity:.4;margin-top:4px;letter-spacing:.15em">${p.date}</div>
+    </div>
+    <div style="padding:24px 28px">
+      <table style="width:100%;border-collapse:collapse">
+        ${row('Operador', p.operator)}
+        ${p.contact ? row(contactLabel, p.contact) : ''}
+        ${p.fromLocation ? row('Origen', p.fromLocation) : ''}
+        ${p.toLocation ? row('Destino', p.toLocation) : ''}
+      </table>
+      ${itemsHTML}${sigHTML}${photoHTML}
+    </div>
+    <div style="background:#D4D3D0;border-top:1px solid #141414;padding:10px 28px;font-size:9px;opacity:.45;letter-spacing:.15em;text-transform:uppercase">
+      LogixZazu v3.0 — Comprobante generado automáticamente // ${p.date}
+    </div>
+  </div>
+</body></html>`;
+}
+
+const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ data, onClose }) => {
+  const html = buildBulletinHTML(data);
+
+  const handlePrint = () => {
+    const win = window.open('', '_blank', 'width=700,height=900');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => win.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div
+        className="w-full max-w-xl flex flex-col"
+        style={{ background: 'var(--bg-card)', border: '2px solid var(--border)', boxShadow: '8px 8px 0 var(--border)', maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+          <div className="flex items-center gap-2">
+            <Mail size={13} style={{ color: 'var(--ink)' }} />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--ink)' }}>
+              Comprobante · {data.reference}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider border transition-all hover:opacity-80"
+              style={{ borderColor: 'var(--border)', color: 'var(--ink-inv)', background: 'var(--ink)' }}
+            >
+              <Printer size={11} /> Imprimir
+            </button>
+            <button onClick={onClose} className="p-1 hover:opacity-60 transition-opacity" style={{ color: 'var(--ink)' }}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* iframe preview */}
+        <div className="flex-1 overflow-hidden" style={{ minHeight: '400px' }}>
+          <iframe
+            srcDoc={html}
+            title="Comprobante de operación"
+            style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none' }}
+            sandbox="allow-same-origin"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Transaction Log ------------------------------------------------------------
 
 const PAGE_SIZE = 50;
@@ -1418,7 +1567,7 @@ type LogFilter = { type?: string; dateFrom?: string; dateTo?: string } | null;
 
 const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter }) => {
   const {
-    transactions, products, contacts, locations,
+    transactions, products, contacts, locations, activeBrand,
     deleteTransaction, hardDeleteTransaction, hardDeleteTransactions,
     updateTransaction, clearAllTransactions, currentUser,
   } = useAppContext();
@@ -1453,6 +1602,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
   const [cancelTx, setCancelTx] = useState<Transaction | null>(null);   // anular (all roles)
   const [purgeTx, setPurgeTx]   = useState<Transaction | null>(null);   // borrar registro (admin only)
   const [showPurgeAll, setShowPurgeAll] = useState(false);
+  const [bulletinData, setBulletinData] = useState<BulletinData | null>(null);
 
   // Multi-select (all roles for cancel; admin only for purge)
   const [selected, setSelected]           = useState<Set<string>>(new Set());
@@ -1591,6 +1741,9 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
   return (
     <div className="flex flex-col gap-4">
 
+      {/* Bulletin modal */}
+      {bulletinData && <BulletinModal data={bulletinData} onClose={() => setBulletinData(null)} />}
+
       {/* Toast */}
       {toast && (
         <div className={cn(
@@ -1728,6 +1881,19 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
             const badge    = TX_BADGE[tx.type];
             const isSel    = selected.has(tx.id);
 
+            const openBulletin = () => setBulletinData({
+              type: tx.type,
+              reference: tx.reference,
+              date: new Date(tx.date).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
+              operator: tx.user,
+              brand: activeBrand,
+              items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity }],
+              fromLocation: fromLoc?.name,
+              toLocation: toLoc?.name,
+              contact: contact?.name,
+              signature: tx.signature,
+            });
+
             return (
               <div key={tx.id} className={cn(
                 'border bg-[var(--surface)] flex items-center gap-2 md:gap-3 px-3 py-2.5 text-[11px] font-mono transition-all',
@@ -1771,6 +1937,11 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                   </div>
                 ) : (
                   <div className="flex items-center gap-0.5 shrink-0">
+                    {/* Bulletin / comprobante */}
+                    <button onClick={openBulletin} title="Ver comprobante"
+                      className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
+                      <Mail size={12} />
+                    </button>
                     {/* Edit · all roles */}
                     <button onClick={() => { setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); }}
                       title="Editar" className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
