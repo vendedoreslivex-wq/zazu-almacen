@@ -355,7 +355,7 @@ export const Reports: React.FC = () => {
       <div class="doc-header">
         <div class="doc-logo">${logoSVG}</div>
         <div class="doc-company">
-          <div class="name">Tecnolog-a y Distribucion Log-stica<br>del Per- S.A.C.</div>
+          <div class="name">Tecnología y Distribución Logística<br>del Perú S.A.C.</div>
           <div class="ruc">RUC: 20614699842</div>
         </div>
         <div class="doc-meta">

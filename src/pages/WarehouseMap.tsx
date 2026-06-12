@@ -244,7 +244,7 @@ export const WarehouseMap: React.FC = () => {
                           <div className="shrink-0 text-right">
                             <div className={`font-mono font-black text-sm ${isLow ? 'text-red-600' : 'text-[var(--ink)]'}`}>{s.quantity}</div>
                             {prod.lowStockThreshold && (
-                              <div className="font-mono text-[7px] opacity-40">m-n {prod.lowStockThreshold}</div>
+                              <div className="font-mono text-[7px] opacity-40">mín {prod.lowStockThreshold}</div>
                             )}
                           </div>
                         </div>

@@ -224,7 +224,7 @@ export const Users: React.FC = () => {
         {/* Tab content */}
         <div className="p-5 overflow-hidden">
 
-          {/* -- Pesta-a: Usuarios -- */}
+          {/* -- Pestaña: Usuarios -- */}
           {activeTab === 'usuarios' && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -280,7 +280,7 @@ export const Users: React.FC = () => {
             </div>
           )}
 
-          {/* -- Pesta-a: Permisos -- */}
+          {/* -- Pestaña: Permisos -- */}
           {activeTab === 'permisos' && (
             <div className="flex flex-col gap-4">
               <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">
@@ -388,7 +388,7 @@ export const Users: React.FC = () => {
             </div>
           )}
 
-          {/* -- Pesta-a: Notificaciones -- */}
+          {/* -- Pestaña: Notificaciones -- */}
           {activeTab === 'notificaciones' && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -481,7 +481,7 @@ export const Users: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-1 col-span-2">
                   <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">
-                    Contrase-a {editing ? '(dejar vacio para no cambiar)' : '*'}
+                    Contraseña {editing ? '(dejar vacío para no cambiar)' : '*'}
                   </label>
                   <div className="relative">
                     <input type={showPass ? 'text' : 'password'} value={form.password}

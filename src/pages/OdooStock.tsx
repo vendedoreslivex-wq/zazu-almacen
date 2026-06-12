@@ -445,7 +445,7 @@ export const OdooStock: React.FC = () => {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="border-b border-[var(--border)] pb-2 flex-1 min-w-0">
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">17 // ODOO_STOCK_LIVE</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Conexi-n directa a zazuexpress2.odoo.com</p>
+          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Conexión directa a zazuexpress2.odoo.com</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {lastFetch && (
@@ -479,7 +479,7 @@ export const OdooStock: React.FC = () => {
         <div className="border border-red-400 bg-red-500/10 px-4 py-3 flex items-start gap-3 shadow-[2px_2px_0_#dc2626]">
           <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
           <div>
-            <div className="font-mono font-bold text-[10px] uppercase text-red-700 tracking-wider">Error de conexi-n Odoo</div>
+            <div className="font-mono font-bold text-[10px] uppercase text-red-700 tracking-wider">Error de conexión Odoo</div>
             <div className="font-mono text-[10px] text-red-600 mt-0.5">{error}</div>
           </div>
         </div>

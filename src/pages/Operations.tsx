@@ -264,7 +264,7 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
         </div>
       )}
 
-      {/* Cantidad + bot-n agregar (sin tallas) */}
+      {/* Cantidad + botón agregar (sin tallas) */}
       {baseName && colorReady && !needsSize && selectedProd && (
         <div className="flex items-center gap-2">
           <div className="flex flex-col flex-1">
@@ -299,6 +299,217 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
   );
 };
 
+// --- Bulletins Tab -------------------------------------------------------------
+
+type BulletinGroup = {
+  reference: string;
+  type: TransactionType;
+  date: Date;
+  operator: string;
+  contact?: string;
+  fromLocation?: string;
+  toLocation?: string;
+  signature?: string;
+  items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
+};
+
+const BulletinsTab: React.FC = () => {
+  const { transactions, products, contacts, locations, activeBrand } = useAppContext();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+  const [bulletinData, setBulletinData] = useState<BulletinData | null>(null);
+
+  // Aggregate transactions by reference → one bulletin per operation
+  const bulletinGroups = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+    const to   = dateTo   ? new Date(dateTo   + 'T23:59:59') : null;
+
+    const active = transactions.filter(tx => tx.status !== 'CANCELLED' && tx.type in TX_BADGE);
+
+    const map = new Map<string, BulletinGroup>();
+
+    for (const tx of active) {
+      const d = new Date(tx.date);
+      if (from && d < from) continue;
+      if (to   && d > to)   continue;
+
+      // Key: reference + calendar day — same reference on different days = different bulletins
+      const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const key = (tx.reference?.trim() ? `${tx.reference.trim()}__${dayKey}` : tx.id);
+
+      const product  = products.find(p => p.id === tx.productId);
+      const contact  = contacts.find(c => c.id === tx.contactId);
+      const fromLoc  = locations.find(l => l.id === tx.fromLocationId);
+      const toLoc    = locations.find(l => l.id === tx.toLocationId);
+
+      const variant = [product?.color, product?.size].filter(Boolean).join(' · ') || undefined;
+
+      if (map.has(key)) {
+        map.get(key)!.items.push({
+          productName: product?.name ?? tx.productId,
+          productCode: product?.code ?? '',
+          quantity: tx.quantity,
+          variant,
+          serialNumber: tx.serialNumber,
+        });
+      } else {
+        map.set(key, {
+          reference: tx.reference,
+          type: tx.type,
+          date: d,
+          operator: tx.user,
+          contact: contact?.name,
+          fromLocation: fromLoc?.name,
+          toLocation: toLoc?.name,
+          signature: tx.signature,
+          items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity, variant, serialNumber: tx.serialNumber }],
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [transactions, products, contacts, locations, dateFrom, dateTo]);
+
+  // Group bulletin groups by calendar day
+  const dayGroups = useMemo(() => {
+    const map = new Map<string, BulletinGroup[]>();
+    for (const g of bulletinGroups) {
+      const raw = g.date.toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const key = raw.charAt(0).toUpperCase() + raw.slice(1);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(g);
+    }
+    return Array.from(map.entries());
+  }, [bulletinGroups]);
+
+  const openBulletin = (g: BulletinGroup) => {
+    setBulletinData({
+      type: g.type,
+      reference: g.reference,
+      date: g.date.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
+      operator: g.operator,
+      brand: activeBrand,
+      items: g.items,
+      fromLocation: g.fromLocation,
+      toLocation: g.toLocation,
+      contact: g.contact,
+      signature: g.signature,
+    });
+  };
+
+  const TYPE_COLOR: Record<TransactionType, string> = {
+    RECEPTION: 'text-green-600 bg-green-500/10 border-green-500/30',
+    DISPATCH:  'text-red-600 bg-red-500/10 border-red-500/30',
+    TRANSFER:  'text-blue-600 bg-blue-500/10 border-blue-500/30',
+  };
+  const TYPE_LABEL: Record<TransactionType, string> = {
+    RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: 'TRASLADO',
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {bulletinData && <BulletinModal data={bulletinData} onClose={() => setBulletinData(null)} />}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <Mail size={13} className="text-[var(--ink)] opacity-50 shrink-0" />
+        <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-50">Filtrar por fecha</span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="font-mono text-[9px] uppercase opacity-40">Desde</span>
+          <input
+            type="date" value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            className="border border-[var(--border)] bg-[var(--bg-card)] font-mono text-[10px] px-2 py-1 outline-none focus:border-[var(--ink)] cursor-pointer"
+          />
+          <span className="font-mono text-[9px] uppercase opacity-40">Hasta</span>
+          <input
+            type="date" value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className="border border-[var(--border)] bg-[var(--bg-card)] font-mono text-[10px] px-2 py-1 outline-none focus:border-[var(--ink)] cursor-pointer"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="font-mono text-[9px] uppercase opacity-40 hover:opacity-100 flex items-center gap-1 transition-opacity"
+            >
+              <X size={10} /> Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Count */}
+      <div className="font-mono text-[9px] uppercase tracking-widest opacity-40 px-1">
+        {bulletinGroups.length} comprobante{bulletinGroups.length !== 1 ? 's' : ''}{(dateFrom || dateTo) ? ' (filtrado)' : ''}
+      </div>
+
+      {/* Day groups */}
+      {dayGroups.length === 0 ? (
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-8 text-center font-mono text-[10px] opacity-40 uppercase tracking-widest">
+          No hay comprobantes para el rango seleccionado
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {dayGroups.map(([dateLabel, groups]) => (
+            <div key={dateLabel}>
+              {/* Day header */}
+              <div className="flex items-center gap-3 mb-2">
+                <span className="font-mono text-[9px] font-black uppercase tracking-widest opacity-60">{dateLabel}</span>
+                <div className="flex-1 h-px bg-[var(--border)] opacity-30" />
+                <span className="font-mono text-[8px] opacity-30">{groups.length} comprobante{groups.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              {/* Bulletin rows */}
+              <div className="flex flex-col gap-px">
+                {groups.map((g, i) => {
+                  const badge = TYPE_COLOR[g.type];
+                  const label = TYPE_LABEL[g.type];
+                  const totalQty = g.items.reduce((s, it) => s + it.quantity, 0);
+                  return (
+                    <button
+                      key={g.reference || i}
+                      onClick={() => openBulletin(g)}
+                      className="flex items-center gap-3 border border-[var(--border)]/20 bg-[var(--surface)] hover:bg-[var(--bg-card)] hover:border-[var(--border)]/50 px-4 py-3 text-left transition-all group"
+                    >
+                      {/* Type badge */}
+                      <span className={cn('shrink-0 font-mono text-[8px] font-black px-2 py-0.5 border', badge)}>{label}</span>
+
+                      {/* Reference */}
+                      <span className="shrink-0 font-mono text-[10px] font-bold opacity-70 w-28 truncate">{g.reference || '—'}</span>
+
+                      {/* Products summary */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-[10px] font-bold truncate">
+                          {g.items.length === 1
+                            ? g.items[0].productName
+                            : `${g.items.length} productos`}
+                        </div>
+                        <div className="font-mono text-[9px] opacity-40 truncate">
+                          {g.contact ? g.contact : g.items.length > 1 ? g.items.map(it => it.productName).join(', ') : ''}
+                        </div>
+                      </div>
+
+                      {/* Total qty */}
+                      <span className="shrink-0 font-mono text-[11px] font-black bg-[var(--ink)] text-[var(--ink-inv)] px-2 py-0.5">{totalQty}</span>
+
+                      {/* Time */}
+                      <span className="shrink-0 font-mono text-[9px] opacity-40 hidden sm:block w-16 text-right">
+                        {g.date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      <Mail size={11} className="shrink-0 opacity-30 group-hover:opacity-70 transition-opacity" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- Main Page -----------------------------------------------------------------
 
 export const Operations: React.FC = () => {
@@ -309,7 +520,7 @@ export const Operations: React.FC = () => {
   const storedFilter = (() => {
     try { return JSON.parse(sessionStorage.getItem('operationsLogFilter') || 'null'); } catch { return null; }
   })();
-  const [mainTab, setMainTab] = useState<'operations' | 'log' | 'reports'>(storedFilter ? 'log' : 'operations');
+  const [mainTab, setMainTab] = useState<'operations' | 'log' | 'reports' | 'bulletins'>(storedFilter ? 'log' : 'operations');
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
@@ -367,7 +578,7 @@ export const Operations: React.FC = () => {
         <button
           onClick={() => setMainTab('reports')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
             mainTab === 'reports'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -375,6 +586,18 @@ export const Operations: React.FC = () => {
         >
           <BarChart2 size={14} />
           REPORTES
+        </button>
+        <button
+          onClick={() => setMainTab('bulletins')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+            mainTab === 'bulletins'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <Mail size={14} />
+          COMPROBANTES
         </button>
       </div>
 
@@ -432,6 +655,10 @@ export const Operations: React.FC = () => {
         <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
           <OperationsReport />
         </div>
+      )}
+
+      {mainTab === 'bulletins' && (
+        <BulletinsTab />
       )}
     </div>
   );
@@ -897,7 +1124,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
             </div>
           ) : (
             <span className="font-mono text-[9px] opacity-40 uppercase tracking-wide mt-1">
-              Opcional · se incluir- en gu-a y comprobante
+              Opcional · se incluirá en guía y comprobante
             </span>
           )}
         </FormGroup>
@@ -1104,7 +1331,7 @@ const WriteOffForm: React.FC = () => {
     setErrors({});
     if (photoInputRef.current) photoInputRef.current.value = '';
 
-    setFeedback({ type: 'success', message: `-BAJA REGISTRADA! GU-A ${guideNumber}` });
+    setFeedback({ type: 'success', message: `¡BAJA REGISTRADA! GUÍA ${guideNumber}` });
     setTimeout(() => setFeedback(null), 6000);
   };
 
@@ -1418,7 +1645,7 @@ interface BulletinData {
   date: string;
   operator: string;
   brand: string;
-  items: { productName: string; productCode: string; quantity: number }[];
+  items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
   fromLocation?: string;
   toLocation?: string;
   contact?: string;
@@ -1445,6 +1672,8 @@ function buildBulletinHTML(p: BulletinData): string {
     ? `<div style="border:2px solid #141414;padding:16px;margin:20px 0;background:#fff">
         <div style="font-size:9px;letter-spacing:.25em;opacity:.4;text-transform:uppercase;margin-bottom:4px">${p.items[0].productCode}</div>
         <div style="font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">${p.items[0].productName}</div>
+        ${p.items[0].variant ? `<div style="font-size:9px;opacity:.5;margin-top:4px;text-transform:uppercase;letter-spacing:.1em">${p.items[0].variant}</div>` : ''}
+        ${p.items[0].serialNumber ? `<div style="font-size:9px;opacity:.5;margin-top:2px">S/N: ${p.items[0].serialNumber}</div>` : ''}
         <div style="display:inline-block;background:#141414;color:#E4E3E0;font-size:22px;font-weight:900;padding:8px 18px;margin-top:12px;letter-spacing:.05em">${p.items[0].quantity} UND</div>
       </div>`
     : `<div style="margin:20px 0">
@@ -1457,7 +1686,11 @@ function buildBulletinHTML(p: BulletinData): string {
           </tr></thead>
           <tbody>${p.items.map(it => `<tr style="border-bottom:1px solid #eee">
             <td style="padding:6px 10px;font-size:9px;font-weight:700;opacity:.5">${it.productCode}</td>
-            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-transform:uppercase">${it.productName}</td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-transform:uppercase">
+              ${it.productName}
+              ${it.variant ? `<div style="font-size:9px;font-weight:400;opacity:.55;text-transform:uppercase;letter-spacing:.08em;margin-top:2px">${it.variant}</div>` : ''}
+              ${it.serialNumber ? `<div style="font-size:9px;font-weight:400;opacity:.45;margin-top:1px">S/N: ${it.serialNumber}</div>` : ''}
+            </td>
             <td style="padding:6px 10px;font-size:11px;font-weight:900;text-align:right">${it.quantity}</td>
           </tr>`).join('')}</tbody>
           <tfoot><tr style="background:#f5f5f5">
@@ -1881,13 +2114,14 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
             const badge    = TX_BADGE[tx.type];
             const isSel    = selected.has(tx.id);
 
+            const txVariant = [product?.color, product?.size].filter(Boolean).join(' · ') || undefined;
             const openBulletin = () => setBulletinData({
               type: tx.type,
               reference: tx.reference,
               date: new Date(tx.date).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
               operator: tx.user,
               brand: activeBrand,
-              items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity }],
+              items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity, variant: txVariant, serialNumber: tx.serialNumber }],
               fromLocation: fromLoc?.name,
               toLocation: toLoc?.name,
               contact: contact?.name,
@@ -1914,7 +2148,11 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold truncate">{product?.name ?? tx.productId}</div>
-                  <div className="text-[9px] opacity-50 truncate">{product?.code}{contact ? ` · ${contact.name}` : ''}</div>
+                  <div className="text-[9px] opacity-50 truncate">
+                    {product?.code}
+                    {(product?.color || product?.size) && <span className="opacity-70"> · {[product?.color, product?.size].filter(Boolean).join(' / ')}</span>}
+                    {contact ? ` · ${contact.name}` : ''}
+                  </div>
                 </div>
                 <div className="shrink-0 bg-[var(--ink)] text-[var(--ink-inv)] px-2 py-0.5 text-[10px] font-black">{tx.quantity}</div>
                 <div className="hidden md:flex items-center gap-1 shrink-0 text-[9px] opacity-50 max-w-[180px]">
@@ -2371,8 +2609,8 @@ const OperationsReport: React.FC = () => {
         ${logoB64 ? `<div class="logo"><img src="${logoB64}" style="width:48px;height:48px;object-fit:contain" /></div>` : `<div class="logo" style="background:#6B21A8;color:#fff;font-weight:900;font-size:11px;letter-spacing:1px;flex-direction:column">zazu<span style="font-size:6px;letter-spacing:2px;opacity:.8">express</span></div>`}
         <div class="company">
           <h1>Reporte de Operaciones</h1>
-          <p>Tecnolog-a y Distribucion Log-stica del Per- S.A.C. · RUC 20614699842</p>
-          <p>Marca: ${activeBrand} · Per-odo: ${dateLabel}</p>
+          <p>Tecnología y Distribución Logística del Perú S.A.C. · RUC 20614699842</p>
+          <p>Marca: ${activeBrand} · Período: ${dateLabel}</p>
         </div>
       </div>
       <div class="meta">Generado: ${new Date().toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</div>
@@ -2414,7 +2652,7 @@ const OperationsReport: React.FC = () => {
           <span className="font-mono text-[8px] border border-[var(--border)]/20 px-1.5 py-0.5 bg-[var(--surface)] uppercase tracking-wider">{activeBrand}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40 hidden sm:inline">Per-odo:</span>
+          <span className="font-mono text-[8px] uppercase tracking-widest opacity-40 hidden sm:inline">Período:</span>
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setHistPage(1); }}
             className="border border-[var(--border)]/30 px-2 py-1.5 font-mono text-[9px] bg-[var(--surface)] outline-none focus:border-[var(--border)] w-full sm:w-auto" />
           <span className="font-mono text-[9px] opacity-30">?</span>
@@ -2466,7 +2704,7 @@ const OperationsReport: React.FC = () => {
       {/* -- Distribution bar -- */}
       {totalUnits > 0 && (
         <div className="border border-[var(--border)]/20 bg-[var(--bg-card)] px-4 py-3">
-          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribucion por tipo (unidades)</div>
+          <div className="font-mono text-[8px] opacity-40 uppercase tracking-widest mb-2">Distribución por tipo (unidades)</div>
           <div className="flex h-4 overflow-hidden border border-[var(--border)]/10">
             {(['RECEPTION', 'DISPATCH', 'TRANSFER'] as const).map(t => {
               const pct = (byType[t].units / totalUnits) * 100;
@@ -2868,7 +3106,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
         </div>`
       : '';
 
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gu-a ${guide.number}</title>
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Guía ${guide.number}</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:'Courier New',monospace;background:#fff;display:flex;justify-content:center;padding:32px 16px}
@@ -2919,7 +3157,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
         <div class="top-left">
           ${logoB64 ? `<div class="brand-logo"><img src="${logoB64}" style="width:40px;height:40px;object-fit:contain" /></div>` : `<div class="brand-logo" style="background:#141414;color:#E4E3E0;font-size:11px;font-weight:900;letter-spacing:1px">${brandAbbr}</div>`}
           <div>
-            <div class="brand">${BRAND_NAME[guide.brand] ?? guide.brand} // GU-A DE OPERACION</div>
+            <div class="brand">${BRAND_NAME[guide.brand] ?? guide.brand} // GUÍA DE OPERACIÓN</div>
             <div class="docnum">${guide.number}</div>
           </div>
         </div>
@@ -2962,7 +3200,7 @@ const GuideModal: React.FC<{ guide: OperationGuide; onClose: () => void }> = ({ 
             </div>
             <div className="min-w-0">
               <div className="font-mono text-[8px] font-bold tracking-[0.3em] opacity-40 uppercase mb-0.5">
-                {BRAND_NAME[guide.brand] ?? guide.brand} // GU-A DE OPERACION
+                {BRAND_NAME[guide.brand] ?? guide.brand} // GUÍA DE OPERACIÓN
               </div>
               <div className="font-mono font-black text-xl tracking-tight text-[var(--ink)]">{guide.number}</div>
             </div>

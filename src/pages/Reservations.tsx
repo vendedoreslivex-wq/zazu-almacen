@@ -397,7 +397,7 @@ function NewReservationModal({
   );
 }
 
-// --- Pesta-a Kanban -----------------------------------------------------------
+// --- Pestaña Kanban -----------------------------------------------------------
 
 function KanbanTab({
   reservations, products, locations, onAdvance, onNewReservation,
@@ -455,7 +455,7 @@ function KanbanTab({
   );
 }
 
-// --- Pesta-a Stock Reservado --------------------------------------------------
+// --- Pestaña Stock Reservado --------------------------------------------------
 
 function StockTab({
   reservations, products, stockLevels, locations,
@@ -905,7 +905,7 @@ export const Reservations: React.FC = () => {
               Reservas de Inventario
             </h1>
             <p className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase mt-0.5">
-              Gesti-n y seguimiento de stock apartado
+              Gestión y seguimiento de stock apartado
             </p>
           </div>
         </div>

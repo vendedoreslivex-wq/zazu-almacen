@@ -214,7 +214,7 @@ export const Locations: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="04" title="Ubicaciones" description="Gesti-n de la estructura fisica del almacen: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
+      <ModuleInfo number="04" title="Ubicaciones" description="Gestión de la estructura física del almacén: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
       {feedback && (
         <div className={cn("absolute top-0 right-0 z-50 p-4 border font-bold font-mono text-xs uppercase tracking-widest flex items-center gap-2 shadow-[4px_4px_0_rgba(0,0,0,0.2)]", feedback.type === 'success' ? "bg-green-500/15 border-green-700 text-green-600" : "bg-red-500/15 border-red-700 text-red-600")}>
           {feedback.message}
@@ -223,8 +223,8 @@ export const Locations: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">02 // Gesti-n_Ubicaciones</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Estructura del almacen y zonas.</p>
+          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">02 // Gestión_Ubicaciones</h2>
+          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Estructura del almacén y zonas.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
