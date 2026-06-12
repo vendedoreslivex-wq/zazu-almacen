@@ -5,8 +5,8 @@ import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clo
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
@@ -271,7 +271,7 @@ export const Reports: React.FC = () => {
   const handlePDF = async () => {
     const now = format(new Date(), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
     const title = REPORT_TITLES[activeReport];
-    const brand = activeBrand.replace('_', ' ');
+    const brand = activeBrand.replace(/_/g, ' ');
 
     const dateRangeLabel = (() => {
       if (dateFrom && dateTo)
@@ -283,393 +283,353 @@ export const Reports: React.FC = () => {
       return '';
     })();
 
-    // Logo Zazu Express — inventory variant (light, PDF is always white bg)
     const logoB64 = await fetch('/Zazu/inv/zazu-inv-light.png')
       .then(r => r.blob())
       .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
       .catch(() => '');
-    const logoSVG = logoB64
-      ? `<img src="${logoB64}" style="width:70px;height:70px;object-fit:contain" />`
-      : `<svg width="90" height="60" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="60" fill="#6B21A8" rx="4"/><text x="45" y="32" font-family="Arial Black,sans-serif" font-size="22" font-weight="900" fill="white" text-anchor="middle">zazu</text><text x="45" y="47" font-family="Arial,sans-serif" font-size="9" fill="#e9d5ff" text-anchor="middle" letter-spacing="3">express</text></svg>`;
 
-    // CSS compartido para todos los reportes
-    const sharedCSS = `
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: Inter, Arial, sans-serif; background: white; color: #111; padding: 28px 40px; font-size: 11px; width: 257mm; }
-      @page { size: A4 landscape; margin: 12mm 14mm; }
-      @media print { body { padding: 0; } }
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    const filename = `${activeReport}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const ML = 14; const MR = 14; const MT = 12; const MB = 12;
+    const usableW = PW - ML - MR;
 
-      /* -- Header -- */
-      .doc-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }
-      .doc-logo { flex-shrink: 0; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; }
-      .doc-company { flex: 1; padding-top: 4px; }
-      .doc-company .name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; line-height: 1.3; }
-      .doc-company .ruc { font-size: 11px; font-weight: 700; margin-top: 4px; }
-      .doc-meta { text-align: right; font-size: 9px; color: #666; line-height: 1.7; }
-      .doc-brand { display: inline-block; background: #6B21A8; color: white; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 3px; margin-top: 4px; letter-spacing: .08em; }
+    // Colores
+    const PURPLE: [number,number,number] = [107, 33, 168];
+    const BLACK:  [number,number,number] = [17, 17, 17];
+    const GRAY:   [number,number,number] = [240, 240, 240];
+    const WHITE:  [number,number,number] = [255, 255, 255];
+    const LIGHT:  [number,number,number] = [249, 249, 249];
 
-      /* -- T-tulo -- */
-      .doc-title { text-align: center; margin: 20px 0 10px; }
-      .doc-title h1 { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
-      .doc-date { text-align: center; font-size: 11px; font-weight: 700; margin-bottom: 22px; }
-
-      /* -- Tabla pivote (modelo · talla) -- */
-      table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-      thead th { background: #e8e8e8; padding: 7px 10px; text-align: center; font-weight: 700; font-size: 10px; text-transform: uppercase; border: 1px solid #ccc; }
-      thead th.col-model { text-align: left; min-width: 160px; }
-      tbody td { padding: 6px 10px; border: 1px solid #ddd; text-align: center; }
-      tbody td.col-model { text-align: left; font-weight: 600; }
-      tbody tr:nth-child(even) td { background: #f9f9f9; }
-      tbody td.col-total { font-weight: 700; background: #f0f0f0; }
-      tfoot td { padding: 7px 10px; border: 1px solid #ccc; text-align: center; font-weight: 900; background: #e0e0e0; font-size: 11px; }
-      tfoot td.col-model { text-align: left; }
-
-      /* -- Summary cards -- */
-      .summary { display: grid; gap: 10px; margin-bottom: 22px; }
-      .card { border: 1.5px solid #ddd; padding: 11px 14px; border-radius: 4px; }
-      .card.dark { background: #111; color: white; }
-      .card.purple { background: #6B21A8; color: white; }
-      .card .label { font-size: 8px; text-transform: uppercase; letter-spacing: .15em; opacity: .6; margin-bottom: 4px; }
-      .card .value { font-size: 22px; font-weight: 900; line-height: 1; }
-      .card .hint { font-size: 8px; opacity: .45; text-transform: uppercase; margin-top: 3px; }
-
-      /* -- Tabla est-ndar -- */
-      .std-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
-      .std-table thead th { background: #111; color: white; padding: 8px 10px; text-align: left; font-size: 8px; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; }
-      .std-table th.c, .std-table td.c { text-align: center; }
-      .std-table th.r, .std-table td.r { text-align: right; }
-      .std-table tbody tr { border-bottom: 1px solid #e5e7eb; }
-      .std-table tbody td { padding: 7px 10px; vertical-align: top; }
-      .std-table tbody tr:nth-child(even) td { background: #fafafa; }
-      .std-table tfoot td { padding: 8px 10px; font-weight: 700; border-top: 2px solid #111; background: #f5f5f5; }
-
-      /* -- ABC chips -- */
-      .cls-a { color: #15803d; font-weight: 900; }
-      .cls-b { color: #b45309; font-weight: 900; }
-      .cls-c { opacity: .55; }
-
-      /* -- Footer -- */
-      .doc-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 8px; color: #aaa; }
-    `;
-
-    const headerHTML = `
-      <div class="doc-header">
-        <div class="doc-logo">${logoSVG}</div>
-        <div class="doc-company">
-          <div class="name">Tecnología y Distribución Logística<br>del Perú S.A.C.</div>
-          <div class="ruc">RUC: 20614699842</div>
-        </div>
-        <div class="doc-meta">
-          Generado: ${now}<br>
-          Marca: <span class="doc-brand">${brand}</span>
-        </div>
-      </div>
-      <div class="doc-title"><h1>${title}</h1></div>
-      ${dateRangeLabel ? `<div class="doc-date">${dateRangeLabel}</div>` : `<div style="margin-bottom:16px"></div>`}
-    `;
-
-    const footerHTML = `<div class="doc-footer"><span>LOGIXZAZU · ${title}</span><span>${now}</span></div>`;
-
-    const dateRange = dateRangeLabel;
-
-    // -- Contenido espec-fico por reporte --
-    let bodyHTML = '';
-
-    // Helper: construye tabla pivote MODELO · TALLA con totales
-    const buildPivotTable = (
-      rows: { model: string; size: string; qty: number }[],
-      rowLabel = 'MODELO'
-    ) => {
-      const allSizes = [...new Set(rows.map(r => r.size))].sort();
-      const models = [...new Set(rows.map(r => r.model))].sort();
-      const pivot: Record<string, Record<string, number>> = {};
-      rows.forEach(({ model, size, qty }) => {
-        if (!pivot[model]) pivot[model] = {};
-        pivot[model][size] = (pivot[model][size] || 0) + qty;
-      });
-      const colTotals: Record<string, number> = {};
-      allSizes.forEach(s => { colTotals[s] = models.reduce((acc, m) => acc + (pivot[m]?.[s] || 0), 0); });
-      const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
-
-      const thCols = allSizes.map(s => `<th>${s}</th>`).join('');
-      const tbodyRows = models.map(m => {
-        const rowTotal = allSizes.reduce((a, s) => a + (pivot[m]?.[s] || 0), 0);
-        const tds = allSizes.map(s => `<td>${pivot[m]?.[s] || 0}</td>`).join('');
-        return `<tr><td class="col-model">${m}</td>${tds}<td class="col-total">${rowTotal}</td></tr>`;
-      }).join('');
-      const tfootTds = allSizes.map(s => `<td><strong>${colTotals[s]}</strong></td>`).join('');
-
-      return `
-        <table>
-          <thead>
-            <tr>
-              <th class="col-model">${rowLabel}</th>
-              ${thCols}
-              <th>TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>${tbodyRows}</tbody>
-          <tfoot>
-            <tr>
-              <td class="col-model"><strong>Total general</strong></td>
-              ${tfootTds}
-              <td><strong>${grandTotal}</strong></td>
-            </tr>
-          </tfoot>
-        </table>
-        <table style="width:auto;margin-top:10px;">
-          <tbody>
-            <tr>
-              <td class="col-model" style="background:#e0e0e0;font-weight:900;padding:7px 14px;">TOTAL</td>
-              <td style="background:#e0e0e0;font-weight:900;padding:7px 20px;">${grandTotal}</td>
-            </tr>
-          </tbody>
-        </table>`;
+    // Dibuja encabezado en la página actual
+    const drawHeader = (pageTitle: string) => {
+      let y = MT;
+      // Logo placeholder
+      if (logoB64) {
+        try { pdf.addImage(logoB64, 'PNG', ML, y, 14, 14); } catch {}
+      }
+      pdf.setFillColor(...PURPLE);
+      pdf.rect(ML + (logoB64 ? 16 : 0), y, usableW - (logoB64 ? 16 : 0), 6, 'F');
+      pdf.setTextColor(...WHITE);
+      pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+      pdf.text('LOGIXZAZU · Tecnologia y Distribucion Logistica del Peru S.A.C.', ML + (logoB64 ? 18 : 2), y + 4.2);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+      pdf.text(`RUC: 20614699842  ·  ${brand}  ·  ${now}`, PW - MR, y + 4.2, { align: 'right' });
+      y += 8;
+      pdf.setTextColor(...BLACK);
+      pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
+      pdf.text(pageTitle.toUpperCase(), PW / 2, y + 5, { align: 'center' });
+      y += 8;
+      if (dateRangeLabel) {
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(dateRangeLabel, PW / 2, y + 3, { align: 'center' });
+        y += 6;
+      }
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(ML, y, PW - MR, y);
+      return y + 4;
     };
 
-    if (activeReport === 'inventory') {
-      // Tabla pivote: modelo · talla, cantidad en stock
-      const pivotRows = inventoryRows.map(r => ({
-        model: r.name,
-        size: r.size?.trim() || 'S/T',
-        qty: r.qty,
-      }));
-      const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px;">
-          <div class="card"><div class="label">SKUs con stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
-          <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacen</div></div>
-        </div>`;
+    // Pie de página
+    const drawFooter = () => {
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(180, 180, 180);
+      pdf.text(`LOGIXZAZU · ${title}`, ML, PH - MB + 4);
+      pdf.text(`Pag. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}  ·  ${now}`, PW - MR, PH - MB + 4, { align: 'right' });
+    };
 
-      // Agrupar por nombre de producto → variantes
+    // ── REPORTE: INVENTARIO ───────────────────────────────────────────────────
+    if (activeReport === 'inventory') {
+      let y = drawHeader(title);
+
+      // Resumen
+      const cards = [
+        { label: 'SKUs con stock', value: String(inventoryRows.length), sub: 'productos activos' },
+        { label: 'Unidades totales', value: valuationTotal.units.toLocaleString('es-PE'), sub: 'en almacen' },
+      ];
+      const cardW = (usableW - 6) / cards.length;
+      cards.forEach((c, i) => {
+        const cx = ML + i * (cardW + 6);
+        const fc = i === 1 ? PURPLE : GRAY;
+        pdf.setFillColor(fc[0], fc[1], fc[2]);
+        pdf.rect(cx, y, cardW, 14, 'F');
+        const tc = i === 1 ? WHITE : BLACK;
+        pdf.setTextColor(tc[0], tc[1], tc[2]);
+        pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+        pdf.text(c.label.toUpperCase(), cx + 3, y + 4);
+        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+        pdf.text(c.value, cx + 3, y + 10);
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'normal');
+        pdf.text(c.sub.toUpperCase(), cx + 3, y + 13.5);
+      });
+      y += 18;
+
+      // Tabla pivote MODELO × TALLA
+      const allSizes = [...new Set(inventoryRows.map(r => r.size?.trim() || 'S/T'))].sort();
+      const models   = [...new Set(inventoryRows.map(r => r.name))].sort();
+      const pivot: Record<string, Record<string, number>> = {};
+      inventoryRows.forEach(r => {
+        const sz = r.size?.trim() || 'S/T';
+        if (!pivot[r.name]) pivot[r.name] = {};
+        pivot[r.name][sz] = (pivot[r.name][sz] || 0) + r.qty;
+      });
+      const colTotals: Record<string, number> = {};
+      allSizes.forEach(s => { colTotals[s] = models.reduce((a, m) => a + (pivot[m]?.[s] || 0), 0); });
+      const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
+
+      const pivotHead = [['MODELO', ...allSizes, 'TOTAL']];
+      const pivotBody = models.map(m => {
+        const rowTotal = allSizes.reduce((a, s) => a + (pivot[m]?.[s] || 0), 0);
+        return [m, ...allSizes.map(s => String(pivot[m]?.[s] || 0)), String(rowTotal)];
+      });
+      pivotBody.push(['TOTAL GENERAL', ...allSizes.map(s => String(colTotals[s])), String(grandTotal)]);
+
+      autoTable(pdf, {
+        startY: y,
+        head: pivotHead,
+        body: pivotBody,
+        margin: { left: ML, right: MR },
+        styles: { fontSize: 8, cellPadding: 2.5, lineColor: [200,200,200], lineWidth: 0.2 },
+        headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 55 } },
+        alternateRowStyles: { fillColor: LIGHT },
+        didParseCell: (data) => {
+          if (data.row.index === pivotBody.length - 1) {
+            data.cell.styles.fillColor = GRAY;
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+      });
+
+      drawFooter();
+
+      // ── Página 2+: detalle por producto ─────────────────────────────────
       const grouped: Record<string, typeof inventoryRows> = {};
       inventoryRows.forEach(r => {
         if (!grouped[r.name]) grouped[r.name] = [];
         grouped[r.name].push(r);
       });
 
-      const buildProductTable = (name: string, variants: typeof inventoryRows) => {
-        const totalQty = variants.reduce((s, v) => s + v.qty, 0);
-        const code = variants[0]?.code || '';
-        const hasColor = variants.some(v => v.color);
-        const hasSize  = variants.some(v => v.size);
+      pdf.addPage();
+      y = drawHeader('Detalle por Producto y Variantes');
 
-        const headerCols = [
-          hasColor ? '<th style="text-align:left;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Color</th>' : '',
-          hasSize  ? '<th style="text-align:left;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Talla</th>' : '',
-          '<th style="text-align:center;padding:4px 8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Cant.</th>',
-        ].join('');
+      // Distribuir en 3 columnas con autoTable side-by-side
+      const entries = Object.entries(grouped);
+      const colW = (usableW - 10) / 3;
+      const col0 = entries.filter((_, i) => i % 3 === 0);
+      const col1 = entries.filter((_, i) => i % 3 === 1);
+      const col2 = entries.filter((_, i) => i % 3 === 2);
 
-        const bodyRows = variants
-          .sort((a, b) => (a.color || '').localeCompare(b.color || '') || (a.size || '').localeCompare(b.size || ''))
-          .map((v, i) => {
-            const bg = i % 2 === 0 ? '#fff' : '#f7f7f7';
-            return `<tr style="background:${bg};">
-              ${hasColor ? `<td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;color:#333;">${v.color || '—'}</td>` : ''}
-              ${hasSize  ? `<td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;color:#333;">${v.size  || '—'}</td>` : ''}
-              <td style="padding:4px 8px;border:1px solid #e8e8e8;font-size:8.5px;font-weight:700;text-align:center;color:#111;">${v.qty}</td>
-            </tr>`;
-          }).join('');
+      const renderCol = (colEntries: typeof entries, startX: number) => {
+        let cy = y;
+        colEntries.forEach(([name, variants]) => {
+          const totalQty = variants.reduce((s, v) => s + v.qty, 0);
+          const hasColor = variants.some(v => v.color);
+          const hasSize  = variants.some(v => v.size);
+          const head: string[][] = [[name.toUpperCase()]];
+          const subHead: string[] = [];
+          if (hasColor) subHead.push('COLOR');
+          if (hasSize)  subHead.push('TALLA');
+          subHead.push('CANT.');
+          const body = variants
+            .sort((a, b) => (a.color||'').localeCompare(b.color||'') || (a.size||'').localeCompare(b.size||''))
+            .map(v => {
+              const row: string[] = [];
+              if (hasColor) row.push(v.color || '—');
+              if (hasSize)  row.push(v.size  || '—');
+              row.push(String(v.qty));
+              return row;
+            });
+          const footRow: string[] = Array(subHead.length - 1).fill('');
+          footRow.push(String(totalQty));
 
-        const colspan = (hasColor ? 1 : 0) + (hasSize ? 1 : 0) + 1;
-        const totalRow = `<tr>
-          <td colspan="${colspan}" style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;text-align:right;color:#111;">
-            TOTAL: <strong>${totalQty}</strong>
-          </td>
-        </tr>`;
+          autoTable(pdf, {
+            startY: cy,
+            head: [head[0].length === 1
+              ? [{ content: name.toUpperCase(), colSpan: subHead.length, styles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 8 } }]
+              : head[0],
+              subHead,
+            ],
+            body: [...body, footRow],
+            margin: { left: startX, right: PW - startX - colW },
+            tableWidth: colW,
+            styles: { fontSize: 7.5, cellPadding: 2, lineColor: [220,220,220], lineWidth: 0.15 },
+            headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold', halign: 'center', fontSize: 7 },
+            columnStyles: { [subHead.length - 1]: { halign: 'center', fontStyle: 'bold' } },
+            alternateRowStyles: { fillColor: LIGHT },
+            didParseCell: (data) => {
+              // Fila de total al final
+              if (data.section === 'body' && data.row.index === body.length) {
+                data.cell.styles.fillColor = GRAY;
+                data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.halign = 'right';
+              }
+              // Fila del nombre del producto (primera fila de head)
+              if (data.section === 'head' && data.row.index === 0) {
+                data.cell.styles.fillColor = PURPLE;
+                data.cell.styles.textColor = WHITE;
+              }
+            },
+            didDrawPage: () => { drawFooter(); },
+          });
 
-        return `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
-          <thead>
-            <tr>
-              <td colspan="${colspan}" style="padding:5px 8px;background:#6B21A8;color:#fff;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;">${name}</span>
-                  <span style="font-size:7px;opacity:.8;">${code} · ${variants.length} SKU${variants.length !== 1 ? 's' : ''}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>${headerCols}</tr>
-          </thead>
-          <tbody>${bodyRows}</tbody>
-          <tfoot>${totalRow}</tfoot>
-        </table>`;
+          cy = (pdf as any).lastAutoTable.finalY + 4;
+
+          // Nueva página si se agota el espacio
+          if (cy > PH - MB - 20) {
+            pdf.addPage();
+            cy = drawHeader('Detalle por Producto y Variantes (cont.)');
+            drawFooter();
+          }
+        });
       };
 
-      // Distribuir productos en 3 columnas manualmente para evitar cortes con html2canvas
-      const entries = Object.entries(grouped);
-      const col0: string[] = [];
-      const col1: string[] = [];
-      const col2: string[] = [];
-      entries.forEach(([name, variants], i) => {
-        const table = buildProductTable(name, variants);
-        if (i % 3 === 0) col0.push(table);
-        else if (i % 3 === 1) col1.push(table);
-        else col2.push(table);
-      });
+      renderCol(col0, ML);
+      renderCol(col1, ML + colW + 5);
+      renderCol(col2, ML + (colW + 5) * 2);
 
-      const colStyle = 'style="flex:1;min-width:0;"';
-      const variantSection = `
-        <div style="page-break-before:always;padding-top:4px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:18px;">
-            <div>
-              <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#111;">Detalle por Producto y Variantes</div>
-              <div style="font-size:8.5px;color:#888;margin-top:4px;letter-spacing:.05em;">${Object.keys(grouped).length} PRODUCTOS · ${inventoryRows.length} SKUs CON STOCK</div>
-            </div>
-            <div style="font-size:8px;color:#aaa;text-align:right;line-height:1.6;">${brand} · ${now}</div>
-          </div>
-          <div style="display:flex;gap:16px;align-items:flex-start;">
-            <div ${colStyle}>${col0.join('')}</div>
-            <div ${colStyle}>${col1.join('')}</div>
-            <div ${colStyle}>${col2.join('')}</div>
-          </div>
-        </div>`;
-
-      bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO') + variantSection;
+      drawFooter();
     }
 
-    else if (activeReport === 'movements') {
-      const totalUnits = movementsBySupplier.reduce((s, m) => s + m.total, 0);
-      const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card purple"><div class="label">Proveedores</div><div class="value">${movementsBySupplier.length}</div><div class="hint">con recepciones</div></div>
-          <div class="card dark"><div class="label">Total unidades</div><div class="value">${totalUnits.toLocaleString('es-PE')}</div><div class="hint">recepcionadas</div></div>
-          <div class="card"><div class="label">Transacciones</div><div class="value">${movementsBySupplier.reduce((s, m) => s + m.txs.length, 0)}</div><div class="hint">en el per-odo</div></div>
-        </div>`;
-      const tablesHTML = movementsBySupplier.map(({ supplier, txs, total }) => {
-        const pivotRows = txs.map(tx => {
-          const prod = products.find(p => p.id === tx.productId);
-          return { model: prod?.name || tx.productId, size: prod?.size?.trim() || 'S/T', qty: tx.quantity };
+    // ── OTROS REPORTES (autoTable simple) ────────────────────────────────────
+    else {
+      let y = drawHeader(title);
+
+      if (activeReport === 'adjustments') {
+        const pos = filteredAdj.filter(a => a.newQuantity > a.previousQuantity).length;
+        const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
+        autoTable(pdf, {
+          startY: y,
+          head: [['Fecha', 'Producto', 'Ubicacion', 'Antes', 'Despues', 'Diff', 'Motivo', 'Usuario']],
+          body: filteredAdj.map(a => {
+            const prod = products.find(p => p.id === a.productId);
+            const loc  = locations.find(l => l.id === a.locationId);
+            const diff = a.newQuantity - a.previousQuantity;
+            return [
+              format(new Date(a.date), 'dd/MM/yy HH:mm'),
+              `${prod?.code || ''} ${prod?.name || a.productId}`,
+              loc?.name || '-',
+              String(a.previousQuantity),
+              String(a.newQuantity),
+              `${diff > 0 ? '+' : ''}${diff}`,
+              a.reason,
+              a.user,
+            ];
+          }),
+          margin: { left: ML, right: MR },
+          styles: { fontSize: 7.5, cellPadding: 2.5 },
+          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: LIGHT },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 5) {
+              const v = String(data.cell.raw);
+              if (v.startsWith('+')) data.cell.styles.textColor = [22, 163, 74];
+              else if (v.startsWith('-')) data.cell.styles.textColor = [220, 38, 38];
+            }
+          },
+          didDrawPage: () => drawFooter(),
         });
-        return `
-          <div style="margin-bottom:24px;">
-            <div style="background:#6B21A8;color:white;padding:8px 12px;font-weight:700;font-size:11px;display:flex;justify-content:space-between;">
-              <span>${supplier.name}</span><span>${total} uds · ${txs.length} recepciones</span>
-            </div>
-            ${buildPivotTable(pivotRows, 'MODELO')}
-          </div>`;
-      }).join('') || '<p style="text-align:center;padding:32px;opacity:.5;">Sin recepciones en el per-odo</p>';
-      bodyHTML = summaryCards + tablesHTML;
-    }
-
-    else if (activeReport === 'valuation') {
-      bodyHTML = `
-        <div class="summary" style="grid-template-columns:repeat(2,1fr)">
-          <div class="card"><div class="label">SKUs activos</div><div class="value">${inventoryRows.length}</div><div class="hint">con stock</div></div>
-          <div class="card purple"><div class="label">Unidades</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacen</div></div>
-        </div>`;
-    }
-
-    else if (activeReport === 'adjustments') {
-      const pos = filteredAdj.filter(a => a.newQuantity > a.previousQuantity).length;
-      const neg = filteredAdj.filter(a => a.newQuantity < a.previousQuantity).length;
-      const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card purple"><div class="label">Total ajustes</div><div class="value">${filteredAdj.length}</div><div class="hint">en el per-odo</div></div>
-          <div class="card"><div class="label">Incrementos</div><div class="value" style="color:#16a34a">+${pos}</div><div class="hint">stock sumado</div></div>
-          <div class="card"><div class="label">Decrementos</div><div class="value" style="color:#dc2626">${neg}</div><div class="hint">stock reducido</div></div>
-        </div>`;
-      const bodyRows = filteredAdj.map(a => {
-        const prod = products.find(p => p.id === a.productId);
-        const loc = locations.find(l => l.id === a.locationId);
-        const diff = a.newQuantity - a.previousQuantity;
-        return `<tr>
-          <td>${format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
-          <td><strong>${prod?.code||''}</strong> ${prod?.name||a.productId}</td>
-          <td style="opacity:.7">${loc?.name||'-'}</td>
-          <td class="c">${a.previousQuantity}</td>
-          <td class="c" style="font-weight:700">${a.newQuantity}</td>
-          <td class="c" style="font-weight:700;color:${diff>0?'#16a34a':diff<0?'#dc2626':'#888'}">${diff>0?'+':''}${diff}</td>
-          <td style="opacity:.7">${a.reason}</td>
-          <td style="opacity:.7">${a.user}</td>
-        </tr>`;
-      }).join('');
-      bodyHTML = summaryCards + `
-        <table class="std-table">
-          <thead><tr><th>Fecha</th><th>Producto</th><th>Ubicacion</th><th class="c">Antes</th><th class="c">Despu-s</th><th class="c">Diff</th><th>Motivo</th><th>Usuario</th></tr></thead>
-          <tbody>${bodyRows||'<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Sin ajustes en el per-odo</td></tr>'}</tbody>
-        </table>`;
-    }
-
-    else if (activeReport === 'abc') {
-      const aItems = abcData.filter(r => r.cls === 'A');
-      const bItems = abcData.filter(r => r.cls === 'B');
-      const cItems = abcData.filter(r => r.cls === 'C');
-      const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card" style="border-color:#15803d;background:#f0fdf4"><div class="label" style="color:#15803d">Clase A · Alta rotacion</div><div class="value" style="color:#15803d">${aItems.length} SKUs</div><div class="hint">${aItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
-          <div class="card" style="border-color:#b45309;background:#fffbeb"><div class="label" style="color:#b45309">Clase B · Media</div><div class="value" style="color:#b45309">${bItems.length} SKUs</div><div class="hint">${bItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
-          <div class="card dark"><div class="label">Clase C · Baja</div><div class="value">${cItems.length} SKUs</div><div class="hint">${cItems.reduce((s,r)=>s+r.pct,0).toFixed(1)}% del volumen</div></div>
-        </div>`;
-      const clsStyle: Record<string,string> = { A:'color:#15803d', B:'color:#b45309', C:'opacity:.5' };
-      const bodyRows = abcData.map(r => `
-        <tr>
-          <td style="font-size:15px;font-weight:900;${clsStyle[r.cls]}">${r.cls}</td>
-          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.size].filter(Boolean).join(' ')}</span></td>
-          <td class="r" style="font-weight:700">${r.dispatched}</td>
-          <td class="r">${r.pct.toFixed(1)}%</td>
-        </tr>`).join('');
-      bodyHTML = summaryCards + `
-        <table class="std-table">
-          <thead><tr><th>Clase</th><th>Producto</th><th class="r">Despachos</th><th class="r">% Volumen</th></tr></thead>
-          <tbody>${bodyRows||'<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin despachos</td></tr>'}</tbody>
-        </table>`;
-    }
-
-    else if (activeReport === 'aging') {
-      const critical = agingData.filter(r => r.daysSince !== null && r.daysSince >= 90).length;
-      const summaryCards = `
-        <div class="summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
-          <div class="card purple"><div class="label">Productos estancados</div><div class="value">${agingData.length}</div><div class="hint">=${agingDays} dias sin movimiento</div></div>
-          <div class="card" style="${critical>0?'border-color:#dc2626;background:#fef2f2':''}"><div class="label">Cr-ticos =90d</div><div class="value" style="color:${critical>0?'#dc2626':'#111'}">${critical}</div><div class="hint">alta prioridad</div></div>
-          <div class="card"><div class="label">Unidades paradas</div><div class="value">${agingData.reduce((s,r)=>s+r.stock,0).toLocaleString('es-PE')}</div><div class="hint">en stock sin salida</div></div>
-        </div>`;
-      const bodyRows = agingData.map(r => {
-        const daysColor = r.daysSince!==null&&r.daysSince>=90?'#dc2626':r.daysSince!==null&&r.daysSince>=30?'#b45309':'#111';
-        return `<tr>
-          <td><strong>${r.prod.code}</strong> <span style="opacity:.6">${r.prod.name} ${[r.prod.size].filter(Boolean).join(' ')}</span></td>
-          <td class="c" style="font-weight:700">${r.stock}</td>
-          <td class="c" style="opacity:.7">${r.lastDispatch?format(new Date(r.lastDispatch),'dd/MM/yyyy'):'-'}</td>
-          <td class="c" style="font-weight:700;color:${daysColor}">${r.daysSince!==null?r.daysSince:'Sin despachos'}</td>
-        </tr>`;
-      }).join('');
-      bodyHTML = summaryCards + `
-        <table class="std-table">
-          <thead><tr><th>Producto</th><th class="c">Stock</th><th class="c">ultimo despacho</th><th class="c">D-as sin movimiento</th></tr></thead>
-          <tbody>${bodyRows||'<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.5;">Sin productos estancados</td></tr>'}</tbody>
-        </table>`;
-    }
-
-    const html = `<!DOCTYPE html><html lang="es"><head>
-<meta charset="UTF-8">
-<title>${title} · LogixZazu</title>
-<style>${sharedCSS}</style>
-</head><body>
-${headerHTML}
-${bodyHTML}
-${footerHTML}
-</body></html>`;
-
-    const filename = `${activeReport}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    const target = (container.querySelector('body') || container) as HTMLElement;
-    html2canvas(target, { scale: 2, useCORS: true, logging: false }).then(canvas => {
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 12;
-      const usableW = pageW - margin * 2;
-      const imgH = (canvas.height * usableW) / canvas.width;
-      let y = 0;
-      while (y < imgH) {
-        if (y > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', margin, margin - y, usableW, imgH);
-        y += pageH - margin * 2;
       }
-      pdf.save(filename);
-    }).finally(() => document.body.removeChild(container));
+
+      else if (activeReport === 'abc') {
+        autoTable(pdf, {
+          startY: y,
+          head: [['Clase', 'Codigo', 'Producto', 'Despachos', '% Volumen']],
+          body: abcData.map(r => [
+            r.cls,
+            r.prod.code,
+            `${r.prod.name}${r.prod.size ? ' ' + r.prod.size : ''}`,
+            String(r.dispatched),
+            `${r.pct.toFixed(1)}%`,
+          ]),
+          margin: { left: ML, right: MR },
+          styles: { fontSize: 8, cellPadding: 2.5 },
+          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: LIGHT },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 0) {
+              const cls = String(data.cell.raw);
+              if (cls === 'A') data.cell.styles.textColor = [21, 128, 61];
+              else if (cls === 'B') data.cell.styles.textColor = [180, 83, 9];
+              else data.cell.styles.textColor = [150, 150, 150];
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fontSize = 12;
+            }
+          },
+          didDrawPage: () => drawFooter(),
+        });
+      }
+
+      else if (activeReport === 'aging') {
+        autoTable(pdf, {
+          startY: y,
+          head: [['Producto', 'Stock', 'Ultimo despacho', 'Dias sin movimiento']],
+          body: agingData.map(r => [
+            `${r.prod.code} ${r.prod.name}${r.prod.size ? ' ' + r.prod.size : ''}`,
+            String(r.stock),
+            r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '-',
+            r.daysSince !== null ? String(r.daysSince) : 'Sin despachos',
+          ]),
+          margin: { left: ML, right: MR },
+          styles: { fontSize: 8, cellPadding: 2.5 },
+          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: LIGHT },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 3) {
+              const d = Number(data.cell.raw);
+              if (d >= 90) data.cell.styles.textColor = [220, 38, 38];
+              else if (d >= 30) data.cell.styles.textColor = [180, 83, 9];
+            }
+          },
+          didDrawPage: () => drawFooter(),
+        });
+      }
+
+      else if (activeReport === 'movements') {
+        movementsBySupplier.forEach(({ supplier, txs, total }) => {
+          pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+          pdf.setFillColor(...PURPLE);
+          pdf.rect(ML, y, usableW, 7, 'F');
+          pdf.setTextColor(...WHITE);
+          pdf.text(supplier.name.toUpperCase(), ML + 3, y + 5);
+          pdf.text(`${total} uds · ${txs.length} recepciones`, PW - MR - 3, y + 5, { align: 'right' });
+          y += 9;
+          autoTable(pdf, {
+            startY: y,
+            head: [['Producto', 'Talla', 'Cantidad']],
+            body: txs.map(tx => {
+              const prod = products.find(p => p.id === tx.productId);
+              return [prod?.name || tx.productId, prod?.size || '-', String(tx.quantity)];
+            }),
+            margin: { left: ML, right: MR },
+            styles: { fontSize: 7.5, cellPadding: 2 },
+            headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: LIGHT },
+            didDrawPage: () => drawFooter(),
+          });
+          y = (pdf as any).lastAutoTable.finalY + 6;
+        });
+      }
+
+      else if (activeReport === 'valuation') {
+        autoTable(pdf, {
+          startY: y,
+          head: [['Codigo', 'Producto', 'Color', 'Talla', 'Stock']],
+          body: inventoryRows.map(r => [r.code, r.name, r.color || '-', r.size || '-', String(r.qty)]),
+          margin: { left: ML, right: MR },
+          styles: { fontSize: 8, cellPadding: 2.5 },
+          headStyles: { fillColor: BLACK, textColor: WHITE, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: LIGHT },
+          didDrawPage: () => drawFooter(),
+        });
+      }
+
+      drawFooter();
+    }
+
+    pdf.save(filename);
   };
 
   // --- Datos Kanban por reporte ----------------------------------------------
