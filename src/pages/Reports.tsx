@@ -5,6 +5,7 @@ import { Printer, Download, BarChart2, Package, ArrowLeftRight, Users, Star, Clo
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
+import html2pdf from 'html2pdf.js';
 
 type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
@@ -45,7 +46,7 @@ function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () 
             onClick={() => { onPDF(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
           >
-            <Printer size={12} /> PDF
+            <FileText size={12} /> PDF (descargar)
           </button>
           <div className="border-t border-[var(--border)]/20" />
           <button
@@ -438,7 +439,78 @@ export const Reports: React.FC = () => {
           <div class="card"><div class="label">SKUs con stock</div><div class="value">${inventoryRows.length}</div><div class="hint">productos activos</div></div>
           <div class="card purple"><div class="label">Unidades totales</div><div class="value">${valuationTotal.units.toLocaleString('es-PE')}</div><div class="hint">en almacen</div></div>
         </div>`;
-      bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO');
+
+      // Agrupar por nombre de producto → variantes
+      const grouped: Record<string, typeof inventoryRows> = {};
+      inventoryRows.forEach(r => {
+        if (!grouped[r.name]) grouped[r.name] = [];
+        grouped[r.name].push(r);
+      });
+
+      const productTables = Object.entries(grouped).map(([name, variants]) => {
+        const totalQty = variants.reduce((s, v) => s + v.qty, 0);
+        const code = variants[0]?.code || '';
+        const hasColor = variants.some(v => v.color);
+        const hasSize  = variants.some(v => v.size);
+
+        const headerCols = [
+          hasColor ? '<th style="text-align:left;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Color</th>' : '',
+          hasSize  ? '<th style="text-align:left;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Talla</th>' : '',
+          '<th style="text-align:center;padding:5px 10px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:#111;color:#fff;border:1px solid #333;">Cantidad</th>',
+        ].join('');
+
+        const bodyRows = variants
+          .sort((a, b) => (a.color || '').localeCompare(b.color || '') || (a.size || '').localeCompare(b.size || ''))
+          .map((v, i) => {
+            const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            return `<tr style="background:${bg};">
+              ${hasColor ? `<td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;color:#333;">${v.color || '—'}</td>` : ''}
+              ${hasSize  ? `<td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;color:#333;">${v.size  || '—'}</td>` : ''}
+              <td style="padding:5px 10px;border:1px solid #e8e8e8;font-size:9px;font-weight:700;text-align:center;color:#111;">${v.qty}</td>
+            </tr>`;
+          }).join('');
+
+        const totalCols = [
+          hasColor ? '<td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;" colspan="1">TOTAL</td>' : '',
+          hasSize  ? '<td style="border:1px solid #ccc;background:#f0f0f0;"></td>' : '',
+          `<td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:10px;font-weight:900;text-align:center;color:#111;">${totalQty}</td>`,
+        ].join('');
+        // Si no hay color ni talla, el total ocupa solo 1 columna
+        const totalRow = (hasColor || hasSize)
+          ? `<tr>${totalCols}</tr>`
+          : `<tr><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:8px;font-weight:900;text-transform:uppercase;">TOTAL</td><td style="padding:5px 10px;border:1px solid #ccc;background:#f0f0f0;font-size:10px;font-weight:900;text-align:center;">${totalQty}</td></tr>`;
+
+        return `
+          <table style="width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:avoid;">
+            <thead>
+              <tr>
+                <td colspan="${(hasColor ? 1 : 0) + (hasSize ? 1 : 0) + 1}" style="padding:6px 10px;background:#6B21A8;color:#fff;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;">${name}</span>
+                    <span style="font-size:8px;opacity:.8;letter-spacing:.06em;">${code} · ${variants.length} SKU${variants.length !== 1 ? 's' : ''}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>${headerCols}</tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+            <tfoot>${totalRow}</tfoot>
+          </table>`;
+      }).join('');
+
+      const variantSection = `
+        <div style="page-break-before:always;padding-top:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:20px;">
+            <div>
+              <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#111;">Detalle por Producto y Variantes</div>
+              <div style="font-size:8.5px;color:#888;margin-top:4px;letter-spacing:.05em;">${Object.keys(grouped).length} PRODUCTOS · ${inventoryRows.length} SKUs CON STOCK</div>
+            </div>
+            <div style="font-size:8px;color:#aaa;text-align:right;line-height:1.6;">${brand} · ${now}</div>
+          </div>
+          ${productTables}
+        </div>`;
+
+      bodyHTML = summaryCards + buildPivotTable(pivotRows, 'MODELO') + variantSection;
     }
 
     else if (activeReport === 'movements') {
@@ -563,12 +635,21 @@ ${bodyHTML}
 ${footerHTML}
 </body></html>`;
 
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 600);
+    const filename = `${activeReport}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    html2pdf()
+      .set({
+        margin: [14, 12, 14, 12],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(container.querySelector('body') || container)
+      .save()
+      .finally(() => document.body.removeChild(container));
   };
 
   // --- Datos Kanban por reporte ----------------------------------------------
