@@ -411,23 +411,24 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ open, onClose, ste
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg flex flex-col overflow-hidden"
+        className="w-full flex flex-col overflow-hidden"
         style={{
           background: 'var(--bg-card)',
           border: '2px solid var(--border)',
-          boxShadow: '8px 8px 0 var(--border)',
+          boxShadow: '10px 10px 0 var(--border)',
           animation: 'tutorial-modal-in 0.25s ease both',
-          maxHeight: '90vh',
+          maxWidth: '860px',
+          maxHeight: '92vh',
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Top accent + progress bar */}
-        <div className="h-1 w-full" style={{ background: 'var(--surface)' }}>
+        {/* Progress bar */}
+        <div className="h-[3px] w-full" style={{ background: 'var(--surface)' }}>
           <div
             className="h-full"
             style={{
@@ -440,54 +441,104 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ open, onClose, ste
 
         {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-3 border-b"
+          className="flex items-center justify-between px-6 py-3 border-b shrink-0"
           style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
         >
-          <div className="flex items-center gap-2">
-            <BookOpen size={14} style={{ color: 'var(--ink)' }} />
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--ink)' }}>
+          <div className="flex items-center gap-2.5">
+            <BookOpen size={15} style={{ color: 'var(--ink)' }} />
+            <span className="font-mono text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--ink)' }}>
               Tutorial · Operaciones
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[9px] font-bold" style={{ color: 'var(--ink-50)' }}>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--ink-50)' }}>
               {current + 1} / {steps.length}
             </span>
             <button
               onClick={onClose}
-              className="p-1 hover:opacity-70 transition-opacity"
+              className="p-1 hover:opacity-60 transition-opacity"
               style={{ color: 'var(--ink)' }}
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Content — animated */}
-        <div className="overflow-y-auto flex-1">
+        {/* Body — 2 columns: illustration left, text right */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
+
+          {/* Left: illustration panel */}
           <div
+            className="hidden md:flex items-center justify-center shrink-0"
+            style={{
+              width: '320px',
+              background: 'var(--surface)',
+              borderRight: '1px solid var(--border)',
+              padding: '32px 24px',
+            }}
+          >
+            <div
+              key={animKey}
+              style={{ width: '100%', maxHeight: '280px', animation: `${slideAnim} 0.35s ease both` }}
+            >
+              {step.illustration}
+            </div>
+          </div>
+
+          {/* Right: text content */}
+          <div
+            className="flex-1 overflow-y-auto"
             key={animKey}
             style={{ animation: `${slideAnim} 0.3s ease both` }}
           >
-            {/* Illustration */}
+            {/* Mobile illustration */}
             <div
-              className="w-full flex items-center justify-center px-6 pt-6 pb-2"
+              className="md:hidden flex items-center justify-center px-6 pt-6"
               style={{ height: '180px' }}
             >
               {step.illustration}
             </div>
 
-            {/* Text */}
-            <div className="px-6 pb-4">
+            <div className="px-8 py-8">
+              {/* Step badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <div
+                  className="font-mono text-[9px] font-black uppercase tracking-[0.25em] px-2.5 py-1"
+                  style={{
+                    background: 'var(--ink)',
+                    color: 'var(--ink-inv)',
+                  }}
+                >
+                  Paso {current + 1}
+                </div>
+                {steps.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    className="transition-all duration-300"
+                    title={`Ir al paso ${i + 1}`}
+                    style={{
+                      width: i === current ? '24px' : '7px',
+                      height: '7px',
+                      borderRadius: '4px',
+                      background: i === current ? 'var(--ink)' : 'var(--border)',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Title */}
               <h2
-                className="font-mono font-black text-[15px] uppercase tracking-wider mb-3"
-                style={{ color: 'var(--ink)' }}
+                className="font-mono font-black uppercase mb-4"
+                style={{ color: 'var(--ink)', fontSize: '20px', lineHeight: '1.25', letterSpacing: '.04em' }}
               >
                 {step.title}
               </h2>
+
+              {/* Description */}
               <p
-                className="font-mono text-[11px] leading-relaxed mb-4"
-                style={{ color: 'var(--ink-50)' }}
+                className="font-mono leading-relaxed mb-6"
+                style={{ color: 'var(--ink-50)', fontSize: '13px', lineHeight: '1.75' }}
               >
                 {step.description}
               </p>
@@ -495,29 +546,35 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ open, onClose, ste
               {/* Tips */}
               {step.tips && step.tips.length > 0 && (
                 <div
-                  className="flex flex-col gap-1.5 p-3"
+                  className="flex flex-col gap-3 p-4"
                   style={{
                     background: 'var(--surface)',
                     border: '1px solid var(--border)',
                   }}
                 >
                   <span
-                    className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] mb-1"
-                    style={{ color: 'var(--ink-50)' }}
+                    className="font-mono font-black uppercase tracking-[0.22em]"
+                    style={{ color: 'var(--ink)', fontSize: '9px' }}
                   >
-                    Consejos
+                    Consejos prácticos
                   </span>
                   {step.tips.map((tip, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span
-                        className="font-mono text-[10px] font-bold shrink-0 mt-[1px]"
-                        style={{ color: 'var(--ink)' }}
+                    <div key={i} className="flex items-start gap-3">
+                      <div
+                        className="shrink-0 font-mono font-black text-[9px] mt-[2px] flex items-center justify-center"
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          background: 'var(--ink)',
+                          color: 'var(--ink-inv)',
+                          borderRadius: '2px',
+                        }}
                       >
-                        →
-                      </span>
+                        {i + 1}
+                      </div>
                       <span
-                        className="font-mono text-[10px] leading-snug"
-                        style={{ color: 'var(--ink)' }}
+                        className="font-mono leading-snug"
+                        style={{ color: 'var(--ink)', fontSize: '12px', lineHeight: '1.6' }}
                       >
                         {tip}
                       </span>
@@ -531,69 +588,54 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ open, onClose, ste
 
         {/* Footer navigation */}
         <div
-          className="px-5 py-3 flex items-center justify-between border-t"
+          className="px-6 py-4 flex items-center justify-between border-t shrink-0"
           style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
         >
-          {/* Step dots */}
-          <div className="flex items-center gap-1.5">
-            {steps.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className="transition-all duration-300"
-                style={{
-                  width: i === current ? '20px' : '6px',
-                  height: '6px',
-                  borderRadius: '3px',
-                  background: i === current ? 'var(--ink)' : 'var(--border)',
-                }}
-              />
-            ))}
-          </div>
+          <button
+            onClick={() => goTo(current - 1)}
+            disabled={current === 0}
+            className="flex items-center gap-2 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-wider border transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-70"
+            style={{
+              borderColor: 'var(--border)',
+              color: 'var(--ink)',
+              background: 'var(--bg-card)',
+            }}
+          >
+            <ChevronLeft size={13} />
+            Anterior
+          </button>
 
-          {/* Prev / Next */}
-          <div className="flex items-center gap-2">
+          {/* Keyboard hint */}
+          <span className="font-mono text-[9px] hidden md:block" style={{ color: 'var(--ink-50)', opacity: .5 }}>
+            ← → para navegar · ESC para cerrar
+          </span>
+
+          {current < steps.length - 1 ? (
             <button
-              onClick={() => goTo(current - 1)}
-              disabled={current === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider border transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-70"
+              onClick={() => goTo(current + 1)}
+              className="flex items-center gap-2 px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-wider border transition-all duration-150 hover:opacity-85"
               style={{
                 borderColor: 'var(--border)',
-                color: 'var(--ink)',
-                background: 'var(--bg-card)',
+                color: 'var(--ink-inv)',
+                background: 'var(--ink)',
               }}
             >
-              <ChevronLeft size={12} />
-              Anterior
+              Siguiente
+              <ChevronRight size={13} />
             </button>
-
-            {current < steps.length - 1 ? (
-              <button
-                onClick={() => goTo(current + 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider border transition-all duration-150 hover:opacity-80"
-                style={{
-                  borderColor: 'var(--border)',
-                  color: 'var(--ink-inv)',
-                  background: 'var(--ink)',
-                }}
-              >
-                Siguiente
-                <ChevronRight size={12} />
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider border transition-all duration-150 hover:opacity-80"
-                style={{
-                  borderColor: 'var(--border)',
-                  color: 'var(--ink-inv)',
-                  background: 'var(--ink)',
-                }}
-              >
-                ¡Entendido!
-              </button>
-            )}
-          </div>
+          ) : (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-wider border transition-all duration-150 hover:opacity-85"
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--ink-inv)',
+                background: 'var(--ink)',
+              }}
+            >
+              ¡Entendido!
+            </button>
+          )}
         </div>
       </div>
     </div>
