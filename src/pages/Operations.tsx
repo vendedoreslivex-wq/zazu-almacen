@@ -1825,6 +1825,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [editRef, setEditRef] = useState('');
   const [editContact, setEditContact] = useState('');
+  const [editDate, setEditDate] = useState('');
 
   // Action state
   const [busy, setBusy] = useState(false);
@@ -1962,7 +1963,11 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
     if (!editTx || !editRef.trim()) return;
     setBusy(true);
     try {
-      await updateTransaction(editTx.id, { reference: editRef.trim(), contactId: editContact || null });
+      await updateTransaction(editTx.id, {
+        reference: editRef.trim(),
+        contactId: editContact || null,
+        ...(editTx.type === 'RECEPTION' && editDate ? { date: editDate + 'T00:00:00' } : {}),
+      });
       setEditTx(null);
       showToast('Operacion actualizada.');
     } catch (e: any) { showToast(e.message || 'Error al actualizar', true); }
@@ -2181,7 +2186,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                       <Mail size={12} />
                     </button>
                     {/* Edit · all roles */}
-                    <button onClick={() => { setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); }}
+                    <button onClick={() => { setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); setEditDate(tx.date.slice(0, 10)); }}
                       title="Editar" className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
                       <Pencil size={12} />
                     </button>
@@ -2249,6 +2254,13 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                </div>
+              )}
+              {editTx.type === 'RECEPTION' && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-70">FECHA DE RECEPCION</label>
+                  <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                    className="w-full border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs font-bold outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all" />
                 </div>
               )}
               <div className="flex gap-2 pt-1">

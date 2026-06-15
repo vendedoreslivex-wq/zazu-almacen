@@ -50,7 +50,7 @@ interface AppContextType {
   deleteTransaction: (txId: string) => Promise<void>;
   hardDeleteTransaction: (txId: string) => Promise<void>;
   hardDeleteTransactions: (txIds: string[]) => Promise<void>;
-  updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null }) => Promise<void>;
+  updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null; date?: string }) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
   receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
   notificationSubscribers: NotificationSubscriber[];
@@ -306,16 +306,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (t.data) setTransactions(t.data.map(dbToTx));
   };
 
-  const updateTransaction = async (txId: string, updates: { reference?: string; contactId?: string | null }): Promise<void> => {
+  const updateTransaction = async (txId: string, updates: { reference?: string; contactId?: string | null; date?: string }): Promise<void> => {
     const dbUpdates: Record<string, any> = {};
     if (updates.reference !== undefined) dbUpdates.reference = updates.reference;
     if ('contactId' in updates) dbUpdates.contact_id = updates.contactId ?? null;
+    if (updates.date !== undefined) dbUpdates.date = updates.date;
     const { error } = await supabase.from('transactions').update(dbUpdates).eq('id', txId);
     if (error) throw new Error(error.message);
     setTransactions(prev => prev.map(t => t.id === txId ? {
       ...t,
       ...(updates.reference !== undefined ? { reference: updates.reference } : {}),
       ...('contactId' in updates ? { contactId: updates.contactId ?? undefined } : {}),
+      ...(updates.date !== undefined ? { date: updates.date } : {}),
     } : t));
   };
 
