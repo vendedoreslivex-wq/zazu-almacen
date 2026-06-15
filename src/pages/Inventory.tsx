@@ -29,6 +29,48 @@ export const Inventory: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState<{code: string, name: string, color: string, size: string, category: string, lowStockThreshold: string, costPrice: string, sellPrice: string}>({ code: '', name: '', color: '', size: '', category: '', lowStockThreshold: '', costPrice: '', sellPrice: '' });
 
+  const [showVariantsModal, setShowVariantsModal] = useState(false);
+  const [variantForm, setVariantForm] = useState({
+    name: '', codePrefix: '', category: '',
+    costPrice: '', sellPrice: '', lowStockThreshold: ''
+  });
+  const PRESET_COLORS = ['Negro','Blanco','Azul','Rojo','Verde','Gris','Beige','Cemento','Vino','Marron','Plomo','Pacay','Menta','Camote','Denim','Topo','P.Rosa','Perla','Botella','Melanqe O.'];
+  const PRESET_SIZES = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA'];
+  const [variantColors, setVariantColors] = useState<string[]>([]);
+  const [variantSizes, setVariantSizes] = useState<string[]>([]);
+  const [customColor, setCustomColor] = useState('');
+  const [customSize, setCustomSize] = useState('');
+
+  const toggleVariantColor = (c: string) => setVariantColors(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  const toggleVariantSize = (s: string) => setVariantSizes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+
+  const handleAddVariants = () => {
+    if (!variantForm.name || !variantForm.codePrefix) return;
+    const colors = variantColors.length ? variantColors : [''];
+    const sizes = variantSizes.length ? variantSizes : [''];
+    let idx = 0;
+    for (const color of colors) {
+      for (const size of sizes) {
+        const suffix = String(idx).padStart(3, '0');
+        addProduct({
+          code: `${variantForm.codePrefix.toUpperCase()}-${suffix}`,
+          name: variantForm.name.toUpperCase(),
+          color: color || undefined,
+          size: size || undefined,
+          category: variantForm.category,
+          costPrice: variantForm.costPrice ? Number(variantForm.costPrice) : undefined,
+          sellPrice: variantForm.sellPrice ? Number(variantForm.sellPrice) : undefined,
+          lowStockThreshold: variantForm.lowStockThreshold ? Number(variantForm.lowStockThreshold) : undefined,
+        });
+        idx++;
+      }
+    }
+    setShowVariantsModal(false);
+    setVariantForm({ name: '', codePrefix: '', category: '', costPrice: '', sellPrice: '', lowStockThreshold: '' });
+    setVariantColors([]);
+    setVariantSizes([]);
+  };
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
@@ -304,12 +346,21 @@ export const Inventory: React.FC = () => {
               <Download size={13} /><span className="hidden sm:inline">EXPORTAR</span>
             </button>
             {canEdit(currentUser.role, 'inventory') && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-[var(--ink)] hover:bg-[var(--bg-input)] text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
-              >
-                <Plus size={13} /><span className="hidden xs:inline">NUEVO SKU</span><span className="xs:hidden">NUEVO</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setShowVariantsModal(true)}
+                  className="bg-[var(--bg-input)] hover:bg-[var(--ink)] text-[var(--ink)] hover:text-[var(--ink-inv)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                  title="CREAR VARIANTES EN LOTE"
+                >
+                  <Package size={13} /><span className="hidden sm:inline">VARIANTES</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="bg-[var(--ink)] hover:bg-[var(--bg-input)] text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                >
+                  <Plus size={13} /><span className="hidden xs:inline">NUEVO SKU</span><span className="xs:hidden">NUEVO</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -539,6 +590,190 @@ export const Inventory: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Variants Batch Modal */}
+      {showVariantsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-2xl shadow-[8px_8px_0_var(--border)] flex flex-col max-h-[92vh]">
+            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center shrink-0">
+              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">REGISTRO // VARIANTES_EN_LOTE</h2>
+              <button
+                onClick={() => setShowVariantsModal(false)}
+                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-5">
+              {/* Base fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE DEL PRODUCTO *</label>
+                  <input
+                    required
+                    list="product-names"
+                    value={variantForm.name}
+                    onChange={e => setVariantForm({ ...variantForm, name: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: CAMISA WAFFLE"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PREFIJO DE CÓDIGO *</label>
+                  <input
+                    required
+                    value={variantForm.codePrefix}
+                    onChange={e => setVariantForm({ ...variantForm, codePrefix: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: CWF"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORÍA</label>
+                  <input
+                    list="category-list"
+                    value={variantForm.category}
+                    onChange={e => setVariantForm({ ...variantForm, category: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: POLOS"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">UMBRAL MÍNIMO</label>
+                  <input
+                    type="number"
+                    value={variantForm.lowStockThreshold}
+                    onChange={e => setVariantForm({ ...variantForm, lowStockThreshold: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: 5"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COSTO (S/)</label>
+                  <input
+                    type="number" step="0.01"
+                    value={variantForm.costPrice}
+                    onChange={e => setVariantForm({ ...variantForm, costPrice: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: 15.50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PRECIO VENTA (S/)</label>
+                  <input
+                    type="number" step="0.01"
+                    value={variantForm.sellPrice}
+                    onChange={e => setVariantForm({ ...variantForm, sellPrice: e.target.value })}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="EJ: 45.00"
+                  />
+                </div>
+              </div>
+
+              {/* Colors */}
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COLORES</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => toggleVariantColor(c)}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantColors.includes(c) ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'bg-[var(--bg-card-alt)] text-[var(--ink)] border-[var(--border)] opacity-60 hover:opacity-100'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    value={customColor}
+                    onChange={e => setCustomColor(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); e.preventDefault(); }}}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-1.5 text-xs font-bold font-mono uppercase focus:outline-none focus:shadow-[2px_2px_0_var(--border)] flex-1 rounded-none"
+                    placeholder="OTRO COLOR + ENTER"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { if (customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); }}}
+                    className="bg-[var(--bg-input)] border border-[var(--border)] px-3 text-[10px] font-mono font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+                {variantColors.length > 0 && (
+                  <p className="font-mono text-[9px] opacity-60">Seleccionados: {variantColors.join(', ')}</p>
+                )}
+              </div>
+
+              {/* Sizes */}
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TALLAS</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_SIZES.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleVariantSize(s)}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantSizes.includes(s) ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'bg-[var(--bg-card-alt)] text-[var(--ink)] border-[var(--border)] opacity-60 hover:opacity-100'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    value={customSize}
+                    onChange={e => setCustomSize(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); e.preventDefault(); }}}
+                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-1.5 text-xs font-bold font-mono uppercase focus:outline-none focus:shadow-[2px_2px_0_var(--border)] flex-1 rounded-none"
+                    placeholder="OTRA TALLA + ENTER"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { if (customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); }}}
+                    className="bg-[var(--bg-input)] border border-[var(--border)] px-3 text-[10px] font-mono font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+                {variantSizes.length > 0 && (
+                  <p className="font-mono text-[9px] opacity-60">Seleccionadas: {variantSizes.join(', ')}</p>
+                )}
+              </div>
+
+              {/* Preview count */}
+              {(variantForm.name || variantForm.codePrefix) && (
+                <div className="border border-[var(--border)] bg-[var(--surface)] p-3 flex items-center justify-between">
+                  <span className="font-mono text-[10px] opacity-70 uppercase tracking-widest">SKUs a generar</span>
+                  <span className="font-mono font-black text-xl">
+                    {Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-[var(--border)] flex justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowVariantsModal(false)}
+                className="bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-5 py-2.5 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all shadow-[2px_2px_0_var(--border)]"
+              >
+                CANCELAR
+              </button>
+              <button
+                type="button"
+                onClick={handleAddVariants}
+                disabled={!variantForm.name || !variantForm.codePrefix}
+                className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                CREAR_{Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1)}_SKUs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Product Modal */}
       {showAddModal && (
