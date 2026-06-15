@@ -855,18 +855,32 @@ export const Reports: React.FC = () => {
 
     let y = drawEntregaHeader();
 
-    // Tabla pivot MODELO × TALLA
+    // Filtrar recepciones por rango de fechas seleccionado
+    const receptions = transactions.filter(tx => {
+      if (tx.type !== 'RECEPTION') return false;
+      if (entregaDateFrom && tx.date < entregaDateFrom) return false;
+      if (entregaDateTo && tx.date > entregaDateTo + 'T23:59:59') return false;
+      return true;
+    });
+
+    // Tabla pivot MODELO × TALLA (basada en recepciones, no en stock actual)
     const SIZE_ORDER = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA','S/T'];
     const sizeRank = (s: string) => { const i = SIZE_ORDER.indexOf(s.toUpperCase()); return i >= 0 ? i : SIZE_ORDER.length; };
-    const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort((a, b) => sizeRank(a) - sizeRank(b));
-    const models: string[]   = Array.from(new Set<string>(inventoryRows.map(r => r.name))).sort();
 
     const pivot: Record<string, Record<string, number>> = {};
-    inventoryRows.forEach(r => {
-      const sz = r.size?.trim() || 'S/T';
-      if (!pivot[r.name]) pivot[r.name] = {};
-      pivot[r.name][sz] = (pivot[r.name][sz] || 0) + r.qty;
+    receptions.forEach(tx => {
+      const prod = products.find(p => p.id === tx.productId);
+      if (!prod) return;
+      const { name, size } = prod;
+      const sz = size?.trim() || 'S/T';
+      if (!pivot[name]) pivot[name] = {};
+      pivot[name][sz] = (pivot[name][sz] || 0) + tx.quantity;
     });
+
+    const allSizes: string[] = Array.from(new Set<string>(
+      Object.values(pivot).flatMap(sz => Object.keys(sz))
+    )).sort((a, b) => sizeRank(a) - sizeRank(b));
+    const models: string[] = Object.keys(pivot).sort();
 
     const colTotals: Record<string, number> = {};
     allSizes.forEach(sz => { colTotals[sz] = models.reduce((a, m) => a + (pivot[m]?.[sz] ?? 0), 0); });
