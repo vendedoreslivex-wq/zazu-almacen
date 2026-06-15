@@ -83,6 +83,9 @@ export const Reports: React.FC = () => {
   const [activeReport, setActiveReport] = useState<ReportType>('inventory');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [showEntregaModal, setShowEntregaModal] = useState(false);
+  const [entregaDateFrom, setEntregaDateFrom] = useState('');
+  const [entregaDateTo, setEntregaDateTo] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
   const totalStock = (productId: string) =>
@@ -762,7 +765,10 @@ export const Reports: React.FC = () => {
 
   // --- PDF Entrega (reporte formal corporativo) --------------------------------
 
+  const handlePDFEntregaClick = () => setShowEntregaModal(true);
+
   const exportPDFEntrega = async () => {
+    setShowEntregaModal(false);
     const PURPLE:  [number,number,number] = [102, 45, 145];   // morado marca
     const WHITE:   [number,number,number] = [255, 255, 255];
     const BLACK:   [number,number,number] = [30,  30,  30];
@@ -774,14 +780,14 @@ export const Reports: React.FC = () => {
     const brand = activeBrand.replace(/_/g, ' ');
 
     const dateRangeLabel = (() => {
-      if (dateFrom && dateTo)
-        return `Del ${format(new Date(dateFrom), "d 'de' MMMM", { locale: es })} al ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
-      if (dateFrom) return `Desde el ${format(new Date(dateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
-      if (dateTo)   return `Hasta el ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (entregaDateFrom && entregaDateTo)
+        return `Del ${format(new Date(entregaDateFrom), "d 'de' MMMM", { locale: es })} al ${format(new Date(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (entregaDateFrom) return `Desde el ${format(new Date(entregaDateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (entregaDateTo)   return `Hasta el ${format(new Date(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
       return now;
     })();
 
-    const logoB64 = await fetch('/Zazu/inv/zazu-inv-light.png')
+    const logoB64 = await fetch('/Zazu/zazu-logo/zazu-dark mode.png')
       .then(r => r.blob())
       .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
       .catch(() => '');
@@ -1200,6 +1206,52 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full">
+      {/* Modal selección de fechas para PDF Entrega */}
+      {showEntregaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-sm p-6 flex flex-col gap-5">
+            <div>
+              <h3 className="font-serif italic font-bold text-sm uppercase tracking-widest">PDF Entrega</h3>
+              <p className="font-mono text-[10px] opacity-60 mt-1 uppercase">Selecciona el rango de fechas del reporte</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Desde</label>
+                <input
+                  type="date"
+                  value={entregaDateFrom}
+                  onChange={e => setEntregaDateFrom(e.target.value)}
+                  className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-mono focus:outline-none w-full"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Hasta</label>
+                <input
+                  type="date"
+                  value={entregaDateTo}
+                  onChange={e => setEntregaDateTo(e.target.value)}
+                  className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-mono focus:outline-none w-full"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => setShowEntregaModal(false)}
+                className="font-mono text-[10px] uppercase tracking-widest px-4 py-2 border border-[var(--border)] hover:bg-[var(--surface)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={exportPDFEntrega}
+                className="font-mono text-[10px] uppercase tracking-widest px-4 py-2 bg-[#662d91] text-white hover:bg-[#7b35ad] transition-colors"
+              >
+                Generar PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ModuleInfo number="10" title="Reportes" description="Generacion y exportacion de reportes operativos: inventario actual, movimientos por per-odo, valorizacion de stock y alertas de stock bajo m-nimo." />
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
@@ -1226,7 +1278,7 @@ export const Reports: React.FC = () => {
               </button>
             </div>
           )}
-          <ExportMenu onPDF={handlePDF} onPDFEntrega={exportPDFEntrega} onExcel={exportExcel} onCSV={exportCSV} />
+          <ExportMenu onPDF={handlePDF} onPDFEntrega={handlePDFEntregaClick} onExcel={exportExcel} onCSV={exportCSV} />
         </div>
       </div>
 
