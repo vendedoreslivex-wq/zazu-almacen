@@ -833,7 +833,13 @@ export const Reports: React.FC = () => {
       pdf.setTextColor(...BLACK);
       pdf.setFontSize(12); pdf.setFont('helvetica', 'bold');
       pdf.text('REPORTE DE INGRESO DE PRENDAS A RESERVAS', PW / 2, y, { align: 'center' });
-      y += 6;
+      y += 5;
+
+      // Rango de fechas del reporte
+      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(dateRangeLabel, PW / 2, y, { align: 'center' });
+      y += 5;
 
       // Línea inferior del título
       pdf.setDrawColor(80, 80, 80);
