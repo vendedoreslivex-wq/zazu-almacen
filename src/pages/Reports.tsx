@@ -798,65 +798,53 @@ export const Reports: React.FC = () => {
     const ML = 15; const MR = 15;
 
     const drawEntregaHeader = (): number => {
-      // Línea superior gruesa morada
-      pdf.setDrawColor(...PURPLE);
-      pdf.setLineWidth(2.5);
-      pdf.line(0, 0, PW, 0);
-      pdf.setLineWidth(0.2);
-
       // Logo a la izquierda
       if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, 6, 20, 20); } catch {}
+        try { pdf.addImage(logoB64, 'PNG', ML, 6, 18, 18); } catch {}
       }
-      const textX = logoB64 ? ML + 24 : ML;
+      const textX = logoB64 ? ML + 22 : ML;
 
-      // Empresa — texto oscuro sobre fondo blanco
+      // Empresa
       pdf.setTextColor(...BLACK);
-      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
-      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA DEL PERU S.A.C.', textX, 13);
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('RUC: 20614699842', textX, 19);
+      pdf.setFontSize(9.5); pdf.setFont('helvetica', 'bold');
+      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA DEL PERU S.A.C.', textX, 12);
+      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      pdf.text('RUC: 20614699842', textX, 18);
 
-      // Brand a la derecha
+      // Brand y fecha a la derecha
       pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(...PURPLE);
-      pdf.text(brand, PW - MR, 13, { align: 'right' });
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.setFontSize(7);
-      pdf.text(now, PW - MR, 19, { align: 'right' });
-
-      // Línea divisoria morada delgada debajo del bloque empresa
-      pdf.setDrawColor(...PURPLE);
-      pdf.setLineWidth(0.5);
-      pdf.line(ML, 27, PW - MR, 27);
-      // Línea paralela más fina debajo
-      pdf.setDrawColor(200, 180, 220);
-      pdf.setLineWidth(0.2);
-      pdf.line(ML, 28.5, PW - MR, 28.5);
-      pdf.setLineWidth(0.2);
-
-      let y = 38;
-
-      // Título centrado
       pdf.setTextColor(...BLACK);
-      pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
-      const titleText = 'REPORTE DE INGRESO DE PRENDAS A RESERVAS';
-      pdf.text(titleText, PW / 2, y, { align: 'center' });
-      y += 7;
+      pdf.text(brand, PW - MR, 12, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(7);
+      pdf.text(now, PW - MR, 18, { align: 'right' });
 
-      // Línea decorativa corta bajo el título
-      pdf.setDrawColor(...PURPLE);
-      pdf.setLineWidth(0.8);
-      const titleW = pdf.getTextWidth(titleText);
-      pdf.line((PW - Math.min(titleW, 80)) / 2, y, (PW + Math.min(titleW, 80)) / 2, y);
+      // Línea separadora simple
+      pdf.setDrawColor(80, 80, 80);
+      pdf.setLineWidth(0.4);
+      pdf.line(ML, 26, PW - MR, 26);
       pdf.setLineWidth(0.2);
+
+      let y = 35;
+
+      // Título
+      pdf.setTextColor(...BLACK);
+      pdf.setFontSize(12); pdf.setFont('helvetica', 'bold');
+      pdf.text('REPORTE DE INGRESO DE PRENDAS A RESERVAS', PW / 2, y, { align: 'center' });
       y += 6;
 
+      // Línea inferior del título
+      pdf.setDrawColor(80, 80, 80);
+      pdf.setLineWidth(0.4);
+      pdf.line(ML, y, PW - MR, y);
+      pdf.setLineWidth(0.2);
+      y += 5;
+
       // Rango de fechas
-      pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(...PURPLE);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(80, 80, 80);
       pdf.text(dateRangeLabel, ML, y);
       y += 7;
 
@@ -864,18 +852,13 @@ export const Reports: React.FC = () => {
     };
 
     const drawEntregaFooter = () => {
-      // Doble línea decorativa
-      pdf.setDrawColor(200, 180, 220);
-      pdf.setLineWidth(0.2);
-      pdf.line(ML, PH - 12, PW - MR, PH - 12);
-      pdf.setDrawColor(...PURPLE);
-      pdf.setLineWidth(0.6);
-      pdf.line(ML, PH - 10.5, PW - MR, PH - 10.5);
+      pdf.setDrawColor(80, 80, 80);
+      pdf.setLineWidth(0.4);
+      pdf.line(ML, PH - 10, PW - MR, PH - 10);
       pdf.setLineWidth(0.2);
       pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
+      pdf.setTextColor(80, 80, 80);
       pdf.text(`Generado el ${now}  ·  ${brand}`, ML, PH - 6);
-      pdf.setTextColor(...PURPLE);
       pdf.text(
         `Pág. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}`,
         PW - ML, PH - 6, { align: 'right' }
