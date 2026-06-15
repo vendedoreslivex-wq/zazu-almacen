@@ -779,11 +779,12 @@ export const Reports: React.FC = () => {
     const now = format(new Date(), "dd 'de' MMMM 'del' yyyy", { locale: es });
     const brand = activeBrand.replace(/_/g, ' ');
 
+    const parseLocalDate = (d: string) => new Date(d + 'T00:00:00');
     const dateRangeLabel = (() => {
       if (entregaDateFrom && entregaDateTo)
-        return `Del ${format(new Date(entregaDateFrom), "d 'de' MMMM", { locale: es })} al ${format(new Date(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
-      if (entregaDateFrom) return `Desde el ${format(new Date(entregaDateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
-      if (entregaDateTo)   return `Hasta el ${format(new Date(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+        return `Del ${format(parseLocalDate(entregaDateFrom), "d 'de' MMMM", { locale: es })} al ${format(parseLocalDate(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (entregaDateFrom) return `Desde el ${format(parseLocalDate(entregaDateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (entregaDateTo)   return `Hasta el ${format(parseLocalDate(entregaDateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
       return now;
     })();
 
