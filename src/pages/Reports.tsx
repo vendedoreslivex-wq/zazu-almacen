@@ -21,7 +21,7 @@ const REPORT_TITLES: Record<ReportType, string> = {
 
 // --- Men- desplegable de exportacion -----------------------------------------
 
-function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () => void; onCSV: () => void }) {
+function ExportMenu({ onPDF, onPDFEntrega, onExcel, onCSV }: { onPDF: () => void; onPDFEntrega: () => void; onExcel: () => void; onCSV: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,6 +48,13 @@ function ExportMenu({ onPDF, onExcel, onCSV }: { onPDF: () => void; onExcel: () 
             className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
           >
             <FileText size={12} /> PDF (descargar)
+          </button>
+          <div className="border-t border-[var(--border)]/20" />
+          <button
+            onClick={() => { onPDFEntrega(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
+          >
+            <FileText size={12} /> PDF Entrega
           </button>
           <div className="border-t border-[var(--border)]/20" />
           <button
@@ -753,6 +760,175 @@ export const Reports: React.FC = () => {
     pdf.save(filename);
   };
 
+  // --- PDF Entrega (reporte formal corporativo) --------------------------------
+
+  const exportPDFEntrega = async () => {
+    const PURPLE:  [number,number,number] = [102, 45, 145];   // morado marca
+    const WHITE:   [number,number,number] = [255, 255, 255];
+    const BLACK:   [number,number,number] = [30,  30,  30];
+    const LGRAY:   [number,number,number] = [240, 240, 240];
+    const MGRAY:   [number,number,number] = [180, 180, 180];
+    const PGRAY:   [number,number,number] = [100, 100, 100];
+
+    const now = format(new Date(), "dd 'de' MMMM 'del' yyyy", { locale: es });
+    const brand = activeBrand.replace(/_/g, ' ');
+
+    const dateRangeLabel = (() => {
+      if (dateFrom && dateTo)
+        return `Del ${format(new Date(dateFrom), "d 'de' MMMM", { locale: es })} al ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (dateFrom) return `Desde el ${format(new Date(dateFrom), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      if (dateTo)   return `Hasta el ${format(new Date(dateTo), "d 'de' MMMM 'del' yyyy", { locale: es })}`;
+      return now;
+    })();
+
+    const logoB64 = await fetch('/Zazu/inv/zazu-inv-light.png')
+      .then(r => r.blob())
+      .then(b => new Promise<string>(res => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b); }))
+      .catch(() => '');
+
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const ML = 15; const MR = 15;
+
+    const drawEntregaHeader = (): number => {
+      // Bloque morado superior
+      pdf.setFillColor(...PURPLE);
+      pdf.rect(0, 0, PW, 38, 'F');
+
+      // Logo blanco
+      if (logoB64) {
+        try { pdf.addImage(logoB64, 'PNG', ML, 7, 18, 18); } catch {}
+      }
+
+      // Texto empresa
+      pdf.setTextColor(...WHITE);
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
+      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA', ML + 23, 14);
+      pdf.text('DEL PERU S.A.C.', ML + 23, 20);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+      pdf.text('RUC: 20614699842', ML + 23, 26);
+
+      // Línea separadora blanca
+      pdf.setDrawColor(...WHITE);
+      pdf.setLineWidth(0.3);
+      pdf.line(ML + 23, 29, PW - ML, 29);
+      pdf.setFontSize(7); pdf.setTextColor(...WHITE);
+      pdf.text(brand, ML + 23, 34);
+
+      let y = 50;
+
+      // Título del reporte
+      pdf.setTextColor(...BLACK);
+      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+      const title = 'REPORTE DE INGRESO DE PRENDAS A RESERVAS';
+      const titleW = pdf.getTextWidth(title);
+      pdf.text(title, (PW - titleW) / 2, y);
+      y += 10;
+
+      // Rango de fechas
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...BLACK);
+      pdf.text(dateRangeLabel, ML, y);
+      y += 8;
+
+      return y;
+    };
+
+    const drawEntregaFooter = () => {
+      pdf.setFillColor(...PURPLE);
+      pdf.rect(0, PH - 10, PW, 10, 'F');
+      pdf.setTextColor(...WHITE);
+      pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
+      pdf.text(`Generado el ${now}  ·  ${brand}`, ML, PH - 4);
+      pdf.text(
+        `Pág. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}`,
+        PW - ML, PH - 4, { align: 'right' }
+      );
+    };
+
+    let y = drawEntregaHeader();
+
+    // Tabla pivot MODELO × TALLA
+    const SIZE_ORDER = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA','S/T'];
+    const sizeRank = (s: string) => { const i = SIZE_ORDER.indexOf(s.toUpperCase()); return i >= 0 ? i : SIZE_ORDER.length; };
+    const allSizes: string[] = Array.from(new Set<string>(inventoryRows.map(r => r.size?.trim() || 'S/T'))).sort((a, b) => sizeRank(a) - sizeRank(b));
+    const models: string[]   = Array.from(new Set<string>(inventoryRows.map(r => r.name))).sort();
+
+    const pivot: Record<string, Record<string, number>> = {};
+    inventoryRows.forEach(r => {
+      const sz = r.size?.trim() || 'S/T';
+      if (!pivot[r.name]) pivot[r.name] = {};
+      pivot[r.name][sz] = (pivot[r.name][sz] || 0) + r.qty;
+    });
+
+    const colTotals: Record<string, number> = {};
+    allSizes.forEach(sz => { colTotals[sz] = models.reduce((a, m) => a + (pivot[m]?.[sz] ?? 0), 0); });
+    const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
+
+    const pivotBody: string[][] = models.map(m => {
+      const rowTotal = allSizes.reduce((a, sz) => a + (pivot[m]?.[sz] ?? 0), 0);
+      return [m, ...allSizes.map(sz => { const v = pivot[m]?.[sz]; return v ? String(v) : '0'; }), String(rowTotal)];
+    });
+    pivotBody.push(['Total general', ...allSizes.map(sz => String(colTotals[sz] ?? 0)), String(grandTotal)]);
+
+    const usableW = PW - ML - MR;
+    const modelColW = Math.min(65, usableW * 0.40);
+    const sizeColW  = (usableW - modelColW) / (allSizes.length + 1);
+    const totalRowIdx = pivotBody.length - 1;
+
+    autoTable(pdf, {
+      startY: y,
+      head: [['MODELO', ...allSizes, 'TOTAL']],
+      body: pivotBody,
+      margin: { left: ML, right: MR },
+      styles: { fontSize: 9, cellPadding: 3, textColor: BLACK, lineColor: MGRAY, lineWidth: 0.2 },
+      headStyles: {
+        fillColor: PURPLE,
+        textColor: WHITE,
+        fontStyle: 'bold',
+        fontSize: 9,
+        halign: 'center',
+      },
+      bodyStyles: { fillColor: WHITE },
+      alternateRowStyles: { fillColor: LGRAY },
+      columnStyles: {
+        0: { halign: 'left', fontStyle: 'bold', cellWidth: modelColW },
+        ...Object.fromEntries(allSizes.map((_sz, i) => [i + 1, { halign: 'center', cellWidth: sizeColW }])),
+        [allSizes.length + 1]: { halign: 'center', fontStyle: 'bold', cellWidth: sizeColW },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.row.index === totalRowIdx) {
+          data.cell.styles.fillColor = LGRAY;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = BLACK;
+        }
+        if (data.section === 'head' && data.column.index === 0) {
+          data.cell.styles.halign = 'left';
+        }
+      },
+      didDrawPage: () => drawEntregaFooter(),
+    });
+
+    const finalY = (pdf as any).lastAutoTable.finalY + 8;
+
+    // Cuadro resumen TOTAL al pie de tabla
+    pdf.setFillColor(...LGRAY);
+    pdf.rect(ML, finalY, 40, 10, 'F');
+    pdf.setDrawColor(...MGRAY);
+    pdf.setLineWidth(0.3);
+    pdf.rect(ML, finalY, 40, 10, 'S');
+    pdf.setTextColor(...BLACK);
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'bold');
+    pdf.text('TOTAL', ML + 3, finalY + 4.5);
+    pdf.setFontSize(11);
+    pdf.text(String(grandTotal), ML + 3, finalY + 9);
+    pdf.setFont('helvetica', 'normal');
+
+    drawEntregaFooter();
+    pdf.save(`reporte_entrega_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+  };
+
   // --- Datos Kanban por reporte ----------------------------------------------
 
   type KanbanCol = {
@@ -1050,7 +1226,7 @@ export const Reports: React.FC = () => {
               </button>
             </div>
           )}
-          <ExportMenu onPDF={handlePDF} onExcel={exportExcel} onCSV={exportCSV} />
+          <ExportMenu onPDF={handlePDF} onPDFEntrega={exportPDFEntrega} onExcel={exportExcel} onCSV={exportCSV} />
         </div>
       </div>
 
