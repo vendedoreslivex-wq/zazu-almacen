@@ -1966,7 +1966,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
       await updateTransaction(editTx.id, {
         reference: editRef.trim(),
         contactId: editContact || null,
-        ...(editTx.type === 'RECEPTION' && editDate ? { date: editDate + 'T00:00:00' } : {}),
+        ...(editTx.type === 'RECEPTION' && editDate ? { date: editDate + 'T12:00:00Z' } : {}),
       });
       setEditTx(null);
       showToast('Operacion actualizada.');
