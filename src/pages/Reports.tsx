@@ -864,8 +864,9 @@ export const Reports: React.FC = () => {
     // Filtrar recepciones por rango de fechas seleccionado
     const receptions = transactions.filter(tx => {
       if (tx.type !== 'RECEPTION') return false;
-      if (entregaDateFrom && tx.date < entregaDateFrom) return false;
-      if (entregaDateTo && tx.date > entregaDateTo + 'T23:59:59') return false;
+      const txDay = tx.date.slice(0, 10); // normaliza a YYYY-MM-DD
+      if (entregaDateFrom && txDay < entregaDateFrom) return false;
+      if (entregaDateTo && txDay > entregaDateTo) return false;
       return true;
     });
 
