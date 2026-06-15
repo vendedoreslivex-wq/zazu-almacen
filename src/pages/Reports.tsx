@@ -798,58 +798,87 @@ export const Reports: React.FC = () => {
     const ML = 15; const MR = 15;
 
     const drawEntregaHeader = (): number => {
-      // Bloque morado superior
-      pdf.setFillColor(...PURPLE);
-      pdf.rect(0, 0, PW, 38, 'F');
+      // Línea superior gruesa morada
+      pdf.setDrawColor(...PURPLE);
+      pdf.setLineWidth(2.5);
+      pdf.line(0, 0, PW, 0);
+      pdf.setLineWidth(0.2);
 
-      // Logo blanco
+      // Logo a la izquierda
       if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, 7, 18, 18); } catch {}
+        try { pdf.addImage(logoB64, 'PNG', ML, 6, 20, 20); } catch {}
       }
+      const textX = logoB64 ? ML + 24 : ML;
 
-      // Texto empresa
-      pdf.setTextColor(...WHITE);
-      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
-      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA', ML + 23, 14);
-      pdf.text('DEL PERU S.A.C.', ML + 23, 20);
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
-      pdf.text('RUC: 20614699842', ML + 23, 26);
-
-      // Línea separadora blanca
-      pdf.setDrawColor(...WHITE);
-      pdf.setLineWidth(0.3);
-      pdf.line(ML + 23, 29, PW - ML, 29);
-      pdf.setFontSize(7); pdf.setTextColor(...WHITE);
-      pdf.text(brand, ML + 23, 34);
-
-      let y = 50;
-
-      // Título del reporte
+      // Empresa — texto oscuro sobre fondo blanco
       pdf.setTextColor(...BLACK);
-      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
-      const title = 'REPORTE DE INGRESO DE PRENDAS A RESERVAS';
-      const titleW = pdf.getTextWidth(title);
-      pdf.text(title, (PW - titleW) / 2, y);
-      y += 10;
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
+      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA DEL PERU S.A.C.', textX, 13);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('RUC: 20614699842', textX, 19);
+
+      // Brand a la derecha
+      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...PURPLE);
+      pdf.text(brand, PW - MR, 13, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFontSize(7);
+      pdf.text(now, PW - MR, 19, { align: 'right' });
+
+      // Línea divisoria morada delgada debajo del bloque empresa
+      pdf.setDrawColor(...PURPLE);
+      pdf.setLineWidth(0.5);
+      pdf.line(ML, 27, PW - MR, 27);
+      // Línea paralela más fina debajo
+      pdf.setDrawColor(200, 180, 220);
+      pdf.setLineWidth(0.2);
+      pdf.line(ML, 28.5, PW - MR, 28.5);
+      pdf.setLineWidth(0.2);
+
+      let y = 38;
+
+      // Título centrado
+      pdf.setTextColor(...BLACK);
+      pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
+      const titleText = 'REPORTE DE INGRESO DE PRENDAS A RESERVAS';
+      pdf.text(titleText, PW / 2, y, { align: 'center' });
+      y += 7;
+
+      // Línea decorativa corta bajo el título
+      pdf.setDrawColor(...PURPLE);
+      pdf.setLineWidth(0.8);
+      const titleW = pdf.getTextWidth(titleText);
+      pdf.line((PW - Math.min(titleW, 80)) / 2, y, (PW + Math.min(titleW, 80)) / 2, y);
+      pdf.setLineWidth(0.2);
+      y += 6;
 
       // Rango de fechas
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(...BLACK);
+      pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...PURPLE);
       pdf.text(dateRangeLabel, ML, y);
-      y += 8;
+      y += 7;
 
       return y;
     };
 
     const drawEntregaFooter = () => {
-      pdf.setFillColor(...PURPLE);
-      pdf.rect(0, PH - 10, PW, 10, 'F');
-      pdf.setTextColor(...WHITE);
+      // Doble línea decorativa
+      pdf.setDrawColor(200, 180, 220);
+      pdf.setLineWidth(0.2);
+      pdf.line(ML, PH - 12, PW - MR, PH - 12);
+      pdf.setDrawColor(...PURPLE);
+      pdf.setLineWidth(0.6);
+      pdf.line(ML, PH - 10.5, PW - MR, PH - 10.5);
+      pdf.setLineWidth(0.2);
       pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
-      pdf.text(`Generado el ${now}  ·  ${brand}`, ML, PH - 4);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generado el ${now}  ·  ${brand}`, ML, PH - 6);
+      pdf.setTextColor(...PURPLE);
       pdf.text(
         `Pág. ${(pdf as any).internal.getCurrentPageInfo().pageNumber}`,
-        PW - ML, PH - 4, { align: 'right' }
+        PW - ML, PH - 6, { align: 'right' }
       );
     };
 
