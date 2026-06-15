@@ -799,32 +799,32 @@ export const Reports: React.FC = () => {
     const ML = 15; const MR = 15;
 
     const drawEntregaHeader = (): number => {
-      // Logo a la izquierda
+      // Logo: ocupa y=4..34 (alto=30)
       if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, 4, 26, 26); } catch {}
+        try { pdf.addImage(logoB64, 'PNG', ML, 4, 30, 30); } catch {}
       }
-      const textX = logoB64 ? ML + 30 : ML;
+      const textX = logoB64 ? ML + 34 : ML;
 
-      // Empresa
+      // Texto empresa centrado verticalmente con el logo (mitad ~19)
       pdf.setTextColor(...BLACK);
       pdf.setFontSize(9.5); pdf.setFont('helvetica', 'bold');
-      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA DEL PERU S.A.C.', textX, 12);
+      pdf.text('TECNOLOGIA Y DISTRIBUCION LOGISTICA DEL PERU S.A.C.', textX, 15);
       pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(80, 80, 80);
-      pdf.text('RUC: 20614699842', textX, 18);
+      pdf.text('RUC: 20614699842', textX, 22);
 
-      // Brand a la derecha (sin fecha de generación)
+      // Brand a la derecha alineado con el nombre
       pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...BLACK);
-      pdf.text(brand, PW - MR, 12, { align: 'right' });
+      pdf.text(brand, PW - MR, 15, { align: 'right' });
 
-      // Línea separadora simple
+      // Línea separadora debajo del logo
       pdf.setDrawColor(80, 80, 80);
       pdf.setLineWidth(0.4);
-      pdf.line(ML, 26, PW - MR, 26);
+      pdf.line(ML, 37, PW - MR, 37);
       pdf.setLineWidth(0.2);
 
-      let y = 35;
+      let y = 46;
 
       // Título
       pdf.setTextColor(...BLACK);
