@@ -842,12 +842,6 @@ export const Reports: React.FC = () => {
       pdf.setLineWidth(0.2);
       y += 5;
 
-      // Rango de fechas
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(80, 80, 80);
-      pdf.text(dateRangeLabel, ML, y);
-      y += 7;
-
       return y;
     };
 
