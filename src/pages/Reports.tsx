@@ -801,9 +801,9 @@ export const Reports: React.FC = () => {
     const drawEntregaHeader = (): number => {
       // Logo a la izquierda
       if (logoB64) {
-        try { pdf.addImage(logoB64, 'PNG', ML, 6, 18, 18); } catch {}
+        try { pdf.addImage(logoB64, 'PNG', ML, 4, 26, 26); } catch {}
       }
-      const textX = logoB64 ? ML + 22 : ML;
+      const textX = logoB64 ? ML + 30 : ML;
 
       // Empresa
       pdf.setTextColor(...BLACK);
@@ -813,14 +813,10 @@ export const Reports: React.FC = () => {
       pdf.setTextColor(80, 80, 80);
       pdf.text('RUC: 20614699842', textX, 18);
 
-      // Brand y fecha a la derecha
+      // Brand a la derecha (sin fecha de generación)
       pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...BLACK);
       pdf.text(brand, PW - MR, 12, { align: 'right' });
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(80, 80, 80);
-      pdf.setFontSize(7);
-      pdf.text(now, PW - MR, 18, { align: 'right' });
 
       // Línea separadora simple
       pdf.setDrawColor(80, 80, 80);
