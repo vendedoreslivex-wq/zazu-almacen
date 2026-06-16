@@ -115,23 +115,27 @@ export const History: React.FC = () => {
         const toExport = someSelected
             ? filteredTransactions.filter(tx => selected.has(tx.id))
             : filteredTransactions;
-        const headers = ["ID", "Fecha", "Tipo", "Estado", "Producto SKU", "Nombre Producto", "Cantidad", "Origen", "Destino", "Usuario", "Referencia"];
+        const headers = ["ID", "Fecha", "Tipo", "Estado", "SKU", "Producto", "Color", "Talla", "Cantidad", "Origen", "Destino", "Contacto", "Usuario", "Referencia"];
         const rows = toExport.map(tx => {
             const product = products.find(p => p.id === tx.productId);
             const fromLoc = locations.find(l => l.id === tx.fromLocationId);
             const toLoc = locations.find(l => l.id === tx.toLocationId);
+            const contact = contacts.find(c => c.id === tx.contactId);
             return [
                 tx.id,
-                format(new Date(tx.date), 'dd/MM/yy HH:mm:ss'),
+                format(new Date(tx.date + (tx.date.length === 10 ? 'T00:00:00' : '')), 'dd/MM/yy HH:mm:ss'),
                 tx.type,
                 tx.status,
                 product?.code || '',
                 product?.name || '',
+                product?.color || '',
+                product?.size || '',
                 tx.quantity,
                 fromLoc?.name || '',
                 toLoc?.name || '',
-                tx.user || 'OPERATOR_01',
-                tx.reference
+                contact?.name || '',
+                tx.user || '',
+                tx.reference,
             ];
         });
 
@@ -156,8 +160,8 @@ export const History: React.FC = () => {
             <ModuleInfo number="08" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
                 <div>
-                    <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">01 // Registro_Auditor-a</h2>
-                    <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Historial inmutable de movimientos en la red de almacenes.</p>
+                    <h2 className="font-mono font-black text-xs uppercase tracking-widest">08 // HISTORIAL_OPERACIONES</h2>
+                    <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">{filteredTransactions.length} registros · historial inmutable de movimientos en la red de almacenes.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {someSelected && (
@@ -325,17 +329,18 @@ export const History: React.FC = () => {
             )}
 
             <div className="data-table-container flex-1 flex flex-col overflow-hidden">
-                <div className="grid grid-cols-[32px_40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-header sticky top-0 bg-[var(--bg-sidebar)]">
+                <div className="grid grid-cols-[32px_40px_130px_90px_minmax(180px,1fr)_70px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] data-header sticky top-0 bg-[var(--bg-sidebar)]">
                     <div className="flex items-center justify-center cursor-pointer" onClick={toggleSelectAll}>
                         {allSelected ? <CheckSquare size={13} /> : <Square size={13} className="opacity-50" />}
                     </div>
                     <div></div>
-                    <div>TIMESTAMP</div>
+                    <div>FECHA</div>
                     <div>TIPO</div>
-                    <div>PRODUCTO</div>
+                    <div>PRODUCTO / MODELO</div>
                     <div className="text-right">CANT.</div>
-                    <div className="pl-6">ORIGEN</div>
+                    <div className="pl-4">ORIGEN</div>
                     <div>DESTINO</div>
+                    <div>CONTACTO</div>
                     <div>REFERENCIA</div>
                 </div>
 
@@ -351,10 +356,13 @@ export const History: React.FC = () => {
                         else if (tx.type === 'DISPATCH') colorOpt = 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]';
                         else if (tx.type === 'TRANSFER') colorOpt = 'bg-blue-200 text-blue-600 border-blue-900';
 
+                        const contact = contacts.find(c => c.id === tx.contactId);
+                        const modelParts = [product?.color, product?.size].filter(Boolean).join(' · ');
+
                         return (
                             <React.Fragment key={tx.id}>
                                 <div
-                                    className={`grid grid-cols-[32px_40px_140px_100px_minmax(150px,1fr)_100px_minmax(120px,1fr)_minmax(120px,1fr)_100px] data-row items-center cursor-pointer select-none ${isExpanded ? 'bg-[var(--bg-card-alt)] border-b-transparent' : ''} ${selected.has(tx.id) ? '!bg-blue-500/10' : ''}`}
+                                    className={`grid grid-cols-[32px_40px_130px_90px_minmax(180px,1fr)_70px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] data-row items-center cursor-pointer select-none ${isExpanded ? 'bg-[var(--bg-card-alt)] border-b-transparent' : ''} ${selected.has(tx.id) ? '!bg-blue-500/10' : ''}`}
                                     onClick={() => toggleExpand(tx.id)}
                                 >
                                     <div className="flex justify-center" onClick={e => { e.stopPropagation(); toggleSelect(tx.id); }}>
@@ -364,23 +372,28 @@ export const History: React.FC = () => {
                                         {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </div>
                                     <div className="font-mono text-[10px] opacity-70 font-bold">
-                                        {format(new Date(tx.date), 'dd/MM/yy HH:mm:ss')}
+                                        {format(new Date(tx.date + (tx.date.length === 10 ? 'T00:00:00' : '')), 'dd/MM/yy HH:mm')}
                                     </div>
                                     <div className={`font-mono text-[9px] uppercase font-bold tracking-wider border py-0.5 px-2 w-fit ${colorOpt}`}>
-                                        {tx.type}
+                                        {tx.type === 'RECEPTION' ? 'RECEP.' : tx.type === 'DISPATCH' ? 'DESP.' : 'TRANSF.'}
                                     </div>
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] font-bold uppercase">{product?.name || '---'}</span>
-                                        <span className="font-mono text-[9px] opacity-60">{product?.code}</span>
+                                    <div className="flex flex-col gap-0.5 min-w-0">
+                                        <span className="text-[10px] font-bold uppercase truncate">{product?.name || '---'}</span>
+                                        <span className="font-mono text-[9px] opacity-60 truncate">
+                                            {product?.code}{modelParts ? ` · ${modelParts}` : ''}
+                                        </span>
                                     </div>
-                                    <div className="font-mono text-right text-base font-black">
+                                    <div className={`font-mono text-right text-sm font-black ${tx.type === 'DISPATCH' ? 'text-red-600' : tx.type === 'RECEPTION' ? 'text-green-700' : 'text-blue-600'}`}>
                                         {tx.type === 'DISPATCH' ? '-' : tx.type === 'RECEPTION' ? '+' : ''}{tx.quantity}
                                     </div>
-                                    <div className="pl-6 font-mono text-[10px] opacity-80 uppercase">
+                                    <div className="pl-4 font-mono text-[10px] opacity-80 uppercase truncate">
                                         {fromLoc?.name || '---'}
                                     </div>
-                                    <div className="font-mono text-[10px] opacity-80 uppercase">
+                                    <div className="font-mono text-[10px] opacity-80 uppercase truncate">
                                         {toLoc?.name || '---'}
+                                    </div>
+                                    <div className="font-mono text-[10px] uppercase truncate opacity-70">
+                                        {contact?.name || '—'}
                                     </div>
                                     <div className="text-[10px] font-bold uppercase truncate opacity-70">
                                         {tx.reference}
