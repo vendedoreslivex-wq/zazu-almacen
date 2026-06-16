@@ -500,7 +500,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteUser = (id: string) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u));
+    setUsers(prev => prev.filter(u => u.id !== id));
     fetch(`${FUNCTIONS_URL}/update-user-auth`, {
       method: 'POST',
       headers: {
@@ -508,7 +508,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${session?.access_token ?? ''}`,
       },
-      body: JSON.stringify({ userId: id, active: false }),
+      body: JSON.stringify({ action: 'delete', userId: id }),
     });
   };
 

@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json() as {
-      action?: 'create' | 'update';
+      action?: 'create' | 'update' | 'delete';
       userId?: string;
       password?: string;
       email?: string;
@@ -85,6 +85,23 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ ok: true, userId: created.user?.id }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── DELETE ─────────────────────────────────────────────────────────────
+    if (action === 'delete') {
+      const { userId } = body;
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'userId is required for delete' }), {
+          status: 400,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
+      await supabaseAdmin.from('profiles').delete().eq('id', userId);
+      const { error: deleteErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (deleteErr) throw deleteErr;
+      return new Response(JSON.stringify({ ok: true }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
       });
     }
