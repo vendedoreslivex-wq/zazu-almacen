@@ -46,8 +46,13 @@ function summarize(entry: AuditLogEntry): string {
     if (prev !== undefined) return `cantidad ${prev} → ${qty}`;
     return `cantidad ${qty}`;
   }
-  if (entry.tableName === 'transactions' && entry.newData) {
-    const t = entry.newData;
+  if (entry.tableName === 'transactions') {
+    const t = entry.newData ?? entry.oldData ?? {};
+    if (entry.action === 'UPDATE' && entry.oldData?.date !== entry.newData?.date && entry.oldData?.date && entry.newData?.date) {
+      const from = (entry.oldData.date as string).slice(0, 10);
+      const to = (entry.newData.date as string).slice(0, 10);
+      return `${t.reference ?? ''} · fecha ${from} → ${to}`;
+    }
     return `${t.type} · ${t.quantity}u · ${t.reference}`;
   }
   if (entry.tableName === 'inventory_adjustments' && entry.newData) {
@@ -107,6 +112,7 @@ export const OperationHistory: React.FC = () => {
   const [filterTable, setFilterTable] = useState<string>('ALL');
   const [filterAction, setFilterAction] = useState<'ALL' | AuditAction>('ALL');
   const [filterBrand, setFilterBrand] = useState<string>('ALL');
+  const [filterDateChanges, setFilterDateChanges] = useState(false);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -137,8 +143,17 @@ export const OperationHistory: React.FC = () => {
   }, [auditLog]);
 
   const filtered = useMemo(() => auditLog.filter(e => {
-    if (filterTable !== 'ALL' && e.tableName !== filterTable) return false;
-    if (filterAction !== 'ALL' && e.action !== filterAction) return false;
+    if (filterDateChanges) {
+      if (e.tableName !== 'transactions') return false;
+      if (e.action !== 'UPDATE') return false;
+      const isReception = (e.newData?.type ?? e.oldData?.type) === 'RECEPTION';
+      if (!isReception) return false;
+      const dateChanged = e.oldData?.date !== undefined && e.newData?.date !== undefined && e.oldData.date !== e.newData.date;
+      if (!dateChanged) return false;
+    } else {
+      if (filterTable !== 'ALL' && e.tableName !== filterTable) return false;
+      if (filterAction !== 'ALL' && e.action !== filterAction) return false;
+    }
     if (filterBrand !== 'ALL' && e.brand !== filterBrand) return false;
     if (dateFrom || dateTo) {
       const d = new Date(e.occurredAt);
@@ -156,7 +171,7 @@ export const OperationHistory: React.FC = () => {
       return haystack.includes(q);
     }
     return true;
-  }), [auditLog, filterTable, filterAction, filterBrand, search, dateFrom, dateTo]);
+  }), [auditLog, filterTable, filterAction, filterBrand, filterDateChanges, search, dateFrom, dateTo]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -200,18 +215,32 @@ export const OperationHistory: React.FC = () => {
             />
             <Filter size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40" />
           </div>
-          <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
-            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-            <option value="ALL">TODAS LAS TABLAS</option>
-            {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
-          </select>
-          <select value={filterAction} onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
-            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-            <option value="ALL">TODAS</option>
-            <option value="INSERT">CREÓ</option>
-            <option value="UPDATE">EDITÓ</option>
-            <option value="DELETE">ELIMINÓ</option>
-          </select>
+          <button
+            onClick={() => setFilterDateChanges(v => !v)}
+            className={`flex items-center gap-1.5 border px-3 py-2 text-[10px] font-bold font-mono uppercase transition-all shrink-0 ${
+              filterDateChanges
+                ? 'border-blue-700 bg-blue-700 text-white'
+                : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-card-alt)]'
+            }`}
+          >
+            CAMBIOS DE FECHA
+          </button>
+          {!filterDateChanges && (
+            <>
+              <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
+                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+                <option value="ALL">TODAS LAS TABLAS</option>
+                {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
+              </select>
+              <select value={filterAction} onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
+                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+                <option value="ALL">TODAS</option>
+                <option value="INSERT">CREÓ</option>
+                <option value="UPDATE">EDITÓ</option>
+                <option value="DELETE">ELIMINÓ</option>
+              </select>
+            </>
+          )}
           {brands.length > 1 && (
             <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
               className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
