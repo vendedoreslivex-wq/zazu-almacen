@@ -6,7 +6,7 @@ import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
   BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
-  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail,
+  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail, CalendarDays,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -310,6 +310,7 @@ type BulletinGroup = {
   fromLocation?: string;
   toLocation?: string;
   signature?: string;
+  txIds: string[];
   items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
 };
 
@@ -345,7 +346,9 @@ const BulletinsTab: React.FC = () => {
       const variant = [product?.color, product?.size].filter(Boolean).join(' · ') || undefined;
 
       if (map.has(key)) {
-        map.get(key)!.items.push({
+        const g = map.get(key)!;
+        g.txIds.push(tx.id);
+        g.items.push({
           productName: product?.name ?? tx.productId,
           productCode: product?.code ?? '',
           quantity: tx.quantity,
@@ -362,6 +365,7 @@ const BulletinsTab: React.FC = () => {
           fromLocation: fromLoc?.name,
           toLocation: toLoc?.name,
           signature: tx.signature,
+          txIds: [tx.id],
           items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity, variant, serialNumber: tx.serialNumber }],
         });
       }
@@ -387,8 +391,10 @@ const BulletinsTab: React.FC = () => {
       type: g.type,
       reference: g.reference,
       date: g.date.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
+      rawDate: g.date.toISOString().slice(0, 10),
       operator: g.operator,
       brand: activeBrand,
+      txIds: g.txIds,
       items: g.items,
       fromLocation: g.fromLocation,
       toLocation: g.toLocation,
@@ -1643,8 +1649,10 @@ interface BulletinData {
   type: TransactionType;
   reference: string;
   date: string;
+  rawDate: string;
   operator: string;
   brand: string;
+  txIds: string[];
   items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
   fromLocation?: string;
   toLocation?: string;
@@ -1739,6 +1747,12 @@ function buildBulletinHTML(p: BulletinData): string {
 }
 
 const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ data, onClose }) => {
+  const { updateTransaction } = useAppContext();
+  const [editingDate, setEditingDate] = useState(false);
+  const [newDate, setNewDate] = useState(data.rawDate);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   const html = buildBulletinHTML(data);
 
   const handlePrint = () => {
@@ -1747,6 +1761,19 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
     win.document.write(html);
     win.document.close();
     win.onload = () => win.print();
+  };
+
+  const handleSaveDate = async () => {
+    if (!newDate || newDate === data.rawDate) { setEditingDate(false); return; }
+    setSaving(true);
+    try {
+      await Promise.all(data.txIds.map(id => updateTransaction(id, { date: newDate + 'T12:00:00Z' })));
+      setSaved(true);
+      setEditingDate(false);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1765,6 +1792,41 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {/* Cambiar fecha */}
+            {editingDate ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={e => setNewDate(e.target.value)}
+                  className="font-mono text-[10px] border px-2 py-1"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg-card)', color: 'var(--ink)' }}
+                />
+                <button
+                  onClick={handleSaveDate}
+                  disabled={saving}
+                  className="flex items-center gap-1 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider border transition-all hover:opacity-80 disabled:opacity-40"
+                  style={{ borderColor: '#16a34a', color: '#fff', background: '#16a34a' }}
+                >
+                  {saving ? '...' : 'OK'}
+                </button>
+                <button
+                  onClick={() => { setEditingDate(false); setNewDate(data.rawDate); }}
+                  className="px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider border hover:opacity-70"
+                  style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingDate(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider border transition-all hover:opacity-80"
+                style={{ borderColor: 'var(--border)', color: 'var(--ink)', background: saved ? '#16a34a22' : 'transparent' }}
+              >
+                <CalendarDays size={11} /> {saved ? '✓ Fecha guardada' : 'Cambiar fecha'}
+              </button>
+            )}
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider border transition-all hover:opacity-80"
