@@ -660,7 +660,7 @@ export const Inventory: React.FC = () => {
                     placeholder="BUSCAR O DEJAR EN BLANCO PARA NUEVA FAMILIA"
                   />
                   {variantBaseOpen && (
-                    <div className="absolute z-10 w-full bg-[var(--bg-card)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] max-h-48 overflow-y-auto">
+                    <div className="absolute z-50 w-full border-2 border-[var(--border)] shadow-[4px_4px_0_var(--border)] max-h-48 overflow-y-auto" style={{ background: 'var(--bg)', top: '100%', left: 0 }}>
                       {productFamilies
                         .filter(p => !variantBaseSearch || p.name.toLowerCase().includes(variantBaseSearch.toLowerCase()))
                         .map(p => (
