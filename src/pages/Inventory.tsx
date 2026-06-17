@@ -34,6 +34,8 @@ export const Inventory: React.FC = () => {
     name: '', codePrefix: '', category: '',
     costPrice: '', sellPrice: '', lowStockThreshold: ''
   });
+  const [variantBaseSearch, setVariantBaseSearch] = useState('');
+  const [variantBaseOpen, setVariantBaseOpen] = useState(false);
   const PRESET_COLORS = ['Negro','Blanco','Azul','Rojo','Verde','Gris','Beige','Cemento','Vino','Marron','Plomo','Pacay','Menta','Camote','Denim','Topo','P.Rosa','Perla','Botella','Melanqe O.'];
   const PRESET_SIZES = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA'];
   const [variantColors, setVariantColors] = useState<string[]>([]);
@@ -44,14 +46,49 @@ export const Inventory: React.FC = () => {
   const toggleVariantColor = (c: string) => setVariantColors(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const toggleVariantSize = (s: string) => setVariantSizes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
+  // Unique product families (distinct names) for the base selector
+  const productFamilies = useMemo(() => {
+    const seen = new Map<string, Product>();
+    for (const p of products) {
+      if (!seen.has(p.name)) seen.set(p.name, p);
+    }
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  // Next correlative index for a given code prefix
+  const nextIndexForPrefix = (prefix: string): number => {
+    const upper = prefix.toUpperCase();
+    const existing = products
+      .map(p => p.code)
+      .filter(c => c.startsWith(upper + '-'))
+      .map(c => parseInt(c.slice(upper.length + 1), 10))
+      .filter(n => !isNaN(n));
+    return existing.length > 0 ? Math.max(...existing) + 1 : 0;
+  };
+
+  const selectVariantBase = (p: Product) => {
+    const prefix = p.code.includes('-') ? p.code.split('-')[0] : p.code;
+    setVariantForm({
+      name: p.name,
+      codePrefix: prefix,
+      category: p.category ?? '',
+      costPrice: p.costPrice != null ? String(p.costPrice) : '',
+      sellPrice: p.sellPrice != null ? String(p.sellPrice) : '',
+      lowStockThreshold: p.lowStockThreshold != null ? String(p.lowStockThreshold) : '',
+    });
+    setVariantBaseSearch(p.name);
+    setVariantBaseOpen(false);
+  };
+
   const handleAddVariants = () => {
     if (!variantForm.name || !variantForm.codePrefix) return;
     const colors = variantColors.length ? variantColors : [''];
     const sizes = variantSizes.length ? variantSizes : [''];
+    const startIdx = nextIndexForPrefix(variantForm.codePrefix);
     let idx = 0;
     for (const color of colors) {
       for (const size of sizes) {
-        const suffix = String(idx).padStart(3, '0');
+        const suffix = String(startIdx + idx).padStart(3, '0');
         addProduct({
           code: `${variantForm.codePrefix.toUpperCase()}-${suffix}`,
           name: variantForm.name.toUpperCase(),
@@ -67,6 +104,9 @@ export const Inventory: React.FC = () => {
     }
     setShowVariantsModal(false);
     setVariantForm({ name: '', codePrefix: '', category: '', costPrice: '', sellPrice: '', lowStockThreshold: '' });
+    setVariantBaseSearch('');
+    setVariantColors([]);
+    setVariantSizes([]);
     setVariantColors([]);
     setVariantSizes([]);
   };
@@ -598,7 +638,7 @@ export const Inventory: React.FC = () => {
             <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center shrink-0">
               <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">REGISTRO // VARIANTES_EN_LOTE</h2>
               <button
-                onClick={() => setShowVariantsModal(false)}
+                onClick={() => { setShowVariantsModal(false); setVariantBaseSearch(''); }}
                 className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
               >
                 <X size={16} />
@@ -606,13 +646,54 @@ export const Inventory: React.FC = () => {
             </div>
 
             <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-5">
+
+              {/* Base product selector */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">FAMILIA DE PRODUCTO BASE</label>
+                <div className="relative">
+                  <input
+                    value={variantBaseSearch}
+                    onChange={e => { setVariantBaseSearch(e.target.value); setVariantBaseOpen(true); }}
+                    onFocus={() => setVariantBaseOpen(true)}
+                    onBlur={() => setTimeout(() => setVariantBaseOpen(false), 150)}
+                    className="w-full bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    placeholder="BUSCAR O DEJAR EN BLANCO PARA NUEVA FAMILIA"
+                  />
+                  {variantBaseOpen && (
+                    <div className="absolute z-10 w-full bg-[var(--bg-card)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] max-h-48 overflow-y-auto">
+                      {productFamilies
+                        .filter(p => !variantBaseSearch || p.name.toLowerCase().includes(variantBaseSearch.toLowerCase()))
+                        .map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={() => selectVariantBase(p)}
+                            className="w-full text-left px-3 py-2 font-mono text-[10px] font-bold uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all flex items-center justify-between gap-2"
+                          >
+                            <span>{p.name}</span>
+                            <span className="opacity-40 font-normal">{p.code.includes('-') ? p.code.split('-')[0] : p.code}-···</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+                {variantForm.name && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)]">
+                    <span className="font-mono text-[9px] opacity-50 uppercase">Siguiente SKU:</span>
+                    <span className="font-mono text-[10px] font-black">
+                      {variantForm.codePrefix.toUpperCase()}-{String(nextIndexForPrefix(variantForm.codePrefix)).padStart(3, '0')}
+                    </span>
+                    <span className="font-mono text-[9px] opacity-40">→ ···{String(nextIndexForPrefix(variantForm.codePrefix) + Math.max(variantColors.length||1,1)*Math.max(variantSizes.length||1,1)-1).padStart(3,'0')}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Base fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE DEL PRODUCTO *</label>
                   <input
                     required
-                    list="product-names"
                     value={variantForm.name}
                     onChange={e => setVariantForm({ ...variantForm, name: e.target.value })}
                     className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
@@ -757,7 +838,7 @@ export const Inventory: React.FC = () => {
             <div className="p-4 border-t border-[var(--border)] flex justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => setShowVariantsModal(false)}
+                onClick={() => { setShowVariantsModal(false); setVariantBaseSearch(''); }}
                 className="bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-5 py-2.5 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all shadow-[2px_2px_0_var(--border)]"
               >
                 CANCELAR
