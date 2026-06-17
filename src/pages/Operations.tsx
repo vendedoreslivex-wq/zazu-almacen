@@ -839,7 +839,7 @@ const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
         });
         const product = products.find(p => p.id === item.productId);
         guideItems.push({
-          productName: product?.name ?? item.productId,
+          productName: [product?.name, product?.color, product?.size].filter(Boolean).join(' · ') || item.productId,
           productCode: product?.code ?? '',
           quantity: parseInt(item.qty, 10),
           serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber || undefined : undefined,
