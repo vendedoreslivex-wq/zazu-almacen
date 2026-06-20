@@ -20,7 +20,7 @@ type ProductRow = OdooProduct & { variants: VariantWithAttrs[]; quants: OdooQuan
 
 function fmtQty(n: number) { return n.toLocaleString('es-PE', { maximumFractionDigits: 0 }); }
 function fmtDate(d: string) {
-  return new Date(d).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 function isColorAttr(name: string) { return /color|colour|tono|color\s*tejido/i.test(name); }
 function isSizeAttr(name: string)  { return /talla|size|talle|talla\s*tejido/i.test(name); }

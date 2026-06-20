@@ -387,7 +387,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) 
   const dayGroups = useMemo(() => {
     const map = new Map<string, BulletinGroup[]>();
     for (const g of bulletinGroups) {
-      const raw = g.date.toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const raw = g.date.toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const key = raw.charAt(0).toUpperCase() + raw.slice(1);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(g);
@@ -399,7 +399,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) 
     setBulletinData({
       type: g.type,
       reference: g.reference,
-      date: g.date.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
+      date: g.date.toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short' }),
       rawDate: g.date.toISOString().slice(0, 10),
       operator: g.operator,
       brand: activeBrand,
@@ -855,7 +855,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
     const toLoc = locations.find(l => l.id === toLocation);
     const contact = contacts.find(c => c.id === contactId);
     const now = new Date();
-    const dateStr = now.toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+    const dateStr = now.toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' });
 
     setGuide({
       number: guideNumber,
@@ -2478,7 +2478,7 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
             const openBulletin = () => setBulletinData({
               type: tx.type,
               reference: tx.reference,
-              date: new Date(tx.date).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' }),
+              date: new Date(tx.date).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short' }),
               operator: tx.user,
               brand: activeBrand,
               items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity, variant: txVariant, serialNumber: tx.serialNumber }],
@@ -2504,7 +2504,7 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
 
                 <div className={cn('shrink-0 w-7 text-center text-[8px] font-black py-1 border', badge.cls)}>{badge.label}</div>
                 <div className="shrink-0 text-[9px] opacity-40 w-24 hidden sm:block leading-tight">
-                  {new Date(tx.date).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
+                  {new Date(tx.date).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' })}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold truncate">{product?.name ?? tx.productId}</div>
@@ -2903,7 +2903,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
       const prod = products.find(p => p.id === tx.productId);
       const isWO = tx.reference?.startsWith('[BAJA');
       return {
-        Fecha: new Date(tx.date).toLocaleString('es-PE'),
+        Fecha: new Date(tx.date).toLocaleString('es-PE', { timeZone: 'America/Lima' }),
         Tipo: isWO ? 'BAJA/MERMA' : tx.type === 'RECEPTION' ? 'RECEPCIÓN' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO',
         Código: prod?.code ?? '',
         Producto: prod?.name ?? tx.productId,
@@ -2939,7 +2939,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
       const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RECEPCION' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO';
       const typeColor = isWO ? '#991b1b' : tx.type === 'RECEPTION' ? '#15803d' : tx.type === 'DISPATCH' ? '#b91c1c' : '#0369a1';
       return `<tr style="background:${i%2===0?'#f9f9f9':'#fff'}">
-        <td>${new Date(tx.date).toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</td>
+        <td>${new Date(tx.date).toLocaleString('es-PE', { timeZone:'America/Lima', dateStyle:'short', timeStyle:'short' })}</td>
         <td><span style="color:${typeColor};font-weight:700">${typeLabel}</span></td>
         <td>${prod?.code ?? ''}</td>
         <td>${prod?.name ?? tx.productId}${prod?.size ? ' ' + prod.size : ''}</td>
@@ -2986,7 +2986,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
           <p>Marca: ${activeBrand} · Período: ${dateLabel}</p>
         </div>
       </div>
-      <div class="meta">Generado: ${new Date().toLocaleString('es-PE', { dateStyle:'short', timeStyle:'short' })}</div>
+      <div class="meta">Generado: ${new Date().toLocaleString('es-PE', { timeZone:'America/Lima', dateStyle:'short', timeStyle:'short' })}</div>
     </div>
     <div class="kpi-grid">
       <div class="kpi dark"><div class="kpi-label">Total Ops</div><div class="kpi-val">${totalOps}</div><div class="kpi-sub">operaciones</div></div>
@@ -3328,7 +3328,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
                   return (
                     <div key={tx.id} className={cn('grid grid-cols-[auto_1fr_auto_auto] px-4 py-2.5 border-b border-[var(--border)]/8 last:border-0 hover:bg-orange-500/10 items-start gap-3', i % 2 !== 0 && 'bg-[var(--surface-alt)]')}>
                       <div className="font-mono text-[9px] opacity-50 shrink-0 whitespace-nowrap">
-                        {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
+                        {new Date(tx.date).toLocaleDateString('es-PE', { timeZone:'America/Lima', day:'2-digit', month:'2-digit', year:'2-digit' })}
                       </div>
                       <div className="min-w-0">
                         <div className="font-mono text-[10px] font-bold truncate uppercase">{prod?.name ?? '-'}{prod?.size ? ` · ${prod.size}` : ''}</div>
@@ -3402,7 +3402,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
                   isWO && 'bg-orange-500/10'
                 )}>
                   <div className="font-mono text-[9px] opacity-50 whitespace-nowrap">
-                    {new Date(tx.date).toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'2-digit' })}
+                    {new Date(tx.date).toLocaleDateString('es-PE', { timeZone:'America/Lima', day:'2-digit', month:'2-digit', year:'2-digit' })}
                   </div>
                   <div><span className={cn('font-mono text-[8px] font-bold border px-1 py-0.5 uppercase', typeColor)}>{typeLabel}</span></div>
                   <div className="hidden sm:block font-mono text-[9px] opacity-50">{prod?.code ?? '-'}</div>

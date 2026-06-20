@@ -50,7 +50,7 @@ function isExpired(expiresAt?: string) {
 
 function fmtDate(iso?: string) {
   if (!iso) return '-';
-  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // --- Tarjeta Kanban -----------------------------------------------------------
@@ -534,7 +534,7 @@ function StockTab({
   const hasActiveFilters = search || modelFilter || colorFilter || sizeFilter || filter !== 'ALL';
 
   const handlePrint = () => {
-    const now = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const totalReserved = rows.reduce((s, r) => s + r.reserved, 0);
     const totalAvailable = rows.reduce((s, r) => s + (r.total - r.reserved), 0);
     const criticals = rows.filter(r => r.total > 0 && r.reserved / r.total >= 0.5 && r.reserved > 0).length;

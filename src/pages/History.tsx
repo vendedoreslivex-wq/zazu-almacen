@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { format } from 'date-fns';
+import { fmtLima } from '../lib/utils';
 import { ChevronRight, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
 
 export const History: React.FC = () => {
@@ -123,7 +124,7 @@ export const History: React.FC = () => {
             const contact = contacts.find(c => c.id === tx.contactId);
             return [
                 tx.id,
-                format(new Date(tx.date + (tx.date.length === 10 ? 'T00:00:00' : '')), 'dd/MM/yy HH:mm:ss'),
+                fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }),
                 tx.type,
                 tx.status,
                 product?.code || '',
@@ -372,7 +373,7 @@ export const History: React.FC = () => {
                                         {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </div>
                                     <div className="font-mono text-[10px] opacity-70 font-bold">
-                                        {format(new Date(tx.date + (tx.date.length === 10 ? 'T00:00:00' : '')), 'dd/MM/yy HH:mm')}
+                                        {fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}
                                     </div>
                                     <div className={`font-mono text-[9px] uppercase font-bold tracking-wider border py-0.5 px-2 w-fit ${colorOpt}`}>
                                         {tx.type === 'RECEPTION' ? 'RECEP.' : tx.type === 'DISPATCH' ? 'DESP.' : 'TRANSF.'}

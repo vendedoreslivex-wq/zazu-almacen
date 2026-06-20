@@ -5,6 +5,7 @@ import { useTheme } from '../store/ThemeContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { Package, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, TrendingUp, FileText, FileSpreadsheet, Printer, Trash2 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { todayLima } from '../lib/utils';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -27,10 +28,9 @@ export const Dashboard: React.FC = () => {
     return acc + (p?.costPrice || 0) * curr.quantity;
   }, 0);
   
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayStr = todayLima();
 
-  const todayStart = new Date();
-  todayStart.setHours(0,0,0,0);
+  const todayStart = new Date(todayStr + 'T00:00:00-05:00');
   
   const todayTxs = transactions.filter(t => new Date(t.date) >= todayStart);
   const todaysReceptions = todayTxs.filter(t => t.type === 'RECEPTION').reduce((acc, curr) => acc + curr.quantity, 0);

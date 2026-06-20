@@ -5,6 +5,7 @@ import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWi
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
 import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
 import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry, dbToReservation } from './mappers';
+import { nowLima } from '../lib/utils';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
 
@@ -514,7 +515,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addPurchaseOrder = (po: Omit<PurchaseOrder, 'id' | 'date'>) => {
     const tempId = crypto.randomUUID();
-    const date = new Date().toISOString();
+    const date = nowLima();
     setPurchaseOrders(prev => [{ ...po, id: tempId, date }, ...prev]);
     supabase.from('purchase_orders').insert([{ brand: activeBrand, supplier_id: po.supplierId || null, status: po.status, reference: po.reference, notes: po.notes || null, location_id: po.locationId || null }]).select().single()
       .then(async ({ data, error }) => {
@@ -620,7 +621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => {
-    const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: new Date().toISOString() };
+    const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: nowLima() };
     setAdjustments(prev => [tempAdj, ...prev]);
     setStockLevels(prev => {
       const existing = prev.find(s => s.productId === adj.productId && s.locationId === adj.locationId);
