@@ -23,9 +23,10 @@ const ROLE_LABELS: Record<string, string> = {
   CEO: 'CEO',
   ADMINISTRADOR: 'ADMINISTRADOR',
   JEFE_ALMACEN: 'JEFE ALMACÉN',
+  DESPACHADOR: 'DESPACHADOR',
 };
 
-const navItems: NavItem[] = [
+export const navItems: NavItem[] = [
   { id: 'reservations', label: 'RESERVAS', icon: ClipboardList },
   { id: 'odoo-stock', label: 'ODOO STOCK', icon: Boxes },
   { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },

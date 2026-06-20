@@ -20,15 +20,21 @@ import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
 import { Reservations } from './pages/Reservations';
 import { OdooStock } from './pages/OdooStock';
+import { PendingAccess } from './pages/PendingAccess';
 import { ResetPassword } from './pages/ResetPassword';
 import { supabase } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { canView } from './lib/permissions';
+import { navItems } from './components/Layout';
 import type { Session } from '@supabase/supabase-js';
 
 function AppShell() {
-  const { loading } = useAppContext();
+  const { loading, currentUser, rolePermissions } = useAppContext();
 
   if (loading) return <SplashScreen label="CARGANDO SISTEMA..." />;
+
+  const hasAnyModule = navItems.some(item => canView(currentUser.role, item.id, rolePermissions));
+  if (!hasAnyModule) return <PendingAccess />;
 
   return (
     <Layout>
