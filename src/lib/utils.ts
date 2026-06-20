@@ -13,9 +13,12 @@ export function nowLima(): string {
 }
 
 /** Formatea un timestamp ISO/DB a string legible en hora Lima */
-export function fmtLima(iso: string, opts?: Intl.DateTimeFormatOptions): string {
+export function fmtLima(iso: string | null | undefined, opts?: Intl.DateTimeFormatOptions): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
   const defaults: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
-  return new Date(iso).toLocaleString('es-PE', { timeZone: LIMA_TZ, ...defaults, ...opts });
+  return d.toLocaleString('es-PE', { timeZone: LIMA_TZ, ...defaults, ...opts });
 }
 
 /** Retorna 'YYYY-MM-DD' de hoy en Lima */

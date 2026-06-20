@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { format } from 'date-fns';
 import { fmtLima } from '../lib/utils';
 import { ChevronRight, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
 
@@ -149,7 +148,7 @@ export const History: React.FC = () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `transacciones_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
+        link.setAttribute('download', `transacciones_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Lima' }).replace(/-/g, '')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -465,7 +464,7 @@ export const History: React.FC = () => {
                                                                 <h2 style="text-align: center; margin-bottom: 20px;">TICKET DE OPERACION</h2>
                                                                 <p><strong>ID:</strong> ${tx.id}</p>
                                                                 <p><strong>TIPO:</strong> ${tx.type}</p>
-                                                                <p><strong>FECHA:</strong> ${format(new Date(tx.date), 'dd/MM/yy HH:mm:ss')}</p>
+                                                                <p><strong>FECHA:</strong> ${fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' })}</p>
                                                                 <hr style="border:1px dashed black; margin: 10px 0;" />
                                                                 <p><strong>MERCADER-A:</strong> ${product?.name || '---'}</p>
                                                                 <p><strong>CODIGO:</strong> ${product?.code || '---'}</p>
