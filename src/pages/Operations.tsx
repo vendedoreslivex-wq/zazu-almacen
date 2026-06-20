@@ -1296,6 +1296,7 @@ const WriteOffForm: React.FC = () => {
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [receptionModalRef, setReceptionModalRef] = useState('');
   const [defectQtys, setDefectQtys] = useState<Record<string, string>>({});
+  const [modalSearch, setModalSearch] = useState('');
 
   const receptionModalItems = useMemo(() => {
     if (!receptionModalRef) return [];
@@ -1319,6 +1320,7 @@ const WriteOffForm: React.FC = () => {
     if (ref) {
       setReceptionModalRef(ref);
       setDefectQtys({});
+      setModalSearch('');
       setShowReceptionModal(true);
     } else {
       setReceptionModalRef('');
@@ -1706,6 +1708,30 @@ const WriteOffForm: React.FC = () => {
               <button onClick={() => setShowReceptionModal(false)} className="opacity-60 hover:opacity-100 font-mono text-lg leading-none">×</button>
             </div>
 
+            <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)]">
+              <input
+                type="text"
+                value={modalSearch}
+                onChange={e => setModalSearch(e.target.value)}
+                placeholder="Buscar por nombre, color, talla o código..."
+                className="w-full px-3 py-2 font-mono text-xs border border-[var(--border)] bg-[var(--bg)] outline-none focus:border-orange-500"
+                style={{ color: 'var(--ink)' }}
+              />
+              {modalSearch && (
+                <div className="font-mono text-[9px] opacity-50 mt-1">
+                  {receptionModalItems.filter(({ product }) => {
+                    const q = modalSearch.toLowerCase();
+                    return (
+                      product?.name?.toLowerCase().includes(q) ||
+                      product?.color?.toLowerCase().includes(q) ||
+                      product?.size?.toLowerCase().includes(q) ||
+                      product?.code?.toLowerCase().includes(q)
+                    );
+                  }).length} de {receptionModalItems.length} modelos
+                </div>
+              )}
+            </div>
+
             <div className="p-4 flex flex-col gap-1 overflow-y-auto flex-1">
               <p className="font-mono text-[9px] opacity-60 uppercase tracking-widest mb-2">
                 INDICA CUÁNTAS PRENDAS ESTÁN DEFECTUOSAS POR CADA MODELO
@@ -1713,7 +1739,18 @@ const WriteOffForm: React.FC = () => {
               {receptionModalItems.length === 0 ? (
                 <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
               ) : (
-                receptionModalItems.map(({ productId, qty, product }) => {
+                receptionModalItems
+                .filter(({ product }) => {
+                  if (!modalSearch) return true;
+                  const q = modalSearch.toLowerCase();
+                  return (
+                    product?.name?.toLowerCase().includes(q) ||
+                    product?.color?.toLowerCase().includes(q) ||
+                    product?.size?.toLowerCase().includes(q) ||
+                    product?.code?.toLowerCase().includes(q)
+                  );
+                })
+                .map(({ productId, qty, product }) => {
                   const val = defectQtys[productId] ?? '';
                   const n = parseInt(val, 10);
                   const invalid = val !== '' && (isNaN(n) || n < 0 || n > qty);
