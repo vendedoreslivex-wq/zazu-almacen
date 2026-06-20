@@ -38,11 +38,15 @@ const navItems: NavItem[] = [
   { id: 'history', label: 'HISTORIAL', icon: History },
   { id: 'contacts', label: 'CONTACTOS', icon: UserCircle },
   { id: 'reports', label: 'REPORTES', icon: FileBarChart },
-  { id: 'labels', label: 'ETIQUETAS QR', icon: QrCode },
-  { id: 'warehouse-map', label: 'MAPA ALMACÉN', icon: LayoutGrid },
   { id: 'users', label: 'USUARIOS', icon: Users },
   { id: 'operation-history', label: 'HISTORIAL GENERAL', icon: ScrollText },
 ];
+
+type NavItemWithNum = NavItem & { num: string };
+const navItemsWithNum: NavItemWithNum[] = navItems.map((item, i) => ({
+  ...item,
+  num: String(i + 1).padStart(2, '0'),
+}));
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -65,8 +69,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, []);
 
-  const visibleNav = navItems.filter(item => canView(currentUser.role, item.id, rolePermissions));
-  const currentNavLabel = navItems.find(n => location.pathname === `/${n.id}`)?.label ?? 'DASHBOARD';
+  const visibleNav = navItemsWithNum
+    .filter(item => canView(currentUser.role, item.id, rolePermissions))
+    .map((item, i) => ({ ...item, num: String(i + 1).padStart(2, '0') }));
+  const currentNavLabel = navItemsWithNum.find(n => location.pathname === `/${n.id}`)?.label ?? 'DASHBOARD';
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
@@ -137,7 +143,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <>
                   <item.icon size={18} className={cn("flex-shrink-0", isActive && "stroke-[2.5px]")} />
                   {sidebarOpen && (
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden flex items-center gap-1.5">
+                      <span className="text-[9px] opacity-40 font-black tabular-nums">{item.num}</span>
                       {item.label}
                     </span>
                   )}

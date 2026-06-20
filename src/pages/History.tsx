@@ -157,7 +157,7 @@ export const History: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col gap-6 relative">
-            <ModuleInfo number="08" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
+            <ModuleInfo number="10" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
                 <div>
                     <h2 className="font-mono font-black text-xs uppercase tracking-widest">08 // HISTORIAL_OPERACIONES</h2>

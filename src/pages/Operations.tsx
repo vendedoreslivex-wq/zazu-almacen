@@ -314,7 +314,9 @@ type BulletinGroup = {
   items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
 };
 
-const BulletinsTab: React.FC = () => {
+// mode 'ops'  → RECEPCIÓN + BAJA/MERMA (DISPATCH con [BAJA])
+// mode 'dispatch' → DESPACHO (DISPATCH sin [BAJA]) + TRASLADO
+export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) => {
   const { transactions, products, contacts, locations, activeBrand } = useAppContext();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
@@ -325,7 +327,14 @@ const BulletinsTab: React.FC = () => {
     const from = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
     const to   = dateTo   ? new Date(dateTo   + 'T23:59:59') : null;
 
-    const active = transactions.filter(tx => tx.status !== 'CANCELLED' && tx.type in TX_BADGE);
+    const active = transactions.filter(tx => {
+      if (tx.status === 'CANCELLED' || !(tx.type in TX_BADGE)) return false;
+      if (!mode) return true;
+      const isWriteoff = tx.reference?.startsWith('[BAJA]');
+      if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
+      if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+      return true;
+    });
 
     const map = new Map<string, BulletinGroup>();
 
@@ -519,7 +528,7 @@ const BulletinsTab: React.FC = () => {
 // --- Main Page -----------------------------------------------------------------
 
 export const Operations: React.FC = () => {
-  const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION');
+  const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION' as ActiveOp);
   const [showTutorial, setShowTutorial] = useState(false);
 
   // Read sessionStorage filter set by Dashboard KPI cards
@@ -538,7 +547,7 @@ export const Operations: React.FC = () => {
       <div className="flex items-stretch gap-0">
         <div className="flex-1">
           <ModuleInfo
-            number="05"
+            number="07"
             title="Operaciones"
             description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta m-ltiples productos por operacion."
           />
@@ -609,27 +618,13 @@ export const Operations: React.FC = () => {
 
       {mainTab === 'operations' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
+          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
             <OptButton
               icon={<ArrowDownLeft size={18} />}
               label="RECEPCION"
               desc="Registra entrada de productos al stock. Suma al inventario total."
               active={activeOpt === 'RECEPTION'}
               onClick={() => setActiveOpt('RECEPTION')}
-            />
-            <OptButton
-              icon={<ArrowUpRight size={18} />}
-              label="DESPACHO"
-              desc="Registra salida de productos. Descuenta del inventario disponible."
-              active={activeOpt === 'DISPATCH'}
-              onClick={() => setActiveOpt('DISPATCH')}
-            />
-            <OptButton
-              icon={<ArrowRightLeft size={18} />}
-              label="TRANSLADO"
-              desc="Mueve productos entre almacenes. El total del inventario no cambia."
-              active={activeOpt === 'TRANSFER'}
-              onClick={() => setActiveOpt('TRANSFER')}
             />
             <OptButton
               icon={<ShieldOff size={18} />}
@@ -643,7 +638,7 @@ export const Operations: React.FC = () => {
 
           <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
             <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
-              {activeOpt === 'RECEPTION' ? 'RX' : activeOpt === 'DISPATCH' ? 'TX' : activeOpt === 'TRANSFER' ? 'MV' : 'BJ'}
+              {activeOpt === 'RECEPTION' ? 'RX' : 'BJ'}
             </div>
             {activeOpt === 'WRITEOFF'
               ? <WriteOffForm key="writeoff" />
@@ -664,7 +659,7 @@ export const Operations: React.FC = () => {
       )}
 
       {mainTab === 'bulletins' && (
-        <BulletinsTab />
+        <BulletinsTab mode="ops" />
       )}
     </div>
   );
@@ -718,7 +713,7 @@ const PreviewRow = ({ label, value }: { label: string; value: string }) => (
 
 // --- OperationForm -------------------------------------------------------------
 
-const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
+export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
   const { products, locations, addTransaction, stockLevels, activeBrand, contacts, currentUser, users } = useAppContext();
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -1858,9 +1853,9 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
 
 const PAGE_SIZE = 50;
 
-type LogFilter = { type?: string; dateFrom?: string; dateTo?: string } | null;
+export type LogFilter = { type?: string; dateFrom?: string; dateTo?: string } | null;
 
-const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter }) => {
+export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter }) => {
   const {
     transactions, products, contacts, locations, activeBrand,
     deleteTransaction, hardDeleteTransaction, hardDeleteTransactions,
@@ -2490,7 +2485,7 @@ const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initialFilter
 
 // --- Operations Report ---------------------------------------------------------
 
-const OperationsReport: React.FC = () => {
+export const OperationsReport: React.FC = () => {
   const { transactions, products, locations, activeBrand } = useAppContext();
   const [reportTab, setReportTab] = useState<'resumen' | 'movimientos' | 'bajas' | 'historial'>('resumen');
   const [dateFrom, setDateFrom] = useState('');

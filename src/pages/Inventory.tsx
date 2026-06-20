@@ -281,7 +281,7 @@ export const Inventory: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="03" title="Inventario" description="Directorio completo de productos organizados por nombre, color y talla. Registra, edita y elimina SKUs, consulta ubicaciones y exporta el inventario." />
+      <ModuleInfo number="05" title="Inventario" description="Directorio completo de productos organizados por nombre, color y talla. Registra, edita y elimina SKUs, consulta ubicaciones y exporta el inventario." />
       <datalist id="product-names">
         <option value="CAMISA WAFFLE" />
         <option value="CAMISERO JERSEY" />

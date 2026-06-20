@@ -137,7 +137,7 @@ export const Analysis: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ModuleInfo number="02" title="Rendimiento de Productos" description="Ranking de despachos, variantes mas y menos demandadas, y analisis de rotacion por talla y color." />
+      <ModuleInfo number="04" title="Rendimiento de Productos" description="Ranking de despachos, variantes mas y menos demandadas, y analisis de rotacion por talla y color." />
       <div className="border-b border-[var(--border)] pb-3">
         <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">05 // RENDIMIENTO DE PRODUCTOS</h2>
         <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Que variantes se mueven, cuales no, y como se distribuye la demanda.</p>

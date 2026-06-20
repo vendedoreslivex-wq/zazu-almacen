@@ -294,7 +294,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      <ModuleInfo number="01" title="Dashboard" description="Vista general del almacen: stock total, alertas de bajo stock, movimientos recientes y metricas operativas en tiempo real." />
+      <ModuleInfo number="03" title="Dashboard" description="Vista general del almacen: stock total, alertas de bajo stock, movimientos recientes y metricas operativas en tiempo real." />
       {/* Header section */}
       <div className="border-b border-[var(--border)] pb-2">
         <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">01 // SYSTEM_STATUS</h2>

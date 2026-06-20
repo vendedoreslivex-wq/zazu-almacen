@@ -54,7 +54,7 @@ export const Contacts: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="09" title="Contactos" description="Directorio de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC y tipo de relación comercial." />
+      <ModuleInfo number="11" title="Contactos" description="Directorio de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC y tipo de relación comercial." />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">04 // DATOS_CONTACTOS</h2>
