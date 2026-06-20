@@ -17,8 +17,11 @@ export function fmtLima(iso: string | null | undefined, opts?: Intl.DateTimeForm
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
-  const defaults: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
-  return d.toLocaleString('es-PE', { timeZone: LIMA_TZ, ...defaults, ...opts });
+  // dateStyle/timeStyle cannot be mixed with individual date/time component options
+  const resolvedOpts: Intl.DateTimeFormatOptions = opts
+    ? { timeZone: LIMA_TZ, ...opts }
+    : { timeZone: LIMA_TZ, dateStyle: 'short', timeStyle: 'short' };
+  return d.toLocaleString('es-PE', resolvedOpts);
 }
 
 /** Retorna 'YYYY-MM-DD' de hoy en Lima */
