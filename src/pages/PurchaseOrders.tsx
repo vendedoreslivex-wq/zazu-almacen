@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, XCircle, Package, ShoppingCart, ArrowUpRight, ArrowRightLeft, FileText, BarChart2, Mail, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, XCircle, Package, ShoppingCart, ArrowUpRight, FileText, BarChart2, Mail, ClipboardList } from 'lucide-react';
 import { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../types';
 import { canEdit as hasPermission } from '../lib/permissions';
 import { fmtLima } from '../lib/utils';
@@ -247,11 +247,10 @@ const emptyItem = (): PurchaseOrderItem => ({ productId: '', quantity: 1, unitCo
 
 export const PurchaseOrders: React.FC = () => {
   const { purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder, contacts, products, locations, stockLevels, currentUser } = useAppContext();
-  const [mainTab, setMainTab] = useState<'req' | 'ops' | 'log' | 'reports' | 'bulletins' | 'oc'>('req');
-  const [activeOpt, setActiveOpt] = useState<'DISPATCH' | 'TRANSFER'>('TRANSFER');
+  const [mainTab, setMainTab] = useState<'ops' | 'log' | 'reports' | 'bulletins' | 'oc'>('ops');
+  const [activeOpt, setActiveOpt] = useState<'DISPATCH' | 'REQUIREMENT'>('REQUIREMENT');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [showReqModal, setShowReqModal] = useState(false);
   const [receiveModal, setReceiveModal] = useState<PurchaseOrder | null>(null);
   const [receiving, setReceiving] = useState(false);
   const [receiveError, setReceiveError] = useState<string | null>(null);
@@ -259,7 +258,7 @@ export const PurchaseOrders: React.FC = () => {
   const [filterReqStatus, setFilterReqStatus] = useState<'ALL' | PurchaseOrderStatus>('ALL');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [form, setForm] = useState({ supplierId: '', reference: '', notes: '', locationId: '', items: [emptyItem()] });
-  const [reqForm, setReqForm] = useState({ reference: '', notes: '', items: [] as PurchaseOrderItem[] });
+  const [reqForm, setReqForm] = useState(() => ({ reference: `REQ-${Date.now().toString().slice(-6)}`, notes: '', items: [] as PurchaseOrderItem[] }));
   const [receiveQtys, setReceiveQtys] = useState<Record<number, number>>({});
 
   const isAdmin = hasPermission(currentUser.role, 'purchase-orders');
@@ -302,11 +301,6 @@ export const PurchaseOrders: React.FC = () => {
     setShowModal(true);
   };
 
-  const openAddReq = () => {
-    setReqForm({ reference: `REQ-${Date.now().toString().slice(-6)}`, notes: '', items: [] });
-    setShowReqModal(true);
-  };
-
   const handleSubmitOC = (e: React.FormEvent) => {
     e.preventDefault();
     const validItems = form.items.filter(i => i.productId);
@@ -330,7 +324,7 @@ export const PurchaseOrders: React.FC = () => {
       items: reqForm.items,
       status: 'DRAFT',
     });
-    setShowReqModal(false);
+    setReqForm({ reference: `REQ-${Date.now().toString().slice(-6)}`, notes: '', items: [] });
   };
 
   const changeStatus = (po: PurchaseOrder, status: PurchaseOrderStatus) => {
@@ -376,9 +370,6 @@ export const PurchaseOrders: React.FC = () => {
 
       {/* Main tabs */}
       <div className="flex flex-wrap border border-[var(--border)] bg-[var(--bg-sidebar)]">
-        <button onClick={() => setMainTab('req')} className={tabCls(mainTab === 'req')}>
-          <ClipboardList size={14} /> REQUERIMIENTOS
-        </button>
         <button onClick={() => setMainTab('ops')} className={tabCls(mainTab === 'ops')}>
           <ArrowUpRight size={14} /> OPERACIONES
         </button>
@@ -396,120 +387,39 @@ export const PurchaseOrders: React.FC = () => {
         </button>
       </div>
 
-      {/* REQUERIMIENTOS tab */}
-      {mainTab === 'req' && (
+      {/* OPERACIONES tab */}
+      {mainTab === 'ops' && (
         <>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-            <div>
-              <h2 className="font-mono font-black text-xs uppercase tracking-widest">09 // REQUERIMIENTOS_ALMACÉN</h2>
-              <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">
-                Órdenes internas de prendas desde reservas → Stock Despacho.
-                {dispatchLocation && <span className="ml-2 opacity-50">Destino: {dispatchLocation.name}</span>}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <select value={filterReqStatus} onChange={e => setFilterReqStatus(e.target.value as any)}
-                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-                <option value="ALL">TODOS</option>
-                {(Object.keys(STATUS_LABEL) as PurchaseOrderStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </select>
-              <button onClick={openAddReq} className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)]">
-                <Plus size={14} /> NUEVO REQUERIMIENTO
-              </button>
-            </div>
+          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
+            <OptButton
+              icon={<ClipboardList size={18} />}
+              label="REQUERIMIENTOS"
+              desc="Solicita prendas desde reservas hacia stock despacho."
+              active={activeOpt === 'REQUIREMENT'}
+              onClick={() => setActiveOpt('REQUIREMENT')}
+            />
+            <OptButton
+              icon={<ArrowUpRight size={18} />}
+              label="DESPACHO"
+              desc="Registra salida de productos. Descuenta del inventario disponible."
+              active={activeOpt === 'DISPATCH'}
+              onClick={() => setActiveOpt('DISPATCH')}
+            />
           </div>
 
-          {filteredReq.length === 0 && (
-            <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest">Sin requerimientos</div>
+          {activeOpt === 'DISPATCH' && (
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
+              <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">TX</div>
+              <OperationForm key="DISPATCH" type="DISPATCH" />
+            </div>
           )}
 
-          <div className="flex flex-col gap-3">
-            {filteredReq.map(po => {
-              const isExpanded = expanded === po.id;
-              return (
-                <div key={po.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
-                  <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExpanded ? null : po.id)}>
-                    <div className="flex items-center gap-4 min-w-0 flex-wrap">
-                      <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${STATUS_STYLE[po.status]}`}>{STATUS_LABEL[po.status]}</span>
-                      <span className="font-mono font-bold text-sm text-[var(--ink)] shrink-0">{po.reference}</span>
-                      <span className="font-mono text-xs opacity-50">{fmtLima(po.date, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                      <span className="font-mono text-[10px] opacity-50">{po.items.reduce((s, i) => s + i.quantity, 0)} prendas</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </div>
-                  </div>
-                  {isExpanded && (
-                    <div className="border-t border-[var(--border)] p-4 flex flex-col gap-4">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-[10px] font-mono border-collapse">
-                          <thead>
-                            <tr className="border-b border-[var(--border)]">
-                              <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
-                              <th className="text-right py-1.5 px-3 font-bold uppercase">Solicitado</th>
-                              <th className="text-right py-1.5 pl-3 font-bold uppercase">Despachado</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {po.items.map((item, i) => {
-                              const prod = products.find(p => p.id === item.productId);
-                              return (
-                                <tr key={i} className="border-b border-[var(--border)]/20">
-                                  <td className="py-1.5 pr-3">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : item.productId}</td>
-                                  <td className="text-right py-1.5 px-3">{item.quantity}</td>
-                                  <td className={`text-right py-1.5 pl-3 font-bold ${item.receivedQuantity >= item.quantity ? 'text-green-700' : item.receivedQuantity > 0 ? 'text-amber-700' : ''}`}>{item.receivedQuantity}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {po.notes && <p className="font-mono text-[10px] opacity-60 italic">{po.notes}</p>}
-                      {dispatchLocation && (
-                        <p className="font-mono text-[9px] opacity-40 uppercase">Destino: {dispatchLocation.name}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        {/* Solo JEFE_ALMACEN/ADMIN/CEO puede aprobar */}
-                        {po.status === 'DRAFT' && isJefeAlmacen && (
-                          <button onClick={() => changeStatus(po, 'APPROVED')} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-green-700 text-green-700 hover:bg-green-700 hover:text-white transition-colors">
-                            <CheckCircle size={12} /> APROBAR
-                          </button>
-                        )}
-                        {po.status === 'DRAFT' && !isJefeAlmacen && (
-                          <span className="font-mono text-[9px] opacity-40 uppercase tracking-widest self-center">Pendiente de aprobación por Jefe de Almacén</span>
-                        )}
-                        {(po.status === 'APPROVED' || po.status === 'PARTIAL') && isJefeAlmacen && (
-                          <button onClick={() => openReceive(po)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white transition-colors">
-                            <Package size={12} /> DESPACHAR
-                          </button>
-                        )}
-                        {po.status !== 'COMPLETED' && po.status !== 'CANCELLED' && isJefeAlmacen && (
-                          <button onClick={() => changeStatus(po, 'CANCELLED')} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors">
-                            <XCircle size={12} /> RECHAZAR
-                          </button>
-                        )}
-                        {isJefeAlmacen && (po.status === 'DRAFT' || po.status === 'CANCELLED') && (
-                          <button onClick={() => setConfirmDelete(po.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-[var(--border)]/30 hover:border-red-600 hover:text-red-600 transition-colors ml-auto">
-                            <Trash2 size={12} /> ELIMINAR
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Modal nuevo requerimiento */}
-          {showReqModal && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center sticky top-0 bg-[var(--bg)]">
-                  <span className="font-mono font-bold text-xs uppercase tracking-widest">NUEVO REQUERIMIENTO</span>
-                  <button onClick={() => setShowReqModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">✕</button>
-                </div>
-                <form onSubmit={handleSubmitReq} className="p-5 flex flex-col gap-4">
+          {activeOpt === 'REQUIREMENT' && (
+            <div className="flex flex-col gap-4">
+              {/* Formulario nuevo requerimiento */}
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
+                <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">RQ</div>
+                <form onSubmit={handleSubmitReq} className="flex flex-col gap-4 relative">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Referencia *</label>
@@ -517,7 +427,7 @@ export const PurchaseOrders: React.FC = () => {
                         className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none" required />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Destino</label>
+                      <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Destino (fijo)</label>
                       <div className="border border-[var(--border)] bg-[var(--bg-input)]/50 px-3 py-2 text-xs font-mono opacity-60">
                         {dispatchLocation?.name ?? 'ALMACEN STOCK DESPACHO'}
                       </div>
@@ -534,7 +444,7 @@ export const PurchaseOrders: React.FC = () => {
                         <div className="grid grid-cols-12 gap-2 px-1 mb-0.5">
                           <span className="col-span-8 font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40">PRODUCTO</span>
                           <span className="col-span-2 font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40 text-center">CANT.</span>
-                          <span className="col-span-2 font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/40 text-right"></span>
+                          <span className="col-span-2"></span>
                         </div>
                         {reqForm.items.map((item, i) => {
                           const prod = products.find(p => p.id === item.productId);
@@ -561,45 +471,105 @@ export const PurchaseOrders: React.FC = () => {
                     <textarea value={reqForm.notes} onChange={e => setReqForm(f => ({ ...f, notes: e.target.value }))} rows={2}
                       className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
                   </div>
-                  <div className="flex gap-2 pt-2">
-                    <button type="submit" disabled={reqForm.items.length === 0}
-                      className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all disabled:opacity-40">
-                      CREAR REQUERIMIENTO
-                    </button>
-                    <button type="button" onClick={() => setShowReqModal(false)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase">CANCELAR</button>
-                  </div>
+                  <button type="submit" disabled={reqForm.items.length === 0}
+                    className="w-full bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all disabled:opacity-40">
+                    CREAR REQUERIMIENTO
+                  </button>
                 </form>
+              </div>
+
+              {/* Lista de requerimientos */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[var(--border)] pb-3">
+                <span className="font-mono font-black text-[10px] uppercase tracking-widest opacity-70">Requerimientos registrados</span>
+                <select value={filterReqStatus} onChange={e => setFilterReqStatus(e.target.value as any)}
+                  className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+                  <option value="ALL">TODOS</option>
+                  {(Object.keys(STATUS_LABEL) as PurchaseOrderStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                </select>
+              </div>
+
+              {filteredReq.length === 0 && (
+                <div className="text-center font-mono text-xs opacity-50 py-10 uppercase tracking-widest">Sin requerimientos</div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                {filteredReq.map(po => {
+                  const isExpanded = expanded === po.id;
+                  return (
+                    <div key={po.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
+                      <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExpanded ? null : po.id)}>
+                        <div className="flex items-center gap-4 min-w-0 flex-wrap">
+                          <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${STATUS_STYLE[po.status]}`}>{STATUS_LABEL[po.status]}</span>
+                          <span className="font-mono font-bold text-sm text-[var(--ink)] shrink-0">{po.reference}</span>
+                          <span className="font-mono text-xs opacity-50">{fmtLima(po.date, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          <span className="font-mono text-[10px] opacity-50">{po.items.reduce((s, i) => s + i.quantity, 0)} prendas</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="border-t border-[var(--border)] p-4 flex flex-col gap-4">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-[10px] font-mono border-collapse">
+                              <thead>
+                                <tr className="border-b border-[var(--border)]">
+                                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
+                                  <th className="text-right py-1.5 px-3 font-bold uppercase">Solicitado</th>
+                                  <th className="text-right py-1.5 pl-3 font-bold uppercase">Despachado</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {po.items.map((item, i) => {
+                                  const prod = products.find(p => p.id === item.productId);
+                                  return (
+                                    <tr key={i} className="border-b border-[var(--border)]/20">
+                                      <td className="py-1.5 pr-3">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : item.productId}</td>
+                                      <td className="text-right py-1.5 px-3">{item.quantity}</td>
+                                      <td className={`text-right py-1.5 pl-3 font-bold ${item.receivedQuantity >= item.quantity ? 'text-green-700' : item.receivedQuantity > 0 ? 'text-amber-700' : ''}`}>{item.receivedQuantity}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          {po.notes && <p className="font-mono text-[10px] opacity-60 italic">{po.notes}</p>}
+                          {dispatchLocation && (
+                            <p className="font-mono text-[9px] opacity-40 uppercase">Destino: {dispatchLocation.name}</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {po.status === 'DRAFT' && isJefeAlmacen && (
+                              <button onClick={() => changeStatus(po, 'APPROVED')} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-green-700 text-green-700 hover:bg-green-700 hover:text-white transition-colors">
+                                <CheckCircle size={12} /> APROBAR
+                              </button>
+                            )}
+                            {po.status === 'DRAFT' && !isJefeAlmacen && (
+                              <span className="font-mono text-[9px] opacity-40 uppercase tracking-widest self-center">Pendiente de aprobación por Jefe de Almacén</span>
+                            )}
+                            {(po.status === 'APPROVED' || po.status === 'PARTIAL') && isJefeAlmacen && (
+                              <button onClick={() => openReceive(po)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white transition-colors">
+                                <Package size={12} /> DESPACHAR
+                              </button>
+                            )}
+                            {po.status !== 'COMPLETED' && po.status !== 'CANCELLED' && isJefeAlmacen && (
+                              <button onClick={() => changeStatus(po, 'CANCELLED')} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors">
+                                <XCircle size={12} /> RECHAZAR
+                              </button>
+                            )}
+                            {isJefeAlmacen && (po.status === 'DRAFT' || po.status === 'CANCELLED') && (
+                              <button onClick={() => setConfirmDelete(po.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold font-mono uppercase border border-[var(--border)]/30 hover:border-red-600 hover:text-red-600 transition-colors ml-auto">
+                                <Trash2 size={12} /> ELIMINAR
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {/* OPERACIONES tab */}
-      {mainTab === 'ops' && (
-        <>
-          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
-            <OptButton
-              icon={<ArrowRightLeft size={18} />}
-              label="TRASLADO"
-              desc="Mueve productos entre almacenes. El total del inventario no cambia."
-              active={activeOpt === 'TRANSFER'}
-              onClick={() => setActiveOpt('TRANSFER')}
-            />
-            <OptButton
-              icon={<ArrowUpRight size={18} />}
-              label="DESPACHO"
-              desc="Registra salida de productos. Descuenta del inventario disponible."
-              active={activeOpt === 'DISPATCH'}
-              onClick={() => setActiveOpt('DISPATCH')}
-            />
-          </div>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
-            <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
-              {activeOpt === 'DISPATCH' ? 'TX' : 'MV'}
-            </div>
-            <OperationForm key={activeOpt} type={activeOpt} />
-          </div>
         </>
       )}
 
@@ -862,8 +832,8 @@ export const PurchaseOrders: React.FC = () => {
         )}
       </>)}
 
-      {/* Modal despachar requerimiento (fuera del tab OC) */}
-      {receiveModal && mainTab === 'req' && (
+      {/* Modal despachar requerimiento */}
+      {receiveModal && mainTab === 'ops' && activeOpt === 'REQUIREMENT' && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
@@ -898,7 +868,7 @@ export const PurchaseOrders: React.FC = () => {
         </div>
       )}
 
-      {confirmDelete && mainTab === 'req' && (
+      {confirmDelete && mainTab === 'ops' && activeOpt === 'REQUIREMENT' && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] p-6 max-w-sm w-full">
             <p className="font-mono text-xs font-bold mb-4">¿Eliminar este requerimiento?</p>
