@@ -288,7 +288,7 @@ export const PurchaseOrders: React.FC = () => {
       {/* REPORTES tab */}
       {mainTab === 'reports' && (
         <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
-          <OperationsReport />
+          <OperationsReport mode="dispatch" />
         </div>
       )}
 

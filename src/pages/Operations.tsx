@@ -654,7 +654,7 @@ export const Operations: React.FC = () => {
 
       {mainTab === 'reports' && (
         <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
-          <OperationsReport />
+          <OperationsReport mode="ops" />
         </div>
       )}
 
@@ -2783,7 +2783,7 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
 
 // --- Operations Report ---------------------------------------------------------
 
-export const OperationsReport: React.FC = () => {
+export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) => {
   const { transactions, products, locations, activeBrand } = useAppContext();
   const [reportTab, setReportTab] = useState<'resumen' | 'movimientos' | 'bajas' | 'historial'>('resumen');
   const [dateFrom, setDateFrom] = useState('');
@@ -2794,7 +2794,13 @@ export const OperationsReport: React.FC = () => {
   const [histPage, setHistPage] = useState(1);
   const HIST_PAGE_SIZE = 15;
 
-  const active = useMemo(() => transactions.filter(tx => tx.status !== 'CANCELLED'), [transactions]);
+  const active = useMemo(() => transactions.filter(tx => {
+    if (tx.status === 'CANCELLED') return false;
+    const isWriteoff = tx.reference?.startsWith('[BAJA');
+    if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
+    if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+    return true;
+  }), [transactions, mode]);
 
   const filtered = useMemo(() => active.filter(tx => {
     if (dateFrom && new Date(tx.date) < new Date(dateFrom + 'T00:00:00')) return false;
@@ -3015,7 +3021,9 @@ export const OperationsReport: React.FC = () => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="opacity-50" />
-          <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">REPORTE DE OPERACIONES</h2>
+          <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">
+            {mode === 'ops' ? 'REPORTE · RECEPCIONES & BAJAS' : mode === 'dispatch' ? 'REPORTE · DESPACHOS & TRASLADOS' : 'REPORTE DE OPERACIONES'}
+          </h2>
           <span className="font-mono text-[8px] border border-[var(--border)]/20 px-1.5 py-0.5 bg-[var(--surface)] uppercase tracking-wider">{activeBrand}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -3048,24 +3056,38 @@ export const OperationsReport: React.FC = () => {
           <div className="font-mono font-black text-2xl text-[var(--ink)]">{totalUnits.toLocaleString('es-PE')}</div>
           <div className="font-mono text-[8px] opacity-40 mt-0.5">movidas</div>
         </div>
-        {/* Recepciones */}
-        <div className="border border-green-400 bg-green-500/10 p-3">
-          <div className="flex items-center gap-1 mb-1"><ArrowDownLeft size={10} className="text-green-700" /><span className="font-mono text-[8px] font-bold text-green-700 uppercase tracking-wide">Recepciones</span></div>
-          <div className="font-mono font-black text-xl text-green-600">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
-          <div className="font-mono text-[8px] text-green-700 opacity-60 mt-0.5">{byType.RECEPTION.count} operaciones</div>
-        </div>
-        {/* Despachos */}
-        <div className="border border-red-500/50 bg-red-500/10 p-3">
-          <div className="flex items-center gap-1 mb-1"><ArrowUpRight size={10} className="text-red-700" /><span className="font-mono text-[8px] font-bold text-red-700 uppercase tracking-wide">Despachos</span></div>
-          <div className="font-mono font-black text-xl text-red-600">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
-          <div className="font-mono text-[8px] text-red-700 opacity-60 mt-0.5">{byType.DISPATCH.count} operaciones</div>
-        </div>
-        {/* Bajas */}
-        <div className="border border-orange-400 bg-orange-500/10 p-3">
-          <div className="flex items-center gap-1 mb-1"><ShieldOff size={10} className="text-orange-700" /><span className="font-mono text-[8px] font-bold text-orange-700 uppercase tracking-wide">Bajas/Merma</span></div>
-          <div className="font-mono font-black text-xl text-orange-600">{writeoffUnits.toLocaleString('es-PE')}</div>
-          <div className="font-mono text-[8px] text-orange-700 opacity-60 mt-0.5">{writeoffs.length} operaciones</div>
-        </div>
+        {/* Recepciones — solo en ops o sin modo */}
+        {mode !== 'dispatch' && (
+          <div className="border border-green-400 bg-green-500/10 p-3">
+            <div className="flex items-center gap-1 mb-1"><ArrowDownLeft size={10} className="text-green-700" /><span className="font-mono text-[8px] font-bold text-green-700 uppercase tracking-wide">Recepciones</span></div>
+            <div className="font-mono font-black text-xl text-green-600">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
+            <div className="font-mono text-[8px] text-green-700 opacity-60 mt-0.5">{byType.RECEPTION.count} operaciones</div>
+          </div>
+        )}
+        {/* Despachos — solo en dispatch o sin modo */}
+        {mode !== 'ops' && (
+          <div className="border border-red-500/50 bg-red-500/10 p-3">
+            <div className="flex items-center gap-1 mb-1"><ArrowUpRight size={10} className="text-red-700" /><span className="font-mono text-[8px] font-bold text-red-700 uppercase tracking-wide">Despachos</span></div>
+            <div className="font-mono font-black text-xl text-red-600">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
+            <div className="font-mono text-[8px] text-red-700 opacity-60 mt-0.5">{byType.DISPATCH.count} operaciones</div>
+          </div>
+        )}
+        {/* Traslados — solo en dispatch o sin modo */}
+        {mode !== 'ops' && (
+          <div className="border border-blue-400/50 bg-blue-500/10 p-3">
+            <div className="flex items-center gap-1 mb-1"><ArrowRightLeft size={10} className="text-blue-700" /><span className="font-mono text-[8px] font-bold text-blue-700 uppercase tracking-wide">Traslados</span></div>
+            <div className="font-mono font-black text-xl text-blue-600">{byType.TRANSFER.units.toLocaleString('es-PE')}</div>
+            <div className="font-mono text-[8px] text-blue-700 opacity-60 mt-0.5">{byType.TRANSFER.count} operaciones</div>
+          </div>
+        )}
+        {/* Bajas — solo en ops o sin modo */}
+        {mode !== 'dispatch' && (
+          <div className="border border-orange-400 bg-orange-500/10 p-3">
+            <div className="flex items-center gap-1 mb-1"><ShieldOff size={10} className="text-orange-700" /><span className="font-mono text-[8px] font-bold text-orange-700 uppercase tracking-wide">Bajas/Merma</span></div>
+            <div className="font-mono font-black text-xl text-orange-600">{writeoffUnits.toLocaleString('es-PE')}</div>
+            <div className="font-mono text-[8px] text-orange-700 opacity-60 mt-0.5">{writeoffs.length} operaciones</div>
+          </div>
+        )}
       </div>
 
       {/* -- Distribution bar -- */}
@@ -3112,11 +3134,11 @@ export const OperationsReport: React.FC = () => {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)]/20">
         <div className="flex overflow-x-auto scrollbar-none">
           {([
-            { id: 'resumen',     label: 'Resumen' },
-            { id: 'movimientos', label: 'Productos' },
-            { id: 'bajas',       label: `Bajas${writeoffs.length > 0 ? ` (${writeoffs.length})` : ''}` },
-            { id: 'historial',   label: 'Historial' },
-          ] as { id: typeof reportTab; label: string }[]).map(tab => (
+            { id: 'resumen',     label: 'Resumen',   show: true },
+            { id: 'movimientos', label: 'Productos',  show: true },
+            { id: 'bajas',       label: `Bajas${writeoffs.length > 0 ? ` (${writeoffs.length})` : ''}`, show: mode !== 'dispatch' },
+            { id: 'historial',   label: 'Historial',  show: true },
+          ] as { id: typeof reportTab; label: string; show: boolean }[]).filter(t => t.show).map(tab => (
             <button key={tab.id} onClick={() => setReportTab(tab.id)}
               className={cn('px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap',
                 reportTab === tab.id ? 'border-[var(--border)] text-[var(--ink)]' : 'border-transparent opacity-40 hover:opacity-70'
