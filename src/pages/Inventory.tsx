@@ -26,6 +26,7 @@ export const Inventory: React.FC = () => {
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [expandedColors, setExpandedColors] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState<{code: string, name: string, color: string, size: string, category: string, lowStockThreshold: string, costPrice: string, sellPrice: string}>({ code: '', name: '', color: '', size: '', category: '', lowStockThreshold: '', costPrice: '', sellPrice: '' });
 
@@ -136,8 +137,9 @@ export const Inventory: React.FC = () => {
   // Calculate aggregated stock per product
   const inventoryData = products.map(p => {
     const productStock = stockLevels.filter(s => s.productId === p.id);
-    const total = productStock.reduce((acc, curr) => acc + curr.quantity, 0);
-    return { ...p, totalStock: total, locations: productStock };
+    const filteredStock = filterLocation ? productStock.filter(s => s.locationId === filterLocation) : productStock;
+    const total = filteredStock.reduce((acc, curr) => acc + curr.quantity, 0);
+    return { ...p, totalStock: total, locations: filteredStock };
   }).filter(p => {
     const s = search.toLowerCase();
     const searchMatch = p.name.toLowerCase().includes(s) || p.code.toLowerCase().includes(s);
@@ -145,7 +147,8 @@ export const Inventory: React.FC = () => {
     const sizeMatch = filterSize ? p.size === filterSize : true;
     const categoryMatch = filterCategory ? (p.category || 'SIN CATEGORIA') === filterCategory : true;
     const statusMatch = filterStatus === 'LOW_STOCK' ? (p.lowStockThreshold !== undefined && p.totalStock <= p.lowStockThreshold) : true;
-    return searchMatch && colorMatch && sizeMatch && categoryMatch && statusMatch;
+    const locationMatch = filterLocation ? p.totalStock > 0 : true;
+    return searchMatch && colorMatch && sizeMatch && categoryMatch && statusMatch && locationMatch;
   });
 
   const toggleExpand = (id: string) => {
@@ -427,6 +430,11 @@ export const Inventory: React.FC = () => {
             className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
             <option value="">CATEGORIA</option>
             {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)}
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-36">
+            <option value="">ALMACÉN</option>
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)}
             className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">

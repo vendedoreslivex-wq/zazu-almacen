@@ -7,6 +7,7 @@ import {
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
   BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
   FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail, CalendarDays,
+  MoreVertical,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -316,7 +317,8 @@ type BulletinGroup = {
 
 // mode 'ops'  → RECEPCIÓN + BAJA/MERMA (DISPATCH con [BAJA])
 // mode 'dispatch' → DESPACHO (DISPATCH sin [BAJA]) + TRASLADO
-export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> = ({ mode }) => {
+// mode 'requerimientos' → TRANSFER (movimientos internos de requerimientos)
+export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | 'requerimientos' }> = ({ mode }) => {
   const { transactions, products, contacts, locations, activeBrand } = useAppContext();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
@@ -331,9 +333,10 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> 
       if (tx.status === 'CANCELLED' || !(tx.type in TX_BADGE)) return false;
       if (!mode) return true;
       const isWriteoff = tx.reference?.startsWith('[BAJA');
-      if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
-      if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
-      if (mode === 'despacho') return tx.type === 'DISPATCH' && !isWriteoff;
+      if (mode === 'ops')            return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
+      if (mode === 'dispatch')       return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+      if (mode === 'despacho')       return tx.type === 'DISPATCH' && !isWriteoff;
+      if (mode === 'requerimientos') return tx.type === 'TRANSFER';
       return true;
     });
 
@@ -397,6 +400,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> 
   }, [bulletinGroups]);
 
   const openBulletin = (g: BulletinGroup) => {
+    const isReq = mode === 'requerimientos';
     setBulletinData({
       type: g.type,
       reference: g.reference,
@@ -410,16 +414,17 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> 
       toLocation: g.toLocation,
       contact: g.contact,
       signature: g.signature,
+      ...(isReq && { labelOverride: 'REQUERIMIENTO', colorOverride: '#7c3aed' }),
     });
   };
 
   const TYPE_COLOR: Record<TransactionType, string> = {
     RECEPTION: 'text-green-600 bg-green-500/10 border-green-500/30',
     DISPATCH:  'text-red-600 bg-red-500/10 border-red-500/30',
-    TRANSFER:  'text-blue-600 bg-blue-500/10 border-blue-500/30',
+    TRANSFER:  mode === 'requerimientos' ? 'text-violet-600 bg-violet-500/10 border-violet-500/30' : 'text-blue-600 bg-blue-500/10 border-blue-500/30',
   };
   const TYPE_LABEL: Record<TransactionType, string> = {
-    RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: 'TRASLADO',
+    RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: mode === 'requerimientos' ? 'REQUERIMIENTO' : 'TRASLADO',
   };
 
   return (
@@ -1953,13 +1958,15 @@ interface BulletinData {
   contact?: string;
   signature?: string;
   photo?: string;
+  labelOverride?: string;
+  colorOverride?: string;
 }
 
 function buildBulletinHTML(p: BulletinData): string {
   const TYPE_LABEL: Record<TransactionType, string> = { RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: 'TRASLADO' };
   const TYPE_COLOR: Record<TransactionType, string> = { RECEPTION: '#16a34a', DISPATCH: '#dc2626', TRANSFER: '#0891b2' };
-  const label = TYPE_LABEL[p.type];
-  const color = TYPE_COLOR[p.type];
+  const label = p.labelOverride ?? TYPE_LABEL[p.type];
+  const color = p.colorOverride ?? TYPE_COLOR[p.type];
   const brandDisplay = p.brand.replace('_', ' ');
   const totalQty = p.items.reduce((s, i) => s + i.quantity, 0);
   const contactLabel = p.type === 'RECEPTION' ? 'Proveedor' : 'Cliente';
@@ -2199,6 +2206,18 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
   const [showBulkCancel, setShowBulkCancel] = useState(false);
   const [showBulkPurge, setShowBulkPurge]   = useState(false);
   const lastSelectedRef = useRef<string | null>(null);
+
+  // 3-dot menu per row
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-txmenu]')) setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuId]);
 
   const showToast = (msg: string, err = false) => {
     setToast(msg); setToastErr(err);
@@ -2523,43 +2542,57 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
                 </div>
                 <div className="shrink-0 font-mono text-[9px] opacity-40 hidden lg:block truncate max-w-[100px]">{tx.reference}</div>
 
-                {isCancelled ? (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <span className="text-[8px] font-black text-red-500 border border-red-500/50 px-1.5 py-0.5 bg-red-500/10">ANULADO</span>
-                    {/* Admin: hard-delete a cancelled record */}
-                    {isAdmin && (
-                      <button onClick={() => setPurgeTx(tx)} title="Eliminar registro"
-                        className="p-1.5 border border-transparent hover:border-red-600 hover:bg-red-600 hover:text-white transition-all text-red-400 ml-0.5">
-                        <Trash2 size={11} />
+                {/* 3-dot menu */}
+                <div className="relative shrink-0" data-txmenu>
+                  {isCancelled && (
+                    <span className="text-[8px] font-black text-red-500 border border-red-500/50 px-1.5 py-0.5 bg-red-500/10 mr-1">ANULADO</span>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === tx.id ? null : tx.id); }}
+                    className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all"
+                    title="Opciones"
+                  >
+                    <MoreVertical size={13} />
+                  </button>
+                  {openMenuId === tx.id && (
+                    <div className="absolute right-0 top-full mt-0.5 z-50 bg-[var(--bg)] border-2 border-[var(--border)] shadow-[4px_4px_0_var(--border)] min-w-[160px] flex flex-col">
+                      {/* Ver comprobante */}
+                      <button
+                        onClick={() => { setOpenMenuId(null); openBulletin(); }}
+                        className="flex items-center gap-2 px-3 py-2.5 font-mono text-[9px] font-bold uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all text-left"
+                      >
+                        <Mail size={11} /> Ver comprobante
                       </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    {/* Bulletin / comprobante */}
-                    <button onClick={openBulletin} title="Ver comprobante"
-                      className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
-                      <Mail size={12} />
-                    </button>
-                    {/* Edit · all roles */}
-                    <button onClick={() => { setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); setEditDate(tx.date.slice(0, 10)); }}
-                      title="Editar" className="p-1.5 border border-transparent hover:border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all">
-                      <Pencil size={12} />
-                    </button>
-                    {/* Cancel (anular) · all roles */}
-                    <button onClick={() => setCancelTx(tx)} title="Anular"
-                      className="p-1.5 border border-transparent hover:border-orange-500 hover:bg-orange-500 hover:text-white transition-all text-orange-500">
-                      <ShieldOff size={12} />
-                    </button>
-                    {/* Hard delete · admin only */}
-                    {isAdmin && (
-                      <button onClick={() => setPurgeTx(tx)} title="Eliminar registro"
-                        className="p-1.5 border border-transparent hover:border-red-600 hover:bg-red-600 hover:text-white transition-all text-red-400">
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
+                      {/* Editar */}
+                      {!isCancelled && (
+                        <button
+                          onClick={() => { setOpenMenuId(null); setEditTx(tx); setEditRef(tx.reference); setEditContact(tx.contactId ?? ''); setEditDate(tx.date.slice(0, 10)); }}
+                          className="flex items-center gap-2 px-3 py-2.5 font-mono text-[9px] font-bold uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all text-left"
+                        >
+                          <Pencil size={11} /> Editar
+                        </button>
+                      )}
+                      {/* Anular */}
+                      {!isCancelled && (
+                        <button
+                          onClick={() => { setOpenMenuId(null); setCancelTx(tx); }}
+                          className="flex items-center gap-2 px-3 py-2.5 font-mono text-[9px] font-bold uppercase tracking-widest text-orange-600 hover:bg-orange-500 hover:text-white transition-all text-left border-t border-[var(--border)]/20"
+                        >
+                          <ShieldOff size={11} /> Anular operación
+                        </button>
+                      )}
+                      {/* Eliminar registro · admin only */}
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setOpenMenuId(null); setPurgeTx(tx); }}
+                          className="flex items-center gap-2 px-3 py-2.5 font-mono text-[9px] font-bold uppercase tracking-widest text-red-600 hover:bg-red-600 hover:text-white transition-all text-left border-t border-[var(--border)]/20"
+                        >
+                          <Trash2 size={11} /> Eliminar registro
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -2784,7 +2817,7 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
 
 // --- Operations Report ---------------------------------------------------------
 
-export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> = ({ mode }) => {
+export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | 'requerimientos' }> = ({ mode }) => {
   const { transactions, products, locations, activeBrand } = useAppContext();
   const [reportTab, setReportTab] = useState<'resumen' | 'movimientos' | 'bajas' | 'historial'>('resumen');
   const [dateFrom, setDateFrom] = useState('');
@@ -2798,9 +2831,10 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
   const active = useMemo(() => transactions.filter(tx => {
     if (tx.status === 'CANCELLED') return false;
     const isWriteoff = tx.reference?.startsWith('[BAJA');
-    if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
-    if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
-    if (mode === 'despacho') return tx.type === 'DISPATCH' && !isWriteoff;
+    if (mode === 'ops')           return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
+    if (mode === 'dispatch')      return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+    if (mode === 'despacho')      return tx.type === 'DISPATCH' && !isWriteoff;
+    if (mode === 'requerimientos') return tx.type === 'TRANSFER';
     return true;
   }), [transactions, mode]);
 
@@ -3024,7 +3058,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
         <div className="flex items-center gap-2">
           <BarChart2 size={14} className="opacity-50" />
           <h2 className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-70">
-            {mode === 'ops' ? 'REPORTE · RECEPCIONES & BAJAS' : mode === 'dispatch' ? 'REPORTE · DESPACHOS & TRASLADOS' : 'REPORTE DE OPERACIONES'}
+            {mode === 'ops' ? 'REPORTE · RECEPCIONES & BAJAS' : mode === 'dispatch' ? 'REPORTE · DESPACHOS & TRASLADOS' : mode === 'requerimientos' ? 'REPORTE · REQUERIMIENTOS' : 'REPORTE DE OPERACIONES'}
           </h2>
           <span className="font-mono text-[8px] border border-[var(--border)]/20 px-1.5 py-0.5 bg-[var(--surface)] uppercase tracking-wider">{activeBrand}</span>
         </div>
@@ -3059,7 +3093,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
           <div className="font-mono text-[8px] opacity-40 mt-0.5">movidas</div>
         </div>
         {/* Recepciones — solo en ops o sin modo */}
-        {mode !== 'dispatch' && (
+        {(mode === 'ops' || !mode) && (
           <div className="border border-green-400 bg-green-500/10 p-3">
             <div className="flex items-center gap-1 mb-1"><ArrowDownLeft size={10} className="text-green-700" /><span className="font-mono text-[8px] font-bold text-green-700 uppercase tracking-wide">Recepciones</span></div>
             <div className="font-mono font-black text-xl text-green-600">{byType.RECEPTION.units.toLocaleString('es-PE')}</div>
@@ -3067,23 +3101,23 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
           </div>
         )}
         {/* Despachos — solo en dispatch o sin modo */}
-        {mode !== 'ops' && (
+        {(mode === 'dispatch' || mode === 'despacho' || !mode) && (
           <div className="border border-red-500/50 bg-red-500/10 p-3">
             <div className="flex items-center gap-1 mb-1"><ArrowUpRight size={10} className="text-red-700" /><span className="font-mono text-[8px] font-bold text-red-700 uppercase tracking-wide">Despachos</span></div>
             <div className="font-mono font-black text-xl text-red-600">{byType.DISPATCH.units.toLocaleString('es-PE')}</div>
             <div className="font-mono text-[8px] text-red-700 opacity-60 mt-0.5">{byType.DISPATCH.count} operaciones</div>
           </div>
         )}
-        {/* Traslados — solo en dispatch o sin modo */}
-        {mode !== 'ops' && (
+        {/* Traslados — en dispatch, requerimientos o sin modo */}
+        {(mode === 'dispatch' || mode === 'requerimientos' || !mode) && (
           <div className="border border-blue-400/50 bg-blue-500/10 p-3">
-            <div className="flex items-center gap-1 mb-1"><ArrowRightLeft size={10} className="text-blue-700" /><span className="font-mono text-[8px] font-bold text-blue-700 uppercase tracking-wide">Traslados</span></div>
+            <div className="flex items-center gap-1 mb-1"><ArrowRightLeft size={10} className="text-blue-700" /><span className="font-mono text-[8px] font-bold text-blue-700 uppercase tracking-wide">{mode === 'requerimientos' ? 'Requerimientos' : 'Traslados'}</span></div>
             <div className="font-mono font-black text-xl text-blue-600">{byType.TRANSFER.units.toLocaleString('es-PE')}</div>
             <div className="font-mono text-[8px] text-blue-700 opacity-60 mt-0.5">{byType.TRANSFER.count} operaciones</div>
           </div>
         )}
         {/* Bajas — solo en ops o sin modo */}
-        {mode !== 'dispatch' && (
+        {(mode === 'ops' || !mode) && (
           <div className="border border-orange-400 bg-orange-500/10 p-3">
             <div className="flex items-center gap-1 mb-1"><ShieldOff size={10} className="text-orange-700" /><span className="font-mono text-[8px] font-bold text-orange-700 uppercase tracking-wide">Bajas/Merma</span></div>
             <div className="font-mono font-black text-xl text-orange-600">{writeoffUnits.toLocaleString('es-PE')}</div>

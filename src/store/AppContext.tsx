@@ -54,6 +54,7 @@ interface AppContextType {
   updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null; date?: string }) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
   receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
+  dispatchRequirement: (po: PurchaseOrder, receiveQtys: Record<number, number>, fromLocationIds: Record<number, string>) => Promise<void>;
   notificationSubscribers: NotificationSubscriber[];
   addSubscriber: (s: Omit<NotificationSubscriber, 'id'>) => Promise<void>;
   updateSubscriber: (s: NotificationSubscriber) => Promise<void>;
@@ -366,6 +367,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (posR.data) setPurchaseOrders(posR.data.map(dbToPO));
   };
 
+  const dispatchRequirement = async (po: PurchaseOrder, receiveQtys: Record<number, number>, fromLocationIds: Record<number, string>): Promise<void> => {
+    const payload = po.items
+      .map((item, i) => ({ product_id: item.productId, qty: receiveQtys[i] || 0, from_location_id: fromLocationIds[i] || null }))
+      .filter(x => x.qty > 0);
+    if (payload.length === 0) return;
+    const { error } = await supabase.rpc('dispatch_requirement', {
+      p_po_id: po.id,
+      p_user_name: currentUser.username,
+      p_qtys: JSON.stringify(payload),
+    });
+    if (error) { console.error('dispatch_requirement error:', JSON.stringify(error)); throw new Error(error.message); }
+    const [s, t, posR] = await Promise.all([
+      supabase.from('stock_levels').select('*').eq('brand', activeBrand),
+      supabase.from('transactions').select('*').eq('brand', activeBrand).order('date', { ascending: false }),
+      supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', activeBrand).order('date', { ascending: false }),
+    ]);
+    if (s.data) setStockLevels(s.data.map(dbToStock));
+    if (t.data) setTransactions(t.data.map(dbToTx));
+    if (posR.data) setPurchaseOrders(posR.data.map(dbToPO));
+  };
+
   const addProduct = (p: Omit<Product, 'id'>) => {
     const tempId = crypto.randomUUID();
     setProducts(prev => [...prev, { ...p, id: tempId }]);
@@ -665,7 +687,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addLocation, updateLocation, deleteLocation, deleteStockLevel,
     addContact, updateContact, deleteContact, setCurrentUser,
     addUser, updateUser, deleteUser,
-    addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder,
+    addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder, dispatchRequirement,
     addAdjustment,
     rolePermissions, updateRolePermission,
     notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
