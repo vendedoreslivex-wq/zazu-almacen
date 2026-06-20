@@ -1297,6 +1297,7 @@ const WriteOffForm: React.FC = () => {
   const [receptionModalRef, setReceptionModalRef] = useState('');
   const [defectQtys, setDefectQtys] = useState<Record<string, string>>({});
   const [modalFilterName, setModalFilterName] = useState<string | null>(null);
+  const [modalFilterColor, setModalFilterColor] = useState<string | null>(null);
 
   const receptionModalItems = useMemo(() => {
     if (!receptionModalRef) return [];
@@ -1321,6 +1322,7 @@ const WriteOffForm: React.FC = () => {
       setReceptionModalRef(ref);
       setDefectQtys({});
       setModalFilterName(null);
+      setModalFilterColor(null);
       setShowReceptionModal(true);
     } else {
       setReceptionModalRef('');
@@ -1699,7 +1701,7 @@ const WriteOffForm: React.FC = () => {
       {/* Modal: prendas de la recepción seleccionada */}
       {showReceptionModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border-2 border-orange-600 shadow-[6px_6px_0_#c2410c] w-full max-w-lg max-h-[90vh] flex flex-col">
+          <div className="bg-[var(--bg)] border-2 border-orange-600 shadow-[6px_6px_0_#c2410c] w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div className="bg-orange-600 text-white px-5 py-3 flex justify-between items-center shrink-0">
               <div>
                 <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">RECEPCIÓN VINCULADA</div>
@@ -1708,40 +1710,80 @@ const WriteOffForm: React.FC = () => {
               <button onClick={() => setShowReceptionModal(false)} className="opacity-60 hover:opacity-100 font-mono text-lg leading-none">×</button>
             </div>
 
-            {/* Botones de filtro por nombre/modelo */}
+            {/* Filtros: nivel 1 — modelo, nivel 2 — color */}
             {receptionModalItems.length > 0 && (() => {
               const names = Array.from(new Set(receptionModalItems.map(i => i.product?.name ?? '').filter(Boolean)));
+              const colorsForName = modalFilterName
+                ? Array.from(new Set(receptionModalItems.filter(i => i.product?.name === modalFilterName).map(i => i.product?.color ?? '').filter(Boolean)))
+                : [];
               return (
-                <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)] flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setModalFilterName(null)}
-                    className={cn(
-                      'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
-                      modalFilterName === null
-                        ? 'bg-orange-600 text-white border-orange-600'
-                        : 'border-[var(--border)] opacity-60 hover:opacity-100'
-                    )}
-                  >
-                    TODOS ({receptionModalItems.length})
-                  </button>
-                  {names.map(name => {
-                    const count = receptionModalItems.filter(i => i.product?.name === name).length;
-                    const active = modalFilterName === name;
-                    return (
+                <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)] flex flex-col gap-2">
+                  {/* Fila modelos */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => { setModalFilterName(null); setModalFilterColor(null); }}
+                      className={cn(
+                        'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                        modalFilterName === null
+                          ? 'bg-orange-600 text-white border-orange-600'
+                          : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                      )}
+                    >
+                      TODOS ({receptionModalItems.length})
+                    </button>
+                    {names.map(name => {
+                      const count = receptionModalItems.filter(i => i.product?.name === name).length;
+                      const active = modalFilterName === name;
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => { setModalFilterName(active ? null : name); setModalFilterColor(null); }}
+                          className={cn(
+                            'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                            active
+                              ? 'bg-orange-600 text-white border-orange-600'
+                              : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                          )}
+                        >
+                          {name} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Fila colores — solo si hay modelo seleccionado */}
+                  {colorsForName.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pl-1">
+                      <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest self-center mr-1">COLOR:</span>
                       <button
-                        key={name}
-                        onClick={() => setModalFilterName(active ? null : name)}
+                        onClick={() => setModalFilterColor(null)}
                         className={cn(
-                          'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
-                          active
-                            ? 'bg-orange-600 text-white border-orange-600'
-                            : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                          'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
+                          modalFilterColor === null
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'border-[var(--border)] opacity-50 hover:opacity-100'
                         )}
                       >
-                        {name} ({count})
+                        TODOS
                       </button>
-                    );
-                  })}
+                      {colorsForName.map(color => {
+                        const active = modalFilterColor === color;
+                        return (
+                          <button
+                            key={color}
+                            onClick={() => setModalFilterColor(active ? null : color)}
+                            className={cn(
+                              'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
+                              active
+                                ? 'bg-orange-500 text-white border-orange-500'
+                                : 'border-[var(--border)] opacity-50 hover:opacity-100'
+                            )}
+                          >
+                            {color}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -1754,7 +1796,11 @@ const WriteOffForm: React.FC = () => {
                 <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
               ) : (
                 receptionModalItems
-                .filter(({ product }) => !modalFilterName || product?.name === modalFilterName)
+                .filter(({ product }) => {
+                  if (modalFilterName && product?.name !== modalFilterName) return false;
+                  if (modalFilterColor && product?.color !== modalFilterColor) return false;
+                  return true;
+                })
                 .map(({ productId, qty, product }) => {
                   const val = defectQtys[productId] ?? '';
                   const n = parseInt(val, 10);
