@@ -41,7 +41,7 @@ export type StockLevel = {
   quantity: number;
 };
 
-export type Role = 'ADMIN_GENERAL' | 'CEO' | 'ADMINISTRADOR' | 'JEFE_ALMACEN';
+export type Role = 'ADMIN_GENERAL' | 'CEO' | 'ADMINISTRADOR' | 'JEFE_ALMACEN' | 'DESPACHADOR';
 
 export type User = {
   id: string;

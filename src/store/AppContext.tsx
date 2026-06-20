@@ -205,6 +205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           CEO: { ...prev.CEO },
           ADMINISTRADOR: { ...prev.ADMINISTRADOR },
           JEFE_ALMACEN: { ...prev.JEFE_ALMACEN },
+          DESPACHADOR: { ...prev.DESPACHADOR },
         };
         for (const row of data) {
           if (next[row.role as Role]) next[row.role as Role][row.module] = row.permission as Permission;

@@ -31,6 +31,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'odoo-stock': 'view',
   },
+  DESPACHADOR: {
+    dashboard: 'view', analysis: 'none', inventory: 'view', locations: 'view',
+    operations: 'full', adjustments: 'none', 'purchase-orders': 'none',
+    history: 'view', contacts: 'view', reports: 'none', labels: 'full',
+    'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
+    reservations: 'full', 'odoo-stock': 'none',
+  },
 };
 
 export const ROLE_PERMISSIONS = DEFAULT_ROLE_PERMISSIONS;

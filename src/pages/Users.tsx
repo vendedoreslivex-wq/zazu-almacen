@@ -3,7 +3,7 @@ import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import {
   Plus, Trash2, Edit2, ShieldCheck, TrendingUp, Settings,
-  Warehouse, Mail, Users as UsersIcon, Lock, Bell, X
+  Warehouse, Mail, Users as UsersIcon, Lock, Bell, X, Truck
 } from 'lucide-react';
 import { UserWithPassword, Role, NotificationSubscriber } from '../types';
 import { canEdit, Permission } from '../lib/permissions';
@@ -13,6 +13,7 @@ const ROLE_LABELS: Record<Role, string> = {
   CEO: 'CEO',
   ADMINISTRADOR: 'Administrador',
   JEFE_ALMACEN: 'Jefe Almacen',
+  DESPACHADOR: 'Despachador',
 };
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -20,6 +21,7 @@ const ROLE_COLORS: Record<Role, string> = {
   CEO: 'bg-purple-700 text-white',
   ADMINISTRADOR: 'bg-blue-700 text-white',
   JEFE_ALMACEN: 'bg-amber-700 text-white',
+  DESPACHADOR: 'bg-teal-700 text-white',
 };
 
 const ROLE_BORDER: Record<Role, string> = {
@@ -27,12 +29,14 @@ const ROLE_BORDER: Record<Role, string> = {
   CEO: 'border-purple-700',
   ADMINISTRADOR: 'border-blue-700',
   JEFE_ALMACEN: 'border-amber-700',
+  DESPACHADOR: 'border-teal-700',
 };
 
 const RoleIcon = ({ role, size = 12 }: { role: Role; size?: number }) => {
   if (role === 'ADMIN_GENERAL') return <ShieldCheck size={size} />;
   if (role === 'CEO') return <TrendingUp size={size} />;
   if (role === 'ADMINISTRADOR') return <Settings size={size} />;
+  if (role === 'DESPACHADOR') return <Truck size={size} />;
   return <Warehouse size={size} />;
 };
 
@@ -116,7 +120,7 @@ export const Users: React.FC = () => {
 
   const isAdmin = canEdit(currentUser.role, 'users');
   const isAdminGeneral = currentUser.role === 'ADMIN_GENERAL';
-  const roles: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN'];
+  const roles: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN', 'DESPACHADOR'];
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setUserError(''); setShowModal(true); };
   const openEdit = (u: UserWithPassword) => {
@@ -361,7 +365,7 @@ export const Users: React.FC = () => {
                                 >
                                   <div className={`flex items-center gap-1 text-[8px] font-black ${ROLE_COLORS[r]} px-1.5 py-0.5 rounded-sm shrink-0`}>
                                     <RoleIcon role={r} size={9} />
-                                    <span>{r === 'ADMIN_GENERAL' ? 'AG' : r === 'ADMINISTRADOR' ? 'AD' : r === 'JEFE_ALMACEN' ? 'JA' : 'CEO'}</span>
+                                    <span>{r === 'ADMIN_GENERAL' ? 'AG' : r === 'ADMINISTRADOR' ? 'AD' : r === 'JEFE_ALMACEN' ? 'JA' : r === 'DESPACHADOR' ? 'DE' : 'CEO'}</span>
                                   </div>
                                   <span className={`font-mono text-[8px] font-bold border px-1.5 py-0.5 rounded-sm ${PERM_STYLE[perm]}`}>{PERM_LABEL[perm]}</span>
                                 </button>
