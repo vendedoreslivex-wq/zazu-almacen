@@ -518,7 +518,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tempId = crypto.randomUUID();
     const date = nowLima();
     setPurchaseOrders(prev => [{ ...po, id: tempId, date }, ...prev]);
-    supabase.from('purchase_orders').insert([{ brand: activeBrand, supplier_id: po.supplierId || null, status: po.status, reference: po.reference, notes: po.notes || null, location_id: po.locationId || null }]).select().single()
+    supabase.from('purchase_orders').insert([{ brand: activeBrand, supplier_id: po.supplierId || null, status: po.status, type: po.type ?? 'OC', reference: po.reference, notes: po.notes || null, location_id: po.locationId || null }]).select().single()
       .then(async ({ data, error }) => {
         if (error || !data) { setPurchaseOrders(prev => prev.filter(x => x.id !== tempId)); return; }
         if (po.items.length > 0) {

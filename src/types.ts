@@ -69,6 +69,8 @@ export type UserWithPassword = User & {
 
 export type PurchaseOrderStatus = 'DRAFT' | 'APPROVED' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED';
 
+export type PurchaseOrderType = 'OC' | 'REQUIREMENT';
+
 export type PurchaseOrderItem = {
   productId: string;
   quantity: number;
@@ -81,6 +83,7 @@ export type PurchaseOrder = {
   date: string;
   supplierId: string;
   status: PurchaseOrderStatus;
+  type: PurchaseOrderType;
   items: PurchaseOrderItem[];
   reference: string;
   notes?: string;
