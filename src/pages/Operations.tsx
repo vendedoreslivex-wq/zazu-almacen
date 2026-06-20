@@ -1292,6 +1292,58 @@ const WriteOffForm: React.FC = () => {
       .slice(0, 50);
   }, [transactions]);
 
+  // Modal de productos de recepción
+  const [showReceptionModal, setShowReceptionModal] = useState(false);
+  const [receptionModalRef, setReceptionModalRef] = useState('');
+  const [defectQtys, setDefectQtys] = useState<Record<string, string>>({});
+
+  const receptionModalItems = useMemo(() => {
+    if (!receptionModalRef) return [];
+    const txs = transactions.filter(tx =>
+      tx.type === 'RECEPTION' &&
+      tx.status !== 'CANCELLED' &&
+      tx.reference?.trim() === receptionModalRef
+    );
+    // Agrupar por productId sumando cantidades
+    const map = new Map<string, number>();
+    txs.forEach(tx => map.set(tx.productId, (map.get(tx.productId) ?? 0) + tx.quantity));
+    return Array.from(map.entries()).map(([productId, qty]) => ({
+      productId,
+      qty,
+      product: products.find(p => p.id === productId),
+    }));
+  }, [receptionModalRef, transactions, products]);
+
+  const openReceptionModal = (ref: string) => {
+    setReturnTxRef(ref);
+    if (ref) {
+      setReceptionModalRef(ref);
+      setDefectQtys({});
+      setShowReceptionModal(true);
+    } else {
+      setReceptionModalRef('');
+    }
+  };
+
+  const confirmReceptionDefects = () => {
+    const toAdd: LineItem[] = [];
+    receptionModalItems.forEach(({ productId, qty }) => {
+      const raw = defectQtys[productId];
+      const n = parseInt(raw, 10);
+      if (!n || n <= 0) return;
+      const capped = Math.min(n, qty);
+      toAdd.push({ key: `${productId}-${Date.now()}-${Math.random()}`, productId, qty: String(capped) });
+    });
+    if (toAdd.length > 0) {
+      setLineItems(prev => {
+        // Evitar duplicados por productId — si ya existe, reemplazar
+        const existing = prev.filter(l => !toAdd.some(a => a.productId === l.productId));
+        return [...existing, ...toAdd];
+      });
+    }
+    setShowReceptionModal(false);
+  };
+
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1500,18 +1552,29 @@ const WriteOffForm: React.FC = () => {
             </FormGroup>
 
             <FormGroup label="VINCULAR A RECEPCIÓN (OPCIONAL)">
-              <select
-                value={returnTxRef}
-                onChange={e => setReturnTxRef(e.target.value)}
-                className="input-technical"
-              >
-                <option value="">- Sin referencia -</option>
-                {receptionRefs.map(tx => (
-                  <option key={tx.id} value={tx.reference!}>
-                    {tx.reference} · {tx.date.slice(0, 10)}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={returnTxRef}
+                  onChange={e => openReceptionModal(e.target.value)}
+                  className="input-technical flex-1"
+                >
+                  <option value="">- Sin referencia -</option>
+                  {receptionRefs.map(tx => (
+                    <option key={tx.id} value={tx.reference!}>
+                      {tx.reference} · {tx.date.slice(0, 10)}
+                    </option>
+                  ))}
+                </select>
+                {returnTxRef && (
+                  <button
+                    type="button"
+                    onClick={() => { setReceptionModalRef(returnTxRef); setDefectQtys({}); setShowReceptionModal(true); }}
+                    className="shrink-0 border border-orange-600 text-orange-700 px-3 font-mono text-[9px] font-bold uppercase hover:bg-orange-500/20 transition-colors"
+                  >
+                    VER PRENDAS
+                  </button>
+                )}
+              </div>
             </FormGroup>
 
             <p className="md:col-span-2 font-mono text-[9px] text-orange-700 font-bold uppercase tracking-widest border border-orange-600/30 bg-orange-500/10 p-2">
@@ -1626,6 +1689,75 @@ const WriteOffForm: React.FC = () => {
                   VOLVER
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: prendas de la recepción seleccionada */}
+      {showReceptionModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg)] border-2 border-orange-600 shadow-[6px_6px_0_#c2410c] w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="bg-orange-600 text-white px-5 py-3 flex justify-between items-center shrink-0">
+              <div>
+                <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">RECEPCIÓN VINCULADA</div>
+                <div className="font-mono font-black text-sm uppercase tracking-widest truncate">{receptionModalRef}</div>
+              </div>
+              <button onClick={() => setShowReceptionModal(false)} className="opacity-60 hover:opacity-100 font-mono text-lg leading-none">×</button>
+            </div>
+
+            <div className="p-4 flex flex-col gap-1 overflow-y-auto flex-1">
+              <p className="font-mono text-[9px] opacity-60 uppercase tracking-widest mb-2">
+                INDICA CUÁNTAS PRENDAS ESTÁN DEFECTUOSAS POR CADA MODELO
+              </p>
+              {receptionModalItems.length === 0 ? (
+                <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
+              ) : (
+                receptionModalItems.map(({ productId, qty, product }) => {
+                  const val = defectQtys[productId] ?? '';
+                  const n = parseInt(val, 10);
+                  const invalid = val !== '' && (isNaN(n) || n < 0 || n > qty);
+                  return (
+                    <div key={productId} className="flex items-center gap-3 px-3 py-2.5 border border-[var(--border)] bg-[var(--surface)]">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-[10px] font-black uppercase truncate">{product?.name} {product?.color} {product?.size}</div>
+                        <div className="font-mono text-[9px] opacity-50">{product?.code} · Recepcionado: {qty} uds</div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input
+                          type="number"
+                          min={0}
+                          max={qty}
+                          value={val}
+                          onChange={e => setDefectQtys(prev => ({ ...prev, [productId]: e.target.value }))}
+                          placeholder="0"
+                          className={cn(
+                            'w-16 text-center font-mono text-sm font-black border px-2 py-1 outline-none',
+                            invalid ? 'border-red-600 bg-red-500/10 text-red-700' : 'border-orange-600 bg-orange-500/10'
+                          )}
+                        />
+                        <span className="font-mono text-[9px] opacity-40">/ {qty}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex gap-2 p-4 border-t border-[var(--border)] shrink-0">
+              <button
+                onClick={confirmReceptionDefects}
+                disabled={receptionModalItems.length === 0}
+                className="flex-1 bg-orange-600 text-white py-2.5 text-xs font-bold font-mono uppercase hover:bg-orange-700 transition-colors disabled:opacity-40"
+              >
+                AGREGAR DEFECTUOSAS A LA BAJA
+              </button>
+              <button
+                onClick={() => setShowReceptionModal(false)}
+                className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]"
+              >
+                CANCELAR
+              </button>
             </div>
           </div>
         </div>
