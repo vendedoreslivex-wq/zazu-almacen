@@ -330,7 +330,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) 
     const active = transactions.filter(tx => {
       if (tx.status === 'CANCELLED' || !(tx.type in TX_BADGE)) return false;
       if (!mode) return true;
-      const isWriteoff = tx.reference?.startsWith('[BAJA]');
+      const isWriteoff = tx.reference?.startsWith('[BAJA');
       if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
       if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
       return true;
@@ -1264,7 +1264,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
 // --- WriteOffForm --------------------------------------------------------------
 
 const WriteOffForm: React.FC = () => {
-  const { products, locations, addTransaction, stockLevels, activeBrand, currentUser } = useAppContext();
+  const { products, locations, addTransaction, stockLevels, activeBrand, currentUser, contacts, transactions } = useAppContext();
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [fromLocation, setFromLocation] = useState('');
@@ -1276,6 +1276,21 @@ const WriteOffForm: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+
+  // Devolución al proveedor
+  const [isReturn, setIsReturn] = useState(false);
+  const [returnContactId, setReturnContactId] = useState('');
+  const [returnTxRef, setReturnTxRef] = useState('');
+
+  const suppliers = contacts.filter(c => c.type === 'SUPPLIER');
+  const receptionRefs = useMemo(() => {
+    const seen = new Set<string>();
+    return transactions
+      .filter(tx => tx.type === 'RECEPTION' && tx.status !== 'CANCELLED' && tx.reference?.trim())
+      .filter(tx => { const k = tx.reference!.trim(); if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 50);
+  }, [transactions]);
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1290,6 +1305,7 @@ const WriteOffForm: React.FC = () => {
     if (!fromLocation) errs.fromLocation = 'SELECCIONE_UBICACIÓN_ORIGEN';
     if (!reason) errs.reason = 'SELECCIONE_MOTIVO_DE_BAJA';
     if (reason === 'Otro motivo' && !customReason.trim()) errs.customReason = 'DESCRIBE_EL_MOTIVO';
+    if (isReturn && !returnContactId) errs.returnContact = 'SELECCIONE_PROVEEDOR';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -1306,7 +1322,9 @@ const WriteOffForm: React.FC = () => {
   const executeWriteOff = async () => {
     setShowPreview(false);
     const guideNumber = await nextGuideNumber('DISPATCH', activeBrand);
-    const reference = `[BAJA] ${effectiveReason}${notes.trim() ? ' · ' + notes.trim() : ''}`;
+    const prefix = isReturn ? '[BAJA/DEV]' : '[BAJA]';
+    const refSuffix = isReturn && returnTxRef ? ` · REF:${returnTxRef}` : '';
+    const reference = `${prefix} ${effectiveReason}${notes.trim() ? ' · ' + notes.trim() : ''}${refSuffix}`;
     try {
       for (const item of lineItems) {
         await addTransaction({
@@ -1315,6 +1333,7 @@ const WriteOffForm: React.FC = () => {
           quantity: parseInt(item.qty, 10),
           fromLocationId: fromLocation,
           reference,
+          contactId: isReturn ? returnContactId : undefined,
           user: currentUser.username,
         });
       }
@@ -1329,6 +1348,9 @@ const WriteOffForm: React.FC = () => {
     setCustomReason('');
     setNotes('');
     setPhoto(null);
+    setIsReturn(false);
+    setReturnContactId('');
+    setReturnTxRef('');
     setErrors({});
     if (photoInputRef.current) photoInputRef.current.value = '';
 
@@ -1446,6 +1468,59 @@ const WriteOffForm: React.FC = () => {
         </FormGroup>
       </div>
 
+      {/* Devolución al proveedor */}
+      <div className={cn('border p-4 flex flex-col gap-4 transition-colors', isReturn ? 'border-orange-600 bg-orange-500/10' : 'border-[var(--border)]')}>
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <button
+            type="button"
+            onClick={() => { setIsReturn(v => !v); setReturnContactId(''); setReturnTxRef(''); setErrors(prev => ({ ...prev, returnContact: '' })); }}
+            className={cn(
+              'w-10 h-5 relative transition-colors shrink-0',
+              isReturn ? 'bg-orange-600' : 'bg-[var(--border)]'
+            )}
+          >
+            <span className={cn('absolute top-0.5 w-4 h-4 bg-white transition-all', isReturn ? 'left-5' : 'left-0.5')} />
+          </button>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-widest">
+            ¿Aplica devolución al proveedor?
+          </span>
+        </label>
+
+        {isReturn && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormGroup label="PROVEEDOR" error={errors.returnContact}>
+              <select
+                value={returnContactId}
+                onChange={e => { setReturnContactId(e.target.value); setErrors(prev => ({ ...prev, returnContact: '' })); }}
+                className={cn('input-technical', errors.returnContact && 'border-red-600 bg-red-500/10')}
+              >
+                <option value="">- Seleccione proveedor -</option>
+                {suppliers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </FormGroup>
+
+            <FormGroup label="VINCULAR A RECEPCIÓN (OPCIONAL)">
+              <select
+                value={returnTxRef}
+                onChange={e => setReturnTxRef(e.target.value)}
+                className="input-technical"
+              >
+                <option value="">- Sin referencia -</option>
+                {receptionRefs.map(tx => (
+                  <option key={tx.id} value={tx.reference!}>
+                    {tx.reference} · {tx.date.slice(0, 10)}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            <p className="md:col-span-2 font-mono text-[9px] text-orange-700 font-bold uppercase tracking-widest border border-orange-600/30 bg-orange-500/10 p-2">
+              SE REGISTRARÁ COMO [BAJA/DEV] — DESCUENTA INVENTARIO Y QUEDA VINCULADO AL PROVEEDOR SELECCIONADO
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Foto evidencia */}
       <FormGroup label="EVIDENCIA FOTOGRÁFICA (RECOMENDADO)">
         <div className="flex items-center gap-2">
@@ -1513,10 +1588,13 @@ const WriteOffForm: React.FC = () => {
             </div>
             <div className="p-5 flex flex-col gap-4">
               <div className="bg-red-500/10 border border-red-800/30 p-3 font-mono text-[10px] flex flex-col gap-1">
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Tipo</span><span className={cn('font-bold', isReturn ? 'text-orange-700' : '')}>{isReturn ? 'BAJA + DEVOLUCIÓN A PROVEEDOR' : 'BAJA / MERMA'}</span></div>
                 <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Motivo</span><span className="font-bold">{effectiveReason}</span></div>
                 {notes && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Notas</span><span className="font-bold">{notes}</span></div>}
                 <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Almacen</span><span className="font-bold">{locations.find(l => l.id === fromLocation)?.name}</span></div>
                 <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Operador</span><span className="font-bold">{currentUser.username}</span></div>
+                {isReturn && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Proveedor</span><span className="font-bold text-orange-700">{contacts.find(c => c.id === returnContactId)?.name}</span></div>}
+                {isReturn && returnTxRef && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Ref. recep.</span><span className="font-bold text-orange-700">{returnTxRef}</span></div>}
               </div>
               <div className="border border-red-800/30">
                 <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRENDAS A DAR DE BAJA</div>
@@ -2504,8 +2582,8 @@ export const OperationsReport: React.FC = () => {
     return true;
   }), [active, dateFrom, dateTo]);
 
-  const writeoffs = useMemo(() => filtered.filter(tx => tx.reference?.startsWith('[BAJA]')), [filtered]);
-  const regular   = useMemo(() => filtered.filter(tx => !tx.reference?.startsWith('[BAJA]')), [filtered]);
+  const writeoffs = useMemo(() => filtered.filter(tx => tx.reference?.startsWith('[BAJA')), [filtered]);
+  const regular   = useMemo(() => filtered.filter(tx => !tx.reference?.startsWith('[BAJA')), [filtered]);
 
   const byType = useMemo(() => {
     const map: Record<string, { count: number; units: number }> = {
@@ -2536,7 +2614,7 @@ export const OperationsReport: React.FC = () => {
       const code = prod?.code ?? '';
       if (!map.has(name)) map.set(name, { name, code, in: 0, out: 0, transfer: 0, writeoff: 0 });
       const e = map.get(name)!;
-      const isWriteoff = tx.reference?.startsWith('[BAJA]');
+      const isWriteoff = tx.reference?.startsWith('[BAJA');
       if (tx.type === 'RECEPTION') e.in += tx.quantity;
       else if (tx.type === 'DISPATCH') { if (isWriteoff) e.writeoff += tx.quantity; else e.out += tx.quantity; }
       else e.transfer += tx.quantity;
@@ -2597,7 +2675,7 @@ export const OperationsReport: React.FC = () => {
   const exportExcel = () => {
     const rows = histFiltered.map(tx => {
       const prod = products.find(p => p.id === tx.productId);
-      const isWO = tx.reference?.startsWith('[BAJA]');
+      const isWO = tx.reference?.startsWith('[BAJA');
       return {
         Fecha: new Date(tx.date).toLocaleString('es-PE'),
         Tipo: isWO ? 'BAJA/MERMA' : tx.type === 'RECEPTION' ? 'RECEPCIÓN' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO',
@@ -2631,7 +2709,7 @@ export const OperationsReport: React.FC = () => {
       : 'Todos los per-odos';
     const rowsHTML = histFiltered.map((tx, i) => {
       const prod = products.find(p => p.id === tx.productId);
-      const isWO = tx.reference?.startsWith('[BAJA]');
+      const isWO = tx.reference?.startsWith('[BAJA');
       const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RECEPCION' : tx.type === 'DISPATCH' ? 'DESPACHO' : 'TRASLADO';
       const typeColor = isWO ? '#991b1b' : tx.type === 'RECEPTION' ? '#15803d' : tx.type === 'DISPATCH' ? '#b91c1c' : '#0369a1';
       return `<tr style="background:${i%2===0?'#f9f9f9':'#fff'}">
@@ -3069,7 +3147,7 @@ export const OperationsReport: React.FC = () => {
               <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin resultados</div>
             ) : histRows.map((tx, i) => {
               const prod = products.find(p => p.id === tx.productId);
-              const isWO = tx.reference?.startsWith('[BAJA]');
+              const isWO = tx.reference?.startsWith('[BAJA');
               const typeLabel = isWO ? 'BAJA' : tx.type === 'RECEPTION' ? 'RX' : tx.type === 'DISPATCH' ? 'TX' : 'MV';
               const typeColor = isWO ? 'text-orange-700 bg-orange-500/10 border-orange-400' : tx.type === 'RECEPTION' ? 'text-green-700 bg-green-500/10 border-green-400' : tx.type === 'DISPATCH' ? 'text-red-700 bg-red-500/10 border-red-400' : 'text-blue-700 bg-blue-500/10 border-blue-400';
               const locName = tx.type === 'RECEPTION'
