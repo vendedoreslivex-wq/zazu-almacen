@@ -285,6 +285,7 @@ export const PurchaseOrders: React.FC = () => {
 
   const isAdmin = hasPermission(currentUser.role, 'purchase-orders');
   const isJefeAlmacen = currentUser.role === 'JEFE_ALMACEN' || currentUser.role === 'ADMIN_GENERAL' || currentUser.role === 'CEO';
+  const isDespachador = currentUser.role === 'DESPACHADOR';
   const canEdit = hasPermission(currentUser.role, 'purchase-orders');
   const suppliers = contacts.filter(c => c.type === 'SUPPLIER');
 
@@ -444,53 +445,58 @@ export const PurchaseOrders: React.FC = () => {
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
       <ModuleInfo number="09" title="Despacho & Traslado" description="Gestión de requerimientos de almacén, traslados y órdenes de compra a proveedores." />
 
-      {/* Main tabs */}
+      {/* Main tabs — DESPACHADOR solo ve OPERACIONES */}
       <div className="flex flex-wrap border border-[var(--border)] bg-[var(--bg-sidebar)]">
         <button onClick={() => setMainTab('ops')} className={tabCls(mainTab === 'ops')}>
           <ArrowUpRight size={14} /> OPERACIONES
         </button>
-        <button onClick={() => setMainTab('log')} className={tabCls(mainTab === 'log')}>
-          <FileText size={14} /> HISTORIAL
-        </button>
-        <button onClick={() => setMainTab('reports')} className={tabCls(mainTab === 'reports')}>
-          <BarChart2 size={14} /> REPORTES
-        </button>
-        <button onClick={() => setMainTab('bulletins')} className={tabCls(mainTab === 'bulletins')}>
-          <Mail size={14} /> COMPROBANTES
-        </button>
-        <button onClick={() => setMainTab('oc')} className={cn(tabCls(mainTab === 'oc'), 'border-r-0')}>
-          <ShoppingCart size={14} /> ÓRDENES OC
-        </button>
+        {!isDespachador && <>
+          <button onClick={() => setMainTab('log')} className={tabCls(mainTab === 'log')}>
+            <FileText size={14} /> HISTORIAL
+          </button>
+          <button onClick={() => setMainTab('reports')} className={tabCls(mainTab === 'reports')}>
+            <BarChart2 size={14} /> REPORTES
+          </button>
+          <button onClick={() => setMainTab('bulletins')} className={tabCls(mainTab === 'bulletins')}>
+            <Mail size={14} /> COMPROBANTES
+          </button>
+          <button onClick={() => setMainTab('oc')} className={cn(tabCls(mainTab === 'oc'), 'border-r-0')}>
+            <ShoppingCart size={14} /> ÓRDENES OC
+          </button>
+        </>}
       </div>
 
       {/* OPERACIONES tab */}
       {mainTab === 'ops' && (
         <>
-          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
-            <OptButton
-              icon={<ClipboardList size={18} />}
-              label="REQUERIMIENTOS"
-              desc="Solicita prendas desde reservas hacia stock despacho."
-              active={activeOpt === 'REQUIREMENT'}
-              onClick={() => setActiveOpt('REQUIREMENT')}
-            />
-            <OptButton
-              icon={<ArrowUpRight size={18} />}
-              label="DESPACHO"
-              desc="Registra salida de productos. Descuenta del inventario disponible."
-              active={activeOpt === 'DISPATCH'}
-              onClick={() => setActiveOpt('DISPATCH')}
-            />
-          </div>
+          {/* Selector DESPACHO/REQUERIMIENTO — oculto para DESPACHADOR */}
+          {!isDespachador && (
+            <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
+              <OptButton
+                icon={<ClipboardList size={18} />}
+                label="REQUERIMIENTOS"
+                desc="Solicita prendas desde reservas hacia stock despacho."
+                active={activeOpt === 'REQUIREMENT'}
+                onClick={() => setActiveOpt('REQUIREMENT')}
+              />
+              <OptButton
+                icon={<ArrowUpRight size={18} />}
+                label="DESPACHO"
+                desc="Registra salida de productos. Descuenta del inventario disponible."
+                active={activeOpt === 'DISPATCH'}
+                onClick={() => setActiveOpt('DISPATCH')}
+              />
+            </div>
+          )}
 
-          {activeOpt === 'DISPATCH' && (
+          {!isDespachador && activeOpt === 'DISPATCH' && (
             <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
               <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">TX</div>
               <OperationForm key="DISPATCH" type="DISPATCH" />
             </div>
           )}
 
-          {activeOpt === 'REQUIREMENT' && (
+          {(activeOpt === 'REQUIREMENT' || isDespachador) && (
             <div className="flex flex-col gap-4">
               {/* Formulario nuevo requerimiento */}
               <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">

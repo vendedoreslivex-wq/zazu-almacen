@@ -33,7 +33,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
   },
   DESPACHADOR: {
     dashboard: 'view', analysis: 'none', inventory: 'view', locations: 'view',
-    operations: 'full', adjustments: 'none', 'purchase-orders': 'none',
+    operations: 'full', adjustments: 'none', 'purchase-orders': 'view',
     history: 'view', contacts: 'view', reports: 'none', labels: 'full',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'odoo-stock': 'none',
