@@ -574,17 +574,17 @@ export const PurchaseOrders: React.FC = () => {
       )}
 
       {/* HISTORIAL tab */}
-      {mainTab === 'log' && <TransactionLog />}
+      {mainTab === 'log' && <TransactionLog initialFilter={{ type: 'DISPATCH' }} />}
 
       {/* REPORTES tab */}
       {mainTab === 'reports' && (
         <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
-          <OperationsReport mode="dispatch" />
+          <OperationsReport mode="despacho" />
         </div>
       )}
 
       {/* COMPROBANTES tab */}
-      {mainTab === 'bulletins' && <BulletinsTab mode="dispatch" />}
+      {mainTab === 'bulletins' && <BulletinsTab mode="despacho" />}
 
       {/* ÓRDENES OC tab */}
       {mainTab === 'oc' && (<>

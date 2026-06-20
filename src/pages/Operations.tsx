@@ -316,7 +316,7 @@ type BulletinGroup = {
 
 // mode 'ops'  → RECEPCIÓN + BAJA/MERMA (DISPATCH con [BAJA])
 // mode 'dispatch' → DESPACHO (DISPATCH sin [BAJA]) + TRASLADO
-export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) => {
+export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> = ({ mode }) => {
   const { transactions, products, contacts, locations, activeBrand } = useAppContext();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
@@ -333,6 +333,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) 
       const isWriteoff = tx.reference?.startsWith('[BAJA');
       if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
       if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+      if (mode === 'despacho') return tx.type === 'DISPATCH' && !isWriteoff;
       return true;
     });
 
@@ -2783,7 +2784,7 @@ export const TransactionLog: React.FC<{ initialFilter?: LogFilter }> = ({ initia
 
 // --- Operations Report ---------------------------------------------------------
 
-export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode }) => {
+export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' }> = ({ mode }) => {
   const { transactions, products, locations, activeBrand } = useAppContext();
   const [reportTab, setReportTab] = useState<'resumen' | 'movimientos' | 'bajas' | 'historial'>('resumen');
   const [dateFrom, setDateFrom] = useState('');
@@ -2799,6 +2800,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' }> = ({ mode
     const isWriteoff = tx.reference?.startsWith('[BAJA');
     if (mode === 'ops')      return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
     if (mode === 'dispatch') return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+    if (mode === 'despacho') return tx.type === 'DISPATCH' && !isWriteoff;
     return true;
   }), [transactions, mode]);
 
