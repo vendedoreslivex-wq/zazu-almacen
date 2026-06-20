@@ -1296,7 +1296,7 @@ const WriteOffForm: React.FC = () => {
   const [showReceptionModal, setShowReceptionModal] = useState(false);
   const [receptionModalRef, setReceptionModalRef] = useState('');
   const [defectQtys, setDefectQtys] = useState<Record<string, string>>({});
-  const [modalSearch, setModalSearch] = useState('');
+  const [modalFilterName, setModalFilterName] = useState<string | null>(null);
 
   const receptionModalItems = useMemo(() => {
     if (!receptionModalRef) return [];
@@ -1320,7 +1320,7 @@ const WriteOffForm: React.FC = () => {
     if (ref) {
       setReceptionModalRef(ref);
       setDefectQtys({});
-      setModalSearch('');
+      setModalFilterName(null);
       setShowReceptionModal(true);
     } else {
       setReceptionModalRef('');
@@ -1708,29 +1708,43 @@ const WriteOffForm: React.FC = () => {
               <button onClick={() => setShowReceptionModal(false)} className="opacity-60 hover:opacity-100 font-mono text-lg leading-none">×</button>
             </div>
 
-            <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)]">
-              <input
-                type="text"
-                value={modalSearch}
-                onChange={e => setModalSearch(e.target.value)}
-                placeholder="Buscar por nombre, color, talla o código..."
-                className="w-full px-3 py-2 font-mono text-xs border border-[var(--border)] bg-[var(--bg)] outline-none focus:border-orange-500"
-                style={{ color: 'var(--ink)' }}
-              />
-              {modalSearch && (
-                <div className="font-mono text-[9px] opacity-50 mt-1">
-                  {receptionModalItems.filter(({ product }) => {
-                    const q = modalSearch.toLowerCase();
+            {/* Botones de filtro por nombre/modelo */}
+            {receptionModalItems.length > 0 && (() => {
+              const names = Array.from(new Set(receptionModalItems.map(i => i.product?.name ?? '').filter(Boolean)));
+              return (
+                <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)] flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setModalFilterName(null)}
+                    className={cn(
+                      'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                      modalFilterName === null
+                        ? 'bg-orange-600 text-white border-orange-600'
+                        : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                    )}
+                  >
+                    TODOS ({receptionModalItems.length})
+                  </button>
+                  {names.map(name => {
+                    const count = receptionModalItems.filter(i => i.product?.name === name).length;
+                    const active = modalFilterName === name;
                     return (
-                      product?.name?.toLowerCase().includes(q) ||
-                      product?.color?.toLowerCase().includes(q) ||
-                      product?.size?.toLowerCase().includes(q) ||
-                      product?.code?.toLowerCase().includes(q)
+                      <button
+                        key={name}
+                        onClick={() => setModalFilterName(active ? null : name)}
+                        className={cn(
+                          'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                          active
+                            ? 'bg-orange-600 text-white border-orange-600'
+                            : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                        )}
+                      >
+                        {name} ({count})
+                      </button>
                     );
-                  }).length} de {receptionModalItems.length} modelos
+                  })}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             <div className="p-4 flex flex-col gap-1 overflow-y-auto flex-1">
               <p className="font-mono text-[9px] opacity-60 uppercase tracking-widest mb-2">
@@ -1740,16 +1754,7 @@ const WriteOffForm: React.FC = () => {
                 <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
               ) : (
                 receptionModalItems
-                .filter(({ product }) => {
-                  if (!modalSearch) return true;
-                  const q = modalSearch.toLowerCase();
-                  return (
-                    product?.name?.toLowerCase().includes(q) ||
-                    product?.color?.toLowerCase().includes(q) ||
-                    product?.size?.toLowerCase().includes(q) ||
-                    product?.code?.toLowerCase().includes(q)
-                  );
-                })
+                .filter(({ product }) => !modalFilterName || product?.name === modalFilterName)
                 .map(({ productId, qty, product }) => {
                   const val = defectQtys[productId] ?? '';
                   const n = parseInt(val, 10);
