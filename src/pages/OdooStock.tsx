@@ -78,7 +78,7 @@ function VariantAlertDot({ qty }: { qty: number }) {
   const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
   if (qty > OVER)                       return <span title="Sobre stock"  className="w-2 h-2 rounded-full bg-green-500 shrink-0" />;
   if (qty >= LOW_MIN && qty <= LOW_MAX) return <span title="Por acabar"   className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />;
-  if (qty > 0 && qty < CRITICAL)        return <span title="Stock cr-tico" className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" />;
+  if (qty > 0 && qty < CRITICAL)        return <span title="Stock crítico" className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" />;
   if (qty === 0)                         return <span title="Sin stock"    className="w-2 h-2 rounded-full bg-[var(--ink)]/20 shrink-0" />;
   return null;
 }
@@ -124,7 +124,7 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
         <div className="flex items-center gap-4 shrink-0">
           <div className="text-right hidden sm:block">
             <div className="font-mono font-black text-sm text-[var(--ink)]">{fmtQty(totalQty)}</div>
-            <div className="font-mono text-[9px] opacity-40 uppercase">stock</div>
+            <div className="font-mono text-[9px] opacity-40 uppercase">a la mano</div>
           </div>
           <div className="text-right hidden md:block">
             <div className={`font-mono font-bold text-sm ${available > 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtQty(available)}</div>
@@ -438,7 +438,7 @@ export const OdooStock: React.FC = () => {
       <ModuleInfo
         number="17"
         title="Odoo Stock"
-        description="Inventario en tiempo real desde Odoo ERP. Muestra cantidades, variantes, ubicaciones y movimientos recientes del almacen zazuexpress2."
+        description="Inventario en tiempo real desde Odoo ERP. Muestra cantidades, variantes, ubicaciones y movimientos recientes del almacén zazuexpress2."
       />
 
       {/* Header */}
@@ -460,7 +460,7 @@ export const OdooStock: React.FC = () => {
             ) : status === 'error' ? (
               <><WifiOff size={11} className="text-red-600" /><span className="text-red-700">Error</span></>
             ) : (
-              <><RefreshCw size={11} className="animate-spin opacity-50" /><span className="opacity-50">Cargando-</span></>
+              <><RefreshCw size={11} className="animate-spin opacity-50" /><span className="opacity-50">Cargando...</span></>
             )}
           </div>
           <button
@@ -489,7 +489,7 @@ export const OdooStock: React.FC = () => {
       {status === 'ok' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard label="SKUs totales"  value={stats.totalSKUs}        sub={`${stats.inStock} con stock`}     icon={Package}    accent="text-[var(--ink)]" />
-          <StatCard label="Unidades"      value={fmtQty(stats.totalUnits)} sub="en almacen"                     icon={BarChart2}   accent="text-blue-600" />
+          <StatCard label="Unidades"      value={fmtQty(stats.totalUnits)} sub="en almacén"                     icon={BarChart2}   accent="text-blue-600" />
           <StatCard label="Con stock"     value={stats.inStock}           sub={`${stats.outOfStock} sin stock`}  icon={TrendingUp}  accent="text-green-600" />
           <StatCard label="Sin stock"     value={stats.outOfStock}        sub="productos agotados"               icon={TrendingDown} accent="text-red-600" />
         </div>
@@ -541,7 +541,7 @@ export const OdooStock: React.FC = () => {
                         { val: 'all',      label: 'Todos',       dot: null },
                         { val: 'over',     label: 'Sobre stock',  dot: 'bg-green-500',  sub: `> ${OVER}` },
                         { val: 'low',      label: 'Por acabar',   dot: 'bg-yellow-400', sub: `${LOW_MIN}-${LOW_MAX}` },
-                        { val: 'critical', label: 'Stock cr-tico', dot: 'bg-red-500',    sub: `< ${CRITICAL}` },
+                        { val: 'critical', label: 'Stock crítico', dot: 'bg-red-500',    sub: `< ${CRITICAL}` },
                       ] as { val: StockAlert; label: string; dot: string | null; sub?: string }[]).map(opt => (
                         <button
                           key={opt.val}
@@ -700,7 +700,7 @@ export const OdooStock: React.FC = () => {
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
-                      placeholder="Buscar producto o codigo-"
+                      placeholder="Buscar producto o código..."
                       className="font-mono text-[10px] bg-transparent outline-none w-full placeholder:opacity-40 py-1.5"
                     />
                     {search && <button onClick={() => setSearch('')} className="opacity-40 hover:opacity-100"><X size={10} /></button>}
@@ -716,7 +716,7 @@ export const OdooStock: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5 items-center">
                     {alertFilter !== 'all' && (
                       <span className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-[var(--ink)]/10 border border-[var(--border)]/20">
-                        {alertFilter === 'over' ? 'Sobre stock' : alertFilter === 'low' ? 'Por acabar' : 'Stock cr-tico'}
+                        {alertFilter === 'over' ? 'Sobre stock' : alertFilter === 'low' ? 'Por acabar' : 'Stock crítico'}
                         <button onClick={() => setAlertFilter('all')} className="opacity-50 hover:opacity-100"><X size={8} /></button>
                       </span>
                     )}
@@ -759,7 +759,7 @@ export const OdooStock: React.FC = () => {
                 <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
                   <div className="flex items-center px-4 py-2 bg-[var(--ink)] text-[var(--ink-inv)]">
                     <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Producto</div>
-                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden sm:block">Stock</div>
+                    <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden sm:block">A la mano</div>
                     <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden md:block">Disponible</div>
                     <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right hidden lg:block">Reservado</div>
                     <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Estado</div>
@@ -778,7 +778,7 @@ export const OdooStock: React.FC = () => {
           {view === 'locations' && (
             <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
               <div className="flex items-center px-4 py-2 bg-[var(--ink)] text-[var(--ink-inv)]">
-                <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Ubicacion</div>
+                <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Ubicación</div>
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-16 text-right">SKUs</div>
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Unidades</div>
               </div>
@@ -803,7 +803,7 @@ export const OdooStock: React.FC = () => {
             <div className="border border-[var(--border)] shadow-[3px_3px_0_var(--border)] overflow-hidden">
               <div className="flex items-center px-4 py-2 bg-[var(--ink)] text-[var(--ink-inv)]">
                 <div className="flex-1 font-mono text-[9px] font-bold uppercase tracking-widest">Producto</div>
-                <div className="font-mono text-[9px] font-bold uppercase tracking-widest flex-1 hidden md:block">Origen ? Destino</div>
+                <div className="font-mono text-[9px] font-bold uppercase tracking-widest flex-1 hidden md:block">Origen → Destino</div>
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-16 text-right">Cantidad</div>
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-28 text-right hidden sm:block">Fecha</div>
               </div>
@@ -817,7 +817,7 @@ export const OdooStock: React.FC = () => {
                   </div>
                   <div className="flex-1 hidden md:flex items-center gap-1 font-mono text-[9px] opacity-60 truncate">
                     <span className="truncate">{m.location_id[1]}</span>
-                    <span className="opacity-40 shrink-0">?</span>
+                    <span className="opacity-40 shrink-0">→</span>
                     <span className="truncate">{m.location_dest_id[1]}</span>
                   </div>
                   <div className="font-mono font-black text-sm text-[var(--ink)] w-16 text-right">{fmtQty(m.quantity_done ?? m.product_qty)}</div>
