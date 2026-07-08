@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes, Sun, Moon, Activity } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes, Sun, Moon, Radio, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../store/AppContext';
 import { useTheme } from '../store/ThemeContext';
 import { canView } from '../lib/permissions';
+import type { Role } from '../types';
 
 type NavItem = {
   id: string;
@@ -24,7 +25,10 @@ const ROLE_LABELS: Record<string, string> = {
   ADMINISTRADOR: 'ADMINISTRADOR',
   JEFE_ALMACEN: 'JEFE ALMACÉN',
   DESPACHADOR: 'DESPACHADOR',
+  LIVEX: 'LIVEX',
 };
+
+const VIEW_AS_ROLES: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN', 'DESPACHADOR', 'LIVEX'];
 
 export const navItems: NavItem[] = [
   { id: 'reservations', label: 'RESERVAS', icon: ClipboardList },
@@ -41,7 +45,7 @@ export const navItems: NavItem[] = [
   { id: 'reports', label: 'REPORTES', icon: FileBarChart },
   { id: 'users', label: 'USUARIOS', icon: Users },
   { id: 'operation-history', label: 'HISTORIAL GENERAL', icon: ScrollText },
-  { id: 'warehouse-sim', label: 'SIMULACIÓN', icon: Activity },
+  { id: 'livex-feed', label: 'LIVEX', icon: Radio },
 ];
 
 type NavItemWithNum = NavItem & { num: string };
@@ -57,9 +61,10 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { activeBrand, setActiveBrand, currentUser, rolePermissions, refreshAll } = useAppContext();
+  const { activeBrand, setActiveBrand, currentUser, viewAsRole, setViewAsRole, effectiveRole, rolePermissions, refreshAll } = useAppContext();
   const { theme, toggle: toggleTheme } = useTheme();
   const location = useLocation();
+  const isAdminGeneral = currentUser.role === 'ADMIN_GENERAL';
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -72,7 +77,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const visibleNav = navItemsWithNum
-    .filter(item => canView(currentUser.role, item.id, rolePermissions))
+    .filter(item => canView(effectiveRole, item.id, rolePermissions))
     .map((item, i) => ({ ...item, num: String(i + 1).padStart(2, '0') }));
   const currentNavLabel = navItemsWithNum.find(n => location.pathname === `/${n.id}`)?.label ?? 'DASHBOARD';
 
@@ -199,9 +204,29 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span className="hidden sm:inline text-[10px] font-mono px-2 py-0.5 whitespace-nowrap shrink-0" style={{ background: 'var(--ink)', color: 'var(--ink-inv)', border: '1px solid var(--border)' }}>/ {currentNavLabel}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            {isAdminGeneral && (
+              <div className="hidden md:flex items-center gap-1.5 border px-2 py-1"
+                style={{ borderColor: viewAsRole ? '#d97706' : 'var(--border)', background: viewAsRole ? '#d9770614' : 'transparent' }}
+                title="Ver la app como otro rol (solo cambia lo que se muestra, no tus permisos reales)">
+                <Eye size={12} style={{ color: viewAsRole ? '#d97706' : undefined, opacity: viewAsRole ? 1 : 0.5 }} />
+                <select
+                  value={viewAsRole ?? ''}
+                  onChange={(e) => setViewAsRole(e.target.value ? (e.target.value as Role) : null)}
+                  className="bg-transparent font-mono text-[9px] font-bold uppercase tracking-widest focus:outline-none cursor-pointer"
+                  style={{ color: viewAsRole ? '#d97706' : 'var(--ink)' }}
+                >
+                  <option value="">VER COMO...</option>
+                  {VIEW_AS_ROLES.map(r => (
+                    <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex flex-col items-end gap-0.5">
               <span className="font-mono font-black text-[11px] uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{currentUser.username || '—'}</span>
-              <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">{ROLE_LABELS[currentUser.role] ?? currentUser.role}</span>
+              <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">
+                {viewAsRole ? `VIENDO COMO: ${ROLE_LABELS[viewAsRole] ?? viewAsRole}` : (ROLE_LABELS[currentUser.role] ?? currentUser.role)}
+              </span>
             </div>
             <button
               onClick={toggleTheme}

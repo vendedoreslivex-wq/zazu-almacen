@@ -19,6 +19,9 @@ interface AppContextType {
   stockLevels: StockLevel[];
   contacts: Contact[];
   currentUser: User;
+  viewAsRole: Role | null;
+  setViewAsRole: (role: Role | null) => void;
+  effectiveRole: Role;
   users: UserWithPassword[];
   purchaseOrders: PurchaseOrder[];
   adjustments: InventoryAdjustment[];
@@ -77,6 +80,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [stockLevels, setStockLevels] = useState<StockLevel[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [currentUser, setCurrentUser] = useState<User>({ id: '', username: '', role: 'JEFE_ALMACEN' });
+  const [viewAsRole, setViewAsRole] = useState<Role | null>(null);
+  const effectiveRole: Role = currentUser.role === 'ADMIN_GENERAL' && viewAsRole ? viewAsRole : currentUser.role;
   const [users, setUsers] = useState<UserWithPassword[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
@@ -160,7 +165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s?.user) loadProfile(s.user.id);
-      else { setCurrentUser({ id: '', username: '', role: 'JEFE_ALMACEN' }); setLoading(false); }
+      else { setCurrentUser({ id: '', username: '', role: 'JEFE_ALMACEN' }); setViewAsRole(null); setLoading(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -207,6 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ADMINISTRADOR: { ...prev.ADMINISTRADOR },
           JEFE_ALMACEN: { ...prev.JEFE_ALMACEN },
           DESPACHADOR: { ...prev.DESPACHADOR },
+          LIVEX: { ...prev.LIVEX },
         };
         for (const row of data) {
           if (next[row.role as Role]) next[row.role as Role][row.module] = row.permission as Permission;
@@ -681,7 +687,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value = useMemo<AppContextType>(() => ({
     loading, activeBrand, setActiveBrand,
     products, locations, transactions, stockLevels,
-    contacts, currentUser, users, purchaseOrders, adjustments,
+    contacts, currentUser, viewAsRole, setViewAsRole, effectiveRole, users, purchaseOrders, adjustments,
     reservations, addReservation, updateReservationStatus, updateReservation, deleteReservation,
     addTransaction, deleteTransaction, hardDeleteTransaction, hardDeleteTransactions, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
     addLocation, updateLocation, deleteLocation, deleteStockLevel,
@@ -694,7 +700,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     auditLog, refreshAuditLog, refreshAll,
   }), [
     loading, activeBrand, products, locations, transactions, stockLevels,
-    contacts, currentUser, users, purchaseOrders, adjustments, reservations, rolePermissions,
+    contacts, currentUser, viewAsRole, effectiveRole, users, purchaseOrders, adjustments, reservations, rolePermissions,
     notificationSubscribers, auditLog, refreshAuditLog, refreshAll,
   ]);
 

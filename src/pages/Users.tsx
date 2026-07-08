@@ -3,7 +3,7 @@ import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import {
   Plus, Trash2, Edit2, ShieldCheck, TrendingUp, Settings,
-  Warehouse, Mail, Users as UsersIcon, Lock, Bell, X, Truck
+  Warehouse, Mail, Users as UsersIcon, Lock, Bell, X, Truck, Radio
 } from 'lucide-react';
 import { UserWithPassword, Role, NotificationSubscriber } from '../types';
 import { canEdit, Permission } from '../lib/permissions';
@@ -14,6 +14,7 @@ const ROLE_LABELS: Record<Role, string> = {
   ADMINISTRADOR: 'Administrador',
   JEFE_ALMACEN: 'Jefe Almacen',
   DESPACHADOR: 'Despachador',
+  LIVEX: 'Livex',
 };
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -22,6 +23,7 @@ const ROLE_COLORS: Record<Role, string> = {
   ADMINISTRADOR: 'bg-blue-700 text-white',
   JEFE_ALMACEN: 'bg-amber-700 text-white',
   DESPACHADOR: 'bg-teal-700 text-white',
+  LIVEX: 'bg-rose-700 text-white',
 };
 
 const ROLE_BORDER: Record<Role, string> = {
@@ -30,6 +32,16 @@ const ROLE_BORDER: Record<Role, string> = {
   ADMINISTRADOR: 'border-blue-700',
   JEFE_ALMACEN: 'border-amber-700',
   DESPACHADOR: 'border-teal-700',
+  LIVEX: 'border-rose-700',
+};
+
+const ROLE_ABBR: Record<Role, string> = {
+  ADMIN_GENERAL: 'AG',
+  CEO: 'CEO',
+  ADMINISTRADOR: 'AD',
+  JEFE_ALMACEN: 'JA',
+  DESPACHADOR: 'DE',
+  LIVEX: 'LX',
 };
 
 const RoleIcon = ({ role, size = 12 }: { role: Role; size?: number }) => {
@@ -37,6 +49,7 @@ const RoleIcon = ({ role, size = 12 }: { role: Role; size?: number }) => {
   if (role === 'CEO') return <TrendingUp size={size} />;
   if (role === 'ADMINISTRADOR') return <Settings size={size} />;
   if (role === 'DESPACHADOR') return <Truck size={size} />;
+  if (role === 'LIVEX') return <Radio size={size} />;
   return <Warehouse size={size} />;
 };
 
@@ -64,6 +77,7 @@ const MODULE_GROUPS: { label: string; modules: { key: string; label: string }[] 
       { key: 'locations', label: 'Ubicaciones' },
       { key: 'warehouse-map', label: 'Mapa Almacen' },
       { key: 'labels', label: 'Etiquetas QR' },
+      { key: 'livex-feed', label: 'Livex' },
     ],
   },
   {
@@ -120,7 +134,7 @@ export const Users: React.FC = () => {
 
   const isAdmin = canEdit(currentUser.role, 'users');
   const isAdminGeneral = currentUser.role === 'ADMIN_GENERAL';
-  const roles: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN', 'DESPACHADOR'];
+  const roles: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN', 'DESPACHADOR', 'LIVEX'];
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setUserError(''); setShowModal(true); };
   const openEdit = (u: UserWithPassword) => {
@@ -365,7 +379,7 @@ export const Users: React.FC = () => {
                                 >
                                   <div className={`flex items-center gap-1 text-[8px] font-black ${ROLE_COLORS[r]} px-1.5 py-0.5 rounded-sm shrink-0`}>
                                     <RoleIcon role={r} size={9} />
-                                    <span>{r === 'ADMIN_GENERAL' ? 'AG' : r === 'ADMINISTRADOR' ? 'AD' : r === 'JEFE_ALMACEN' ? 'JA' : r === 'DESPACHADOR' ? 'DE' : 'CEO'}</span>
+                                    <span>{ROLE_ABBR[r]}</span>
                                   </div>
                                   <span className={`font-mono text-[8px] font-bold border px-1.5 py-0.5 rounded-sm ${PERM_STYLE[perm]}`}>{PERM_LABEL[perm]}</span>
                                 </button>
