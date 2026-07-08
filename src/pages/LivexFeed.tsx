@@ -5,6 +5,10 @@ import { ModuleInfo } from '../components/ModuleInfo';
 import { TutorialModal, TutorialStep } from '../components/TutorialModal';
 import { Product, Location, Transaction } from '../types';
 import { cn } from '../lib/utils';
+import type { Brand } from '../store/AppContext';
+
+const BRAND_LABEL: Record<Brand, string> = { OVERSHARK: 'OVERSHARK', BRAVOS: 'BRAVOS URBAN', BOX_PRIME: 'BOX PRIME' };
+const BRANDS: Brand[] = ['OVERSHARK', 'BRAVOS', 'BOX_PRIME'];
 
 // ── Tutorial ───────────────────────────────────────────────────────────────────
 
@@ -99,8 +103,8 @@ const LIVEX_TUTORIAL_STEPS: TutorialStep[] = [
     illustration: <LivexIllustrationDetail />,
     tips: [
       'Los productos se agrupan por proveedor para facilitar la lectura',
+      'Usa los botones de producto arriba para filtrar solo ese artículo',
       'Cada tarjeta muestra producto, cantidad, referencia y ubicación',
-      'Puedes cerrar el detalle y elegir otro día sin perder el mes actual',
     ],
   },
 ];
@@ -140,39 +144,39 @@ const ReceptionRow: React.FC<Row> = ({ tx, product, location, supplierName }) =>
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-4 py-3">
       <div className="flex items-center gap-2 sm:w-36 shrink-0">
-        <Hash size={11} className="opacity-30 shrink-0" />
-        <span className="font-mono font-black text-[10px] uppercase tracking-wider truncate">{tx.reference}</span>
+        <Hash size={12} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.7 }} />
+        <span className="font-mono font-black text-[11px] uppercase tracking-wider truncate" style={{ color: 'var(--ink)' }}>{tx.reference}</span>
       </div>
 
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <Package size={11} className="opacity-40 shrink-0" />
-        <span className="font-mono text-[11px] truncate">{product?.name ?? tx.productId}</span>
-        {product?.color && <span className="font-mono text-[9px] opacity-40 shrink-0">· {product.color}</span>}
-        {product?.size && <span className="font-mono text-[9px] opacity-40 shrink-0">· {product.size}</span>}
-        <span className="font-mono text-[9px] font-bold shrink-0 ml-1">+{tx.quantity} uds</span>
+        <Package size={12} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.8 }} />
+        <span className="font-mono text-[12px] font-bold truncate" style={{ color: 'var(--ink)' }}>{product?.name ?? tx.productId}</span>
+        {product?.color && <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>· {product.color}</span>}
+        {product?.size && <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>· {product.size}</span>}
+        <span className="font-mono text-[10px] font-bold shrink-0 ml-1 text-green-600">+{tx.quantity} uds</span>
       </div>
 
       {supplierName && (
-        <div className="flex items-center gap-1.5 sm:w-40 shrink-0 opacity-60">
-          <Truck size={11} className="shrink-0" />
-          <span className="font-mono text-[10px] truncate">{supplierName}</span>
+        <div className="flex items-center gap-1.5 sm:w-40 shrink-0" style={{ color: 'var(--ink)', opacity: 0.9 }}>
+          <Truck size={12} className="shrink-0" />
+          <span className="font-mono text-[11px] font-bold truncate">{supplierName}</span>
         </div>
       )}
 
       {location && (
-        <div className="hidden md:flex items-center gap-1.5 sm:w-32 shrink-0 opacity-50">
-          <MapPin size={10} className="shrink-0" />
-          <span className="font-mono text-[9px] truncate">{location.name}</span>
+        <div className="hidden md:flex items-center gap-1.5 sm:w-32 shrink-0" style={{ color: 'var(--ink)', opacity: 0.8 }}>
+          <MapPin size={11} className="shrink-0" />
+          <span className="font-mono text-[10px] font-semibold truncate">{location.name}</span>
         </div>
       )}
 
-      <span className="font-mono text-[8px] font-bold uppercase tracking-wider px-2 py-1 border rounded-sm shrink-0 bg-green-500/10 text-green-700 border-green-400">
+      <span className="font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-1 border rounded-sm shrink-0 bg-green-500/10 text-green-700 border-green-400">
         RECEPCIÓN
       </span>
 
-      <div className="flex items-center gap-1.5 sm:w-36 shrink-0 opacity-40 justify-start sm:justify-end">
-        <Calendar size={10} className="shrink-0" />
-        <span className="font-mono text-[9px] whitespace-nowrap">{fmtDateTime(tx.date)}</span>
+      <div className="flex items-center gap-1.5 sm:w-36 shrink-0 justify-start sm:justify-end" style={{ color: 'var(--ink)', opacity: 0.7 }}>
+        <Calendar size={11} className="shrink-0" />
+        <span className="font-mono text-[10px] font-semibold whitespace-nowrap">{fmtDateTime(tx.date)}</span>
       </div>
     </div>
   );
@@ -208,38 +212,67 @@ const ProductCard: React.FC<{ row: Row }> = ({ row }) => {
         <Package size={14} className="text-green-600" />
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-mono text-[10px] font-black uppercase tracking-wide truncate">
+          <span className="font-mono text-[12px] font-black uppercase tracking-wide truncate" style={{ color: 'var(--ink)' }}>
             {product?.name ?? tx.productId}
           </span>
           {(product?.color || product?.size) && (
-            <span className="font-mono text-[9px] opacity-40 shrink-0">
+            <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>
               {[product?.color, product?.size].filter(Boolean).join(' · ')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="font-mono text-[9px] opacity-40 flex items-center gap-1">
-            <Hash size={9} className="shrink-0" />{tx.reference}
+          <span className="font-mono text-[10px] font-semibold flex items-center gap-1" style={{ color: 'var(--ink)', opacity: 0.8 }}>
+            <Hash size={10} className="shrink-0" />{tx.reference}
           </span>
           {location && (
-            <span className="font-mono text-[9px] opacity-40 flex items-center gap-1">
-              <MapPin size={9} className="shrink-0" />{location.name}
+            <span className="font-mono text-[10px] font-semibold flex items-center gap-1" style={{ color: 'var(--ink)', opacity: 0.8 }}>
+              <MapPin size={10} className="shrink-0" />{location.name}
             </span>
           )}
-          <span className="font-mono text-[9px] opacity-30">{fmtDateTime(tx.date)}</span>
+          <span className="font-mono text-[10px] font-medium" style={{ color: 'var(--ink)', opacity: 0.65 }}>{fmtDateTime(tx.date)}</span>
         </div>
       </div>
 
-      <span className="font-mono font-black text-sm text-green-600 shrink-0">+{tx.quantity}</span>
+      <span className="font-mono font-black text-base text-green-600 shrink-0">+{tx.quantity}</span>
     </div>
   );
 };
 
+interface ProductFilterOption {
+  key: string;
+  label: string;
+  qty: number;
+}
+
+/** Agrupa por nombre de producto (no por variante de color/talla) */
+function productGroupKey(row: Row): string {
+  return row.product?.name ?? row.tx.productId;
+}
+
+function buildProductFilters(rows: Row[]): ProductFilterOption[] {
+  const map = new Map<string, ProductFilterOption>();
+  for (const row of rows) {
+    const key = productGroupKey(row);
+    const existing = map.get(key);
+    if (existing) existing.qty += row.tx.quantity;
+    else map.set(key, { key, label: key, qty: row.tx.quantity });
+  }
+  return [...map.values()].sort((a, b) => b.qty - a.qty);
+}
+
 function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onClose: () => void }) {
+  const [productFilter, setProductFilter] = useState<string | null>(null);
   const totalQty = rows.reduce((sum, r) => sum + r.tx.quantity, 0);
-  const groups = useMemo(() => groupBySupplier(rows), [rows]);
+  const totalSuppliers = useMemo(() => new Set(rows.map(r => r.supplierName ?? 'Sin proveedor')).size, [rows]);
+  const productFilters = useMemo(() => buildProductFilters(rows), [rows]);
+  const filteredRows = useMemo(
+    () => productFilter ? rows.filter(r => productGroupKey(r) === productFilter) : rows,
+    [rows, productFilter]
+  );
+  const groups = useMemo(() => groupBySupplier(filteredRows), [filteredRows]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -247,8 +280,8 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
         {/* Header */}
         <div className="border-b border-[var(--border)] px-5 py-4 flex justify-between items-start shrink-0">
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[8px] opacity-40 uppercase tracking-[0.25em]">Recepciones del día</span>
-            <span className="font-mono font-black text-sm uppercase tracking-wide">{fmtDayLong(dayKey)}</span>
+            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.25em]" style={{ color: 'var(--ink)', opacity: 0.6 }}>Recepciones del día</span>
+            <span className="font-mono font-black text-base uppercase tracking-wide" style={{ color: 'var(--ink)' }}>{fmtDayLong(dayKey)}</span>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-[var(--ink)]/10 rounded-sm transition-colors shrink-0">
             <X size={16} />
@@ -259,17 +292,46 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
         {rows.length > 0 && (
           <div className="grid grid-cols-3 border-b border-[var(--border)] shrink-0">
             <div className="flex flex-col items-center justify-center gap-0.5 py-3 border-r border-[var(--border)]">
-              <span className="font-mono font-black text-lg">{rows.length}</span>
-              <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest">Comprobantes</span>
+              <span className="font-mono font-black text-xl" style={{ color: 'var(--ink)' }}>{rows.length}</span>
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Comprobantes</span>
             </div>
             <div className="flex flex-col items-center justify-center gap-0.5 py-3 border-r border-[var(--border)]">
-              <span className="font-mono font-black text-lg text-green-600">+{totalQty}</span>
-              <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest">Unidades</span>
+              <span className="font-mono font-black text-xl text-green-600">+{totalQty}</span>
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Unidades</span>
             </div>
             <div className="flex flex-col items-center justify-center gap-0.5 py-3">
-              <span className="font-mono font-black text-lg">{groups.length}</span>
-              <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest">Proveedores</span>
+              <span className="font-mono font-black text-xl" style={{ color: 'var(--ink)' }}>{totalSuppliers}</span>
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Proveedores</span>
             </div>
+          </div>
+        )}
+
+        {/* Product filter chips */}
+        {productFilters.length > 1 && (
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[var(--border)] overflow-x-auto shrink-0">
+            <button
+              onClick={() => setProductFilter(null)}
+              className={cn(
+                'font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 border rounded-sm shrink-0 transition-colors',
+                productFilter === null ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--ink)]' : 'border-[var(--border)]'
+              )}
+              style={productFilter === null ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
+            >
+              Todos
+            </button>
+            {productFilters.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setProductFilter(prev => prev === p.key ? null : p.key)}
+                className={cn(
+                  'font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 border rounded-sm shrink-0 transition-colors whitespace-nowrap',
+                  productFilter === p.key ? 'bg-green-600 text-white border-green-600' : 'border-[var(--border)]'
+                )}
+                style={productFilter === p.key ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
+              >
+                {p.label} <span className="opacity-80">+{p.qty}</span>
+              </button>
+            ))}
           </div>
         )}
 
@@ -280,14 +342,19 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
               <ClipboardList size={28} />
               <span className="font-mono text-[10px] uppercase tracking-widest">Sin recepciones este día</span>
             </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-10 flex flex-col items-center gap-2 opacity-30">
+              <Package size={28} />
+              <span className="font-mono text-[10px] uppercase tracking-widest">Sin resultados para este producto</span>
+            </div>
           ) : (
             groups.map(group => (
               <div key={group.supplierName} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 px-0.5">
-                  <Building2 size={12} className="opacity-40 shrink-0" />
-                  <span className="font-mono text-[10px] font-black uppercase tracking-wider">{group.supplierName}</span>
+                  <Building2 size={13} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.65 }} />
+                  <span className="font-mono text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{group.supplierName}</span>
                   <span className="h-px flex-1 bg-[var(--border-soft)]" />
-                  <span className="font-mono text-[9px] font-bold opacity-50 shrink-0">
+                  <span className="font-mono text-[10px] font-bold shrink-0" style={{ color: 'var(--ink)', opacity: 0.6 }}>
                     {group.rows.length} · +{group.qty} uds
                   </span>
                 </div>
@@ -329,7 +396,7 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
         >
           <ChevronLeft size={14} />
         </button>
-        <span className="font-mono font-black text-xs uppercase tracking-widest">{MONTH_LABEL[month]} {year}</span>
+        <span className="font-mono font-black text-sm uppercase tracking-widest" style={{ color: 'var(--ink)' }}>{MONTH_LABEL[month]} {year}</span>
         <button
           onClick={() => setMonthCursor(new Date(year, month + 1, 1))}
           className="p-1.5 border border-[var(--border)]/30 hover:border-[var(--border)] transition-colors"
@@ -340,7 +407,7 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
 
       <div className="grid grid-cols-7 border-b border-[var(--border)]/30">
         {WEEKDAY_LABEL.map(w => (
-          <div key={w} className="font-mono text-[8px] font-bold uppercase tracking-widest text-center py-2 opacity-40">
+          <div key={w} className="font-mono text-[9px] font-bold uppercase tracking-widest text-center py-2" style={{ color: 'var(--ink)', opacity: 0.55 }}>
             {w}
           </div>
         ))}
@@ -362,17 +429,17 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
               )}
             >
               <span className={cn(
-                'font-mono text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shrink-0',
+                'font-mono text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full shrink-0',
                 isToday ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : ''
-              )}>
+              )} style={isToday ? undefined : { color: 'var(--ink)' }}>
                 {Number(key.slice(-2))}
               </span>
               {dayRows.length > 0 && (
                 <div className="flex flex-col gap-0.5 w-full">
-                  <span className="font-mono text-[8px] font-black uppercase tracking-wider truncate" style={{ color: '#16a34a' }}>
+                  <span className="font-mono text-[9px] font-black uppercase tracking-wider truncate" style={{ color: '#16a34a' }}>
                     {dayRows.length} rec.
                   </span>
-                  <span className="font-mono text-[7px] opacity-50 truncate hidden sm:block">{qty} uds</span>
+                  <span className="font-mono text-[8px] font-semibold truncate hidden sm:block" style={{ color: 'var(--ink)', opacity: 0.65 }}>{qty} uds</span>
                 </div>
               )}
             </button>
@@ -384,7 +451,7 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
 }
 
 export const LivexFeed: React.FC = () => {
-  const { transactions, products, locations, contacts } = useAppContext();
+  const { transactions, products, locations, contacts, activeBrand, setActiveBrand } = useAppContext();
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'feed' | 'calendar'>('feed');
   const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
@@ -456,6 +523,21 @@ export const LivexFeed: React.FC = () => {
         </button>
       </div>
 
+      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)] shrink-0">
+        {BRANDS.map(b => (
+          <button
+            key={b}
+            onClick={() => setActiveBrand(b)}
+            className={cn(
+              'flex-1 px-3 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest transition-all border-r last:border-r-0 border-[var(--border)]',
+              activeBrand === b ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'opacity-50 hover:opacity-100'
+            )}
+          >
+            {BRAND_LABEL[b]}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
         <Search size={14} className="opacity-40 shrink-0" />
         <input
@@ -464,7 +546,7 @@ export const LivexFeed: React.FC = () => {
           placeholder="Buscar por referencia, proveedor o producto..."
           className="flex-1 bg-transparent outline-none font-mono text-xs"
         />
-        <span className="font-mono text-[9px] opacity-40 shrink-0">{rows.length} registros</span>
+        <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--ink)', opacity: 0.6 }}>{rows.length} registros</span>
         <div className="flex border border-[var(--border)] shrink-0">
           <button
             onClick={() => setView('feed')}
