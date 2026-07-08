@@ -40,8 +40,8 @@ async function callEdgeFunction(
 ): Promise<void> {
   if (recipients.length === 0) return;
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) return;
-  await fetch(EDGE_FN_URL, {
+  if (!session?.access_token) throw new Error('No hay sesión activa para enviar el correo');
+  const res = await fetch(EDGE_FN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -50,6 +50,10 @@ async function callEdgeFunction(
     },
     body: JSON.stringify({ recipients, subject, html, attachments }),
   });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || `send-email respondió ${res.status}`);
+  }
 }
 
 // ─── Operation Emails ─────────────────────────────────────────────────────────

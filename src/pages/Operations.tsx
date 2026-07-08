@@ -916,7 +916,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
       setFeedback({ type: 'success', message: '-OPERACION REGISTRADA! ENVIANDO COMPROBANTE...' });
       sendOperationEmail({ toEmail: operatorEmail, toName: currentUser.username, ...emailPayload })
         .then(() => setFeedback({ type: 'success', message: `-REGISTRADA! COMPROBANTE ? ${operatorEmail}` }))
-        .catch(() => setFeedback({ type: 'success', message: '-OPERACION REGISTRADA! (SIN EMAIL · REVISA CONFIGURACION)' }));
+        .catch((err) => setFeedback({ type: 'success', message: `-OPERACION REGISTRADA! (SIN EMAIL: ${err instanceof Error ? err.message : 'ERROR DESCONOCIDO'})` }));
     } else {
       setFeedback({ type: 'success', message: '-OPERACION REGISTRADA CORRECTAMENTE!' });
     }
@@ -928,7 +928,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
     }
 
     // Email to internal recipients (always)
-    sendOperationToInternalRecipients(emailPayload);
+    sendOperationToInternalRecipients(emailPayload).catch((err) => console.error('send-email (internal recipients) failed:', err));
   };
 
   return (
