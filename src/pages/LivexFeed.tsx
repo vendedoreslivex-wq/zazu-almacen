@@ -2,8 +2,108 @@ import React, { useMemo, useState } from 'react';
 import { Package, Truck, MapPin, Calendar, Search, ClipboardList, List, ChevronLeft, ChevronRight, X, Hash, Building2 } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
+import { TutorialModal, TutorialStep } from '../components/TutorialModal';
 import { Product, Location, Transaction } from '../types';
 import { cn } from '../lib/utils';
+
+// ── Tutorial ───────────────────────────────────────────────────────────────────
+
+const LivexIllustrationFeed = () => (
+  <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
+    <rect x="14" y="18" width="172" height="104" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    {[0, 1, 2, 3].map(i => (
+      <g key={i} opacity={1 - i * 0.18}>
+        <rect x="24" y={30 + i * 24} width="152" height="18" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+        <rect x="30" y={35 + i * 24} width="6" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+        <rect x="42" y={37 + i * 24} width="60" height="4" rx="1" fill="var(--border)" />
+        <rect x="150" y={37 + i * 24} width="18" height="4" rx="1" fill="#86efac" />
+      </g>
+    ))}
+  </svg>
+);
+
+const LivexIllustrationCalendar = () => (
+  <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
+    <rect x="30" y="20" width="140" height="100" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    <rect x="30" y="20" width="140" height="18" fill="var(--ink)" />
+    <text x="100" y="33" textAnchor="middle" fontSize="8" fill="var(--ink-inv)" fontWeight="700" fontFamily="monospace">JULIO 2026</text>
+    {Array.from({ length: 4 }, (_, row) => (
+      <g key={row}>
+        {Array.from({ length: 6 }, (_, col) => {
+          const has = (row * 6 + col) % 3 === 0;
+          return (
+            <g key={col} className={has ? 'tut-fade-up' : ''} style={has ? { animationDelay: `${(row * 6 + col) * 0.05}s` } : undefined}>
+              <rect x={38 + col * 22} y={44 + row * 18} width="18" height="14" rx="1" fill={has ? '#dcfce7' : 'var(--surface)'} stroke={has ? '#86efac' : 'var(--border)'} strokeWidth="1" />
+              {has && <circle cx={38 + col * 22 + 14} cy={44 + row * 18 + 4} r="2" fill="#15803d" />}
+            </g>
+          );
+        })}
+      </g>
+    ))}
+  </svg>
+);
+
+const LivexIllustrationDetail = () => (
+  <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
+    <rect x="24" y="14" width="152" height="112" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    <rect x="24" y="14" width="152" height="20" fill="var(--surface)" />
+    <text x="100" y="27" textAnchor="middle" fontSize="7" fill="var(--ink)" fontWeight="700" fontFamily="monospace">08 DE JULIO, 2026</text>
+    <rect x="34" y="42" width="42" height="24" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+    <text x="55" y="52" textAnchor="middle" fontSize="10" fill="var(--ink)" fontWeight="900" fontFamily="monospace">3</text>
+    <text x="55" y="61" textAnchor="middle" fontSize="5" fill="var(--ink-50)" fontFamily="monospace">COMPROB.</text>
+    <rect x="79" y="42" width="42" height="24" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+    <text x="100" y="52" textAnchor="middle" fontSize="10" fill="#15803d" fontWeight="900" fontFamily="monospace">+84</text>
+    <text x="100" y="61" textAnchor="middle" fontSize="5" fill="#15803d" fontFamily="monospace">UNIDADES</text>
+    <rect x="124" y="42" width="42" height="24" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+    <text x="145" y="52" textAnchor="middle" fontSize="10" fill="var(--ink)" fontWeight="900" fontFamily="monospace">2</text>
+    <text x="145" y="61" textAnchor="middle" fontSize="5" fill="var(--ink-50)" fontFamily="monospace">PROVEED.</text>
+    <g className="tut-fade-up" style={{ animationDelay: '0.3s' }}>
+      <rect x="34" y="76" width="132" height="16" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+      <rect x="40" y="80" width="8" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+      <rect x="54" y="83" width="50" height="3" rx="1" fill="var(--border)" />
+      <text x="155" y="87" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="900" fontFamily="monospace">+24</text>
+    </g>
+    <g className="tut-fade-up" style={{ animationDelay: '0.6s' }}>
+      <rect x="34" y="96" width="132" height="16" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+      <rect x="40" y="100" width="8" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+      <rect x="54" y="103" width="50" height="3" rx="1" fill="var(--border)" />
+      <text x="155" y="107" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="900" fontFamily="monospace">+18</text>
+    </g>
+  </svg>
+);
+
+const LIVEX_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: '¿Qué es Livex?',
+    description: 'Livex es tu ventana de solo lectura al inventario. Aquí ves cada comprobante de recepción — es decir, todo lo que ha entrado al almacén — sin poder crear, editar ni borrar nada.',
+    illustration: <LivexIllustrationFeed />,
+    tips: [
+      'Solo se muestran recepciones (lo que entra), no despachos ni traslados',
+      'Usa el buscador para filtrar por referencia, proveedor o producto',
+      'El selector de marca en el sidebar cambia qué inventario ves (OVERSHARK, BRAVOS, BOX PRIME)',
+    ],
+  },
+  {
+    title: 'Vista de Calendario',
+    description: 'Cambia a la vista de calendario con el ícono junto al buscador. Cada día muestra cuántos comprobantes y unidades se subieron, de un vistazo.',
+    illustration: <LivexIllustrationCalendar />,
+    tips: [
+      'Los días con recepciones se resaltan y muestran el conteo',
+      'Usa las flechas para navegar entre meses',
+      'El día de hoy siempre aparece marcado',
+    ],
+  },
+  {
+    title: 'Detalle de un día',
+    description: 'Haz clic en cualquier día del calendario para ver el detalle completo: cuántos comprobantes hubo, cuántas unidades entraron, y de qué proveedores — agrupado y ordenado para revisar rápido.',
+    illustration: <LivexIllustrationDetail />,
+    tips: [
+      'Los productos se agrupan por proveedor para facilitar la lectura',
+      'Cada tarjeta muestra producto, cantidad, referencia y ubicación',
+      'Puedes cerrar el detalle y elegir otro día sin perder el mes actual',
+    ],
+  },
+];
 
 const MONTH_LABEL = [
   'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
@@ -289,6 +389,7 @@ export const LivexFeed: React.FC = () => {
   const [view, setView] = useState<'feed' | 'calendar'>('feed');
   const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const receptions = useMemo(
     () => transactions.filter(tx => tx.type === 'RECEPTION' && tx.status !== 'CANCELLED'),
@@ -329,11 +430,31 @@ export const LivexFeed: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-5 pb-12">
-      <ModuleInfo
-        number="LX"
-        title="Livex — Feed de Recepciones"
-        description="Bitácora de solo lectura: cada comprobante de recepción (lo que se sube al inventario) aparece aquí. Cambia a calendario para ver qué se subió cada día."
+      <TutorialModal
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        steps={LIVEX_TUTORIAL_STEPS}
       />
+
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo
+            number="LX"
+            title="Livex — Feed de Recepciones"
+            description="Bitácora de solo lectura: cada comprobante de recepción (lo que se sube al inventario) aparece aquí. Cambia a calendario para ver qué se subió cada día."
+          />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
         <Search size={14} className="opacity-40 shrink-0" />
