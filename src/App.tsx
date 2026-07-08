@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { ThemeProvider, useTheme } from './store/ThemeContext';
@@ -29,6 +29,12 @@ import { canView } from './lib/permissions';
 import { navItems } from './components/Layout';
 import type { Session } from '@supabase/supabase-js';
 
+function Guarded({ moduleId, children }: { moduleId: string; children: ReactNode }) {
+  const { currentUser, rolePermissions } = useAppContext();
+  if (!canView(currentUser.role, moduleId, rolePermissions)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 function AppShell() {
   const { loading, currentUser, rolePermissions } = useAppContext();
 
@@ -41,23 +47,23 @@ function AppShell() {
     <Layout>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/analysis" element={<Analysis />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/locations" element={<Locations />} />
-        <Route path="/operations" element={<Operations />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/contacts" element={<Contacts />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/purchase-orders" element={<PurchaseOrders />} />
-        <Route path="/adjustments" element={<Adjustments />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/labels" element={<Labels />} />
-        <Route path="/warehouse-map" element={<WarehouseMap />} />
-        <Route path="/operation-history" element={<OperationHistory />} />
-        <Route path="/reservations" element={<Reservations />} />
-        <Route path="/odoo-stock" element={<OdooStock />} />
-        <Route path="/warehouse-sim" element={<WarehouseSim />} />
+        <Route path="/dashboard" element={<Guarded moduleId="dashboard"><Dashboard /></Guarded>} />
+        <Route path="/analysis" element={<Guarded moduleId="analysis"><Analysis /></Guarded>} />
+        <Route path="/inventory" element={<Guarded moduleId="inventory"><Inventory /></Guarded>} />
+        <Route path="/locations" element={<Guarded moduleId="locations"><Locations /></Guarded>} />
+        <Route path="/operations" element={<Guarded moduleId="operations"><Operations /></Guarded>} />
+        <Route path="/history" element={<Guarded moduleId="history"><History /></Guarded>} />
+        <Route path="/contacts" element={<Guarded moduleId="contacts"><Contacts /></Guarded>} />
+        <Route path="/users" element={<Guarded moduleId="users"><Users /></Guarded>} />
+        <Route path="/purchase-orders" element={<Guarded moduleId="purchase-orders"><PurchaseOrders /></Guarded>} />
+        <Route path="/adjustments" element={<Guarded moduleId="adjustments"><Adjustments /></Guarded>} />
+        <Route path="/reports" element={<Guarded moduleId="reports"><Reports /></Guarded>} />
+        <Route path="/labels" element={<Guarded moduleId="labels"><Labels /></Guarded>} />
+        <Route path="/warehouse-map" element={<Guarded moduleId="warehouse-map"><WarehouseMap /></Guarded>} />
+        <Route path="/operation-history" element={<Guarded moduleId="operation-history"><OperationHistory /></Guarded>} />
+        <Route path="/reservations" element={<Guarded moduleId="reservations"><Reservations /></Guarded>} />
+        <Route path="/odoo-stock" element={<Guarded moduleId="odoo-stock"><OdooStock /></Guarded>} />
+        <Route path="/warehouse-sim" element={<Guarded moduleId="warehouse-sim"><WarehouseSim /></Guarded>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
