@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PackageSearch, History, Menu, MapPin, Layers, Users, ShoppingCart, SlidersHorizontal, FileBarChart, QrCode, UserCircle, LayoutGrid, ScrollText, LogOut, ClipboardList, RefreshCw, Boxes, Sun, Moon, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../store/AppContext';
@@ -41,6 +41,7 @@ export const navItems: NavItem[] = [
   { id: 'reports', label: 'REPORTES', icon: FileBarChart },
   { id: 'users', label: 'USUARIOS', icon: Users },
   { id: 'operation-history', label: 'HISTORIAL GENERAL', icon: ScrollText },
+  { id: 'warehouse-sim', label: 'SIMULACIÓN', icon: Activity },
 ];
 
 type NavItemWithNum = NavItem & { num: string };

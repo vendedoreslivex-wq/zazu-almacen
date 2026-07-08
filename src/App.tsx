@@ -20,6 +20,7 @@ import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
 import { Reservations } from './pages/Reservations';
 import { OdooStock } from './pages/OdooStock';
+import { WarehouseSim } from './pages/WarehouseSim';
 import { PendingAccess } from './pages/PendingAccess';
 import { ResetPassword } from './pages/ResetPassword';
 import { supabase } from './lib/supabase';
@@ -56,6 +57,7 @@ function AppShell() {
         <Route path="/operation-history" element={<OperationHistory />} />
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/odoo-stock" element={<OdooStock />} />
+        <Route path="/warehouse-sim" element={<WarehouseSim />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
