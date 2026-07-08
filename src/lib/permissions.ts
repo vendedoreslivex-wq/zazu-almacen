@@ -43,7 +43,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     operations: 'none', adjustments: 'none', 'purchase-orders': 'none',
     history: 'none', contacts: 'none', reports: 'none', labels: 'none',
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
-    reservations: 'none', 'odoo-stock': 'none', 'livex-feed': 'view',
+    reservations: 'none', 'odoo-stock': 'view', 'livex-feed': 'view',
   },
 };
 
