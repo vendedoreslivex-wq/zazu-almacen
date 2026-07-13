@@ -598,7 +598,7 @@ export const Inventory: React.FC = () => {
                                     <button onClick={(e) => { e.stopPropagation(); setQrProduct(item); }} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="VER QR">
                                       <QrCode size={14} />
                                     </button>
-                                    {canEdit(currentUser.role, 'inventory') && (
+                                    {currentUser.role === 'ADMIN_GENERAL' && (
                                       <>
                                         <button onClick={(e) => openEditModal(item, e)} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="EDITAR SKU">
                                           <Edit2 size={14} />
