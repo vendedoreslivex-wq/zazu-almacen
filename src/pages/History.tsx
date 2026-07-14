@@ -3,9 +3,11 @@ import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { fmtLima } from '../lib/utils';
 import { ChevronRight, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
+import { TutorialModal, HISTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const History: React.FC = () => {
     const { transactions, products, locations, contacts } = useAppContext();
+    const [showTutorial, setShowTutorial] = useState(false);
     const [filterType, setFilterType] = useState('ALL');
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [filterProduct, setFilterProduct] = useState('ALL');
@@ -157,7 +159,22 @@ export const History: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col gap-6 relative">
-            <ModuleInfo number="10" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
+            <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={HISTORY_TUTORIAL_STEPS} title="Historial" />
+            <div className="flex items-stretch gap-0">
+                <div className="flex-1">
+                    <ModuleInfo number="10" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
+                </div>
+                <button
+                    onClick={() => setShowTutorial(true)}
+                    className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+                    title="Ver tutorial"
+                >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                    </svg>
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+                </button>
+            </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
                 <div>
                     <h2 className="font-mono font-black text-xs uppercase tracking-widest">08 // HISTORIAL_OPERACIONES</h2>

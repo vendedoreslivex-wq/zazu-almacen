@@ -8,6 +8,7 @@ import { fmtLima } from '../lib/utils';
 import { sendPurchaseOrderEmail, sendOperationEmail, sendOperationToInternalRecipients, OperationType } from '../lib/emailService';
 import { OperationForm, OperationsReport, BulletinsTab } from './Operations';
 import { cn } from '../lib/utils';
+import { TutorialModal, PURCHASE_ORDERS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 // ─── Tipos internos ─────────────────────────────────────────────────────────────
 type ProductRef = { id: string; name: string; code: string; color?: string; size?: string; availableStock?: number };
@@ -259,6 +260,7 @@ const emptyItem = (): PurchaseOrderItem => ({ productId: '', quantity: 1, unitCo
 export const PurchaseOrders: React.FC = () => {
   const { purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder, dispatchRequirement, contacts, products, locations, stockLevels, currentUser, activeBrand, users } = useAppContext();
   const [mainTab, setMainTab] = useState<'ops' | 'log' | 'reports' | 'bulletins' | 'oc'>('ops');
+  const [showTutorial, setShowTutorial] = useState(false);
   const [activeOpt, setActiveOpt] = useState<'DISPATCH' | 'REQUIREMENT'>('REQUIREMENT');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -443,7 +445,27 @@ export const PurchaseOrders: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
-      <ModuleInfo number="09" title="Despacho & Traslado" description="Gestión de requerimientos de almacén, traslados y órdenes de compra a proveedores." />
+      <TutorialModal
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        steps={PURCHASE_ORDERS_TUTORIAL_STEPS}
+        title="Órdenes OC"
+      />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="09" title="Despacho & Traslado" description="Gestión de requerimientos de almacén, traslados y órdenes de compra a proveedores." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       {/* Main tabs — DESPACHADOR solo ve OPERACIONES */}
       <div className="flex flex-wrap border border-[var(--border)] bg-[var(--bg-sidebar)]">

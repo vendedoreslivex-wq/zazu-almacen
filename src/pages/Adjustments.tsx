@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Plus, ChevronDown, ChevronUp, Upload, Download, CheckCircle, XCircle, AlertCircle, PackagePlus, SlidersHorizontal } from 'lucide-react';
-import { AdjustmentReason } from '../types';
+import { Plus, ChevronDown, ChevronUp, Upload, Download, CheckCircle, XCircle, AlertCircle, PackagePlus, SlidersHorizontal, Clock, Check, X as XIcon } from 'lucide-react';
+import { AdjustmentReason, AdjustmentStatus } from '../types';
+import { TutorialModal, ADJUSTMENTS_TUTORIAL_STEPS } from '../components/TutorialModal';
 import { canEdit } from '../lib/permissions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -49,14 +50,49 @@ type BulkRow = {
   error: string | null;
 };
 
+const STATUS_LABEL: Record<AdjustmentStatus, string> = {
+  PENDING: 'PENDIENTE',
+  APPROVED: 'APROBADO',
+  REJECTED: 'RECHAZADO',
+};
+
+const STATUS_COLOR: Record<AdjustmentStatus, string> = {
+  PENDING: 'border-amber-500 text-amber-600 bg-amber-500/10',
+  APPROVED: 'border-green-700 text-green-700 bg-green-500/10',
+  REJECTED: 'border-red-600 text-red-600 bg-red-500/10',
+};
+
 export const Adjustments: React.FC = () => {
-  const { adjustments, addAdjustment, addTransaction, products, locations, stockLevels, currentUser } = useAppContext();
+  const { adjustments, addAdjustment, approveAdjustment, rejectAdjustment, addTransaction, products, locations, stockLevels, currentUser } = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filterReason, setFilterReason] = useState<'ALL' | AdjustmentReason>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | AdjustmentStatus>('ALL');
   const [page, setPage] = useState(1);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [reviewBusy, setReviewBusy] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const canAdjust = canEdit(currentUser.role, 'adjustments');
+  const canReview = currentUser.role === 'ADMIN_GENERAL';
+  const pendingAdjustments = adjustments.filter(a => a.status === 'PENDING');
+
+  const handleApprove = async (id: string) => {
+    setReviewBusy(id);
+    try { await approveAdjustment(id); } catch (e) { alert(e instanceof Error ? e.message : 'Error al aprobar'); }
+    finally { setReviewBusy(null); }
+  };
+
+  const openReject = (id: string) => { setRejectingId(id); setRejectReason(''); };
+
+  const confirmReject = async () => {
+    if (!rejectingId) return;
+    setReviewBusy(rejectingId);
+    try { await rejectAdjustment(rejectingId, rejectReason); setRejectingId(null); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Error al rechazar'); }
+    finally { setReviewBusy(null); }
+  };
 
   // --- Single adjustment form ---
   const [selName, setSelName] = useState('');
@@ -293,7 +329,10 @@ export const Adjustments: React.FC = () => {
   };
 
   // --- Pagination & filter ---
-  const filtered = adjustments.filter(a => filterReason === 'ALL' || a.reason === filterReason);
+  const filtered = adjustments.filter(a =>
+    (filterReason === 'ALL' || a.reason === filterReason) &&
+    (filterStatus === 'ALL' || a.status === filterStatus)
+  );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -313,13 +352,33 @@ export const Adjustments: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="08" title="Ajustes de Inventario" description="Correcciones manuales de stock con motivo obligatorio. Permite incrementar o decrementar unidades de cualquier SKU con trazabilidad completa." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={ADJUSTMENTS_TUTORIAL_STEPS} title="Ajustes" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="08" title="Ajustes de Inventario" description="Correcciones manuales de stock con motivo obligatorio. Permite incrementar o decrementar unidades de cualquier SKU con trazabilidad completa." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">10 // AJUSTES_INVENTARIO</h2>
           <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Correcciones de stock con motivo y trazabilidad.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value as any); setPage(1); }}
+            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+            <option value="ALL">TODOS LOS ESTADOS</option>
+            {(Object.keys(STATUS_LABEL) as AdjustmentStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          </select>
           <select value={filterReason} onChange={e => { setFilterReason(e.target.value as any); setPage(1); }}
             className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
             <option value="ALL">TODOS LOS MOTIVOS</option>
@@ -344,6 +403,46 @@ export const Adjustments: React.FC = () => {
         </div>
       </div>
 
+      {canReview && pendingAdjustments.length > 0 && (
+        <div className="border-2 border-amber-500 bg-amber-500/5 flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-amber-600" />
+            <span className="font-mono font-bold text-xs uppercase tracking-widest text-amber-700">
+              {pendingAdjustments.length} AJUSTE{pendingAdjustments.length !== 1 ? 'S' : ''} PENDIENTE{pendingAdjustments.length !== 1 ? 'S' : ''} DE APROBACION
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {pendingAdjustments.map(adj => {
+              const prod = products.find(p => p.id === adj.productId);
+              const loc = locations.find(l => l.id === adj.locationId);
+              const diff = adj.newQuantity - adj.previousQuantity;
+              const busy = reviewBusy === adj.id;
+              return (
+                <div key={adj.id} className="border border-[var(--border)] bg-[var(--bg-card)] flex items-center justify-between gap-3 p-3 flex-wrap">
+                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                    <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>{REASON_LABEL[adj.reason]}</span>
+                    <span className="font-mono font-bold text-xs truncate">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : adj.productId}</span>
+                    <span className="font-mono text-[10px] opacity-60 shrink-0">{loc?.name}</span>
+                    <span className={`font-mono font-bold text-xs shrink-0 ${diffColor(adj.previousQuantity, adj.newQuantity)}`}>{adj.previousQuantity} → {adj.newQuantity} ({diff > 0 ? `+${diff}` : diff})</span>
+                    <span className="font-mono text-[9px] opacity-50 shrink-0">por {adj.user}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button disabled={busy} onClick={() => handleApprove(adj.id)}
+                      className="flex items-center gap-1 bg-green-700 text-white px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-green-800 transition-all disabled:opacity-40">
+                      <Check size={12} /> APROBAR
+                    </button>
+                    <button disabled={busy} onClick={() => openReject(adj.id)}
+                      className="flex items-center gap-1 border border-red-600 text-red-600 px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-red-600 hover:text-white transition-all disabled:opacity-40">
+                      <XIcon size={12} /> RECHAZAR
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {filtered.length === 0 && (
         <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest">Sin ajustes registrados</div>
       )}
@@ -359,6 +458,9 @@ export const Adjustments: React.FC = () => {
             <div key={adj.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
               <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : adj.id)}>
                 <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${STATUS_COLOR[adj.status]}`}>
+                    {STATUS_LABEL[adj.status]}
+                  </span>
                   <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>
                     {REASON_LABEL[adj.reason]}
                   </span>
@@ -369,7 +471,7 @@ export const Adjustments: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
-                    <div className="font-mono text-[10px] opacity-50">{adj.previousQuantity} ? {adj.newQuantity}</div>
+                    <div className="font-mono text-[10px] opacity-50">{adj.previousQuantity} → {adj.newQuantity}</div>
                     <div className={`font-mono font-bold text-xs ${diffColor(adj.previousQuantity, adj.newQuantity)}`}>
                       {diff > 0 ? `+${diff}` : diff}
                     </div>
@@ -381,7 +483,13 @@ export const Adjustments: React.FC = () => {
                 <div className="border-t border-[var(--border)] px-4 py-3 flex flex-wrap gap-4 text-[10px] font-mono">
                   <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(adj.date), 'dd MMM yyyy HH:mm', { locale: es })}</span></div>
                   <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{adj.user}</span></div>
+                  {adj.status !== 'PENDING' && adj.reviewedBy && (
+                    <div><span className="opacity-50 uppercase">Revisado por:</span> <span className="font-bold">{adj.reviewedBy}</span></div>
+                  )}
                   {adj.notes && <div className="w-full"><span className="opacity-50 uppercase">Notas:</span> <span className="italic">{adj.notes}</span></div>}
+                  {adj.status === 'REJECTED' && adj.rejectionReason && (
+                    <div className="w-full"><span className="opacity-50 uppercase">Motivo de rechazo:</span> <span className="italic text-red-600">{adj.rejectionReason}</span></div>
+                  )}
                 </div>
               )}
             </div>
@@ -520,7 +628,7 @@ export const Adjustments: React.FC = () => {
               </div>
               {error && <p className="font-mono text-[10px] text-red-600 font-bold">{error}</p>}
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">REGISTRAR AJUSTE</button>
+                <button type="submit" className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">SOLICITAR AJUSTE</button>
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">CANCELAR</button>
               </div>
             </form>
@@ -548,8 +656,8 @@ export const Adjustments: React.FC = () => {
               {/* Mode explanation */}
               <div className={`border px-3 py-2 text-[9px] font-mono leading-relaxed ${bulkMode === 'reception' ? 'border-green-600 bg-green-500/10 text-green-600' : 'border-blue-600 bg-blue-500/10 text-blue-600'}`}>
                 {bulkMode === 'reception'
-                  ? '? INGRESO: suma las unidades al stock existente. Genera una transaccion de RECEPCION visible en el historial.'
-                  : '? AJUSTE: reemplaza el stock con el valor exacto que indiques. Util para conteos fisicos y correcciones.'}
+                  ? 'INGRESO: suma las unidades al stock existente. Genera una transaccion de RECEPCION visible en el historial.'
+                  : 'AJUSTE: queda como solicitud PENDIENTE hasta que ADMIN_GENERAL la apruebe. Util para conteos fisicos y correcciones.'}
               </div>
 
               {/* Instructions */}
@@ -655,7 +763,7 @@ export const Adjustments: React.FC = () => {
                       className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       {bulkMode === 'reception'
                         ? `INGRESAR ${bulkRows.filter(r => !r.error).length} PRODUCTOS`
-                        : `APLICAR ${bulkRows.filter(r => !r.error).length} AJUSTES`}
+                        : `SOLICITAR ${bulkRows.filter(r => !r.error).length} AJUSTES`}
                     </button>
                     <button onClick={() => setShowBulkModal(false)}
                       className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
@@ -670,7 +778,7 @@ export const Adjustments: React.FC = () => {
                 <div className="flex flex-col items-center gap-3 py-8">
                   <CheckCircle size={36} className="text-green-700" />
                   <p className="font-mono font-bold text-sm uppercase tracking-widest">
-                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacen` : `${bulkApplied} ajustes aplicados`}
+                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacen` : `${bulkApplied} ajustes enviados a aprobacion`}
                   </p>
                   <button onClick={() => setShowBulkModal(false)}
                     className="bg-[var(--ink)] text-[var(--ink-inv)] px-6 py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all mt-2">
@@ -678,6 +786,37 @@ export const Adjustments: React.FC = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectingId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-sm">
+            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
+              <span className="font-mono font-bold text-xs uppercase tracking-widest">RECHAZAR AJUSTE</span>
+              <button onClick={() => setRejectingId(null)} className="font-mono text-xs opacity-60 hover:opacity-100">
+                <XIcon size={14} />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Motivo del rechazo (opcional)</label>
+                <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
+                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none"
+                  placeholder="Ej: cantidad no coincide con el conteo fisico" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={confirmReject} disabled={reviewBusy === rejectingId}
+                  className="flex-1 bg-red-700 text-white py-2 text-xs font-bold font-mono uppercase hover:bg-red-800 transition-all disabled:opacity-40">
+                  CONFIRMAR RECHAZO
+                </button>
+                <button onClick={() => setRejectingId(null)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
+                  CANCELAR
+                </button>
+              </div>
             </div>
           </div>
         </div>

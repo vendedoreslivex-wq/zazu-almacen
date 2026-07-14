@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { Reservation, ReservationStatus } from '../types';
+import { TutorialModal, RESERVATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 // --- Columnas del kanban ------------------------------------------------------
 
@@ -865,6 +866,7 @@ export const Reservations: React.FC = () => {
   const { reservations, products, locations, stockLevels, currentUser, addReservation, updateReservationStatus } = useAppContext();
   const [tab, setTab] = useState<'kanban' | 'stock'>('kanban');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const totalActive = reservations.filter(r => r.status !== 'ENTREGADA' && r.status !== 'CANCELADA').length;
   const totalReservedUnits = useMemo(() => {
@@ -897,6 +899,7 @@ export const Reservations: React.FC = () => {
   return (
     <div className="flex flex-col h-full gap-0 -m-4 md:-m-6 lg:-m-8">
       {/* Page header */}
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={RESERVATIONS_TUTORIAL_STEPS} title="Reservas" />
       <div className="border-b border-[var(--border)] px-6 py-4 bg-[var(--bg)] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <ClipboardList size={18} className="text-[var(--ink)]" />
@@ -908,6 +911,16 @@ export const Reservations: React.FC = () => {
               Gestión y seguimiento de stock apartado
             </p>
           </div>
+          <button
+            onClick={() => setShowTutorial(true)}
+            className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors ml-2"
+            title="Ver tutorial"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+            </svg>
+            Tutorial
+          </button>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
@@ -924,7 +937,7 @@ export const Reservations: React.FC = () => {
             <span className={`font-mono font-black text-lg ${criticalCount > 0 ? 'text-red-500' : 'text-green-600'}`}>
               {criticalCount}
             </span>
-            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">Cr-ticos</span>
+            <span className="font-mono text-[9px] text-[var(--ink)]/40 tracking-wider uppercase">Críticos</span>
           </div>
         </div>
       </div>

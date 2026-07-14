@@ -9,10 +9,12 @@ import { todayLima } from '../lib/utils';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine } from 'recharts';
 import * as XLSX from 'xlsx';
+import { TutorialModal, DASHBOARD_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const Dashboard: React.FC = () => {
   const { products, transactions, stockLevels } = useAppContext();
   const { theme } = useTheme();
+  const [showTutorial, setShowTutorial] = useState(false);
   const navigate = useNavigate();
 
   const chartBorder   = theme === 'dark' ? '#3a3a3a' : '#141414';
@@ -294,7 +296,22 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      <ModuleInfo number="03" title="Dashboard" description="Vista general del almacen: stock total, alertas de bajo stock, movimientos recientes y metricas operativas en tiempo real." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={DASHBOARD_TUTORIAL_STEPS} title="Dashboard" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="03" title="Dashboard" description="Vista general del almacen: stock total, alertas de bajo stock, movimientos recientes y metricas operativas en tiempo real." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       {/* Header section */}
       <div className="border-b border-[var(--border)] pb-2">
         <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">01 // SYSTEM_STATUS</h2>

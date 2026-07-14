@@ -48,7 +48,9 @@ interface AppContextType {
   addPurchaseOrder: (po: Omit<PurchaseOrder, 'id' | 'date'>) => void;
   updatePurchaseOrder: (po: PurchaseOrder) => void;
   deletePurchaseOrder: (id: string) => void;
-  addAdjustment: (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => void;
+  addAdjustment: (adj: Omit<InventoryAdjustment, 'id' | 'date' | 'status'>) => void;
+  approveAdjustment: (id: string) => Promise<void>;
+  rejectAdjustment: (id: string, reason: string) => Promise<void>;
   rolePermissions: Record<Role, Record<string, Permission>>;
   updateRolePermission: (role: Role, module: string, permission: Permission) => Promise<void>;
   deleteTransaction: (txId: string) => Promise<void>;
@@ -649,17 +651,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date'>) => {
-    const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: nowLima() };
+  const addAdjustment = (adj: Omit<InventoryAdjustment, 'id' | 'date' | 'status'>) => {
+    // El ajuste queda PENDIENTE: no se toca stockLevels hasta que ADMIN_GENERAL lo apruebe.
+    const tempAdj: InventoryAdjustment = { ...adj, id: crypto.randomUUID(), date: nowLima(), status: 'PENDING' };
     setAdjustments(prev => [tempAdj, ...prev]);
+    supabase.rpc('request_adjustment', { p_brand: activeBrand, p_product_id: adj.productId, p_location_id: adj.locationId, p_previous_quantity: adj.previousQuantity, p_new_quantity: adj.newQuantity, p_reason: adj.reason, p_notes: adj.notes || null, p_user_name: adj.user })
+      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
+
+  const approveAdjustment = async (id: string): Promise<void> => {
+    const adj = adjustments.find(a => a.id === id);
+    if (!adj) return;
+    setAdjustments(prev => prev.map(a => a.id === id ? { ...a, status: 'APPROVED', reviewedBy: currentUser.username, reviewedAt: nowLima() } : a));
     setStockLevels(prev => {
       const existing = prev.find(s => s.productId === adj.productId && s.locationId === adj.locationId);
       if (existing) return prev.map(s => s.productId === adj.productId && s.locationId === adj.locationId ? { ...s, quantity: adj.newQuantity } : s).filter(s => s.quantity > 0);
       if (adj.newQuantity > 0) return [...prev, { id: crypto.randomUUID(), productId: adj.productId, locationId: adj.locationId, quantity: adj.newQuantity }];
       return prev;
     });
-    supabase.rpc('execute_adjustment', { p_brand: activeBrand, p_product_id: adj.productId, p_location_id: adj.locationId, p_previous_quantity: adj.previousQuantity, p_new_quantity: adj.newQuantity, p_reason: adj.reason, p_notes: adj.notes || null, p_user_name: adj.user })
-      .then(({ error }) => { if (error) loadBrandData(activeBrand); });
+    const { error } = await supabase.rpc('approve_adjustment', { p_adjustment_id: id, p_reviewer_name: currentUser.username });
+    if (error) { loadBrandData(activeBrand); throw new Error(error.message); }
+  };
+
+  const rejectAdjustment = async (id: string, reason: string): Promise<void> => {
+    setAdjustments(prev => prev.map(a => a.id === id ? { ...a, status: 'REJECTED', reviewedBy: currentUser.username, reviewedAt: nowLima(), rejectionReason: reason } : a));
+    const { error } = await supabase.rpc('reject_adjustment', { p_adjustment_id: id, p_reviewer_name: currentUser.username, p_reason: reason || null });
+    if (error) { loadBrandData(activeBrand); throw new Error(error.message); }
   };
 
   const refreshAll = useCallback(async () => {
@@ -694,7 +711,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addContact, updateContact, deleteContact, setCurrentUser,
     addUser, updateUser, deleteUser,
     addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receivePurchaseOrder, dispatchRequirement,
-    addAdjustment,
+    addAdjustment, approveAdjustment, rejectAdjustment,
     rolePermissions, updateRolePermission,
     notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
     auditLog, refreshAuditLog, refreshAll,

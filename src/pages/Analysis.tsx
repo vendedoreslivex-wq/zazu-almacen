@@ -4,6 +4,7 @@ import { useTheme } from '../store/ThemeContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { TrendingUp, TrendingDown, Package, BarChart2, AlertTriangle, Filter, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { TutorialModal, ANALYSIS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 type OperationFilter = 'ALL' | 'RECEPTION' | 'DISPATCH' | 'TRANSFER' | 'BAJA';
 type StatusFilter    = 'ALL' | 'COMPLETED' | 'PENDING' | 'CANCELLED' | 'PREPARING';
@@ -42,6 +43,7 @@ export const Analysis: React.FC = () => {
   const tooltipStyle = { fontFamily: 'Courier New', fontSize: 10, border: `1px solid ${chartBorder}`, background: chartBg, color: chartInk };
   const [tab, setTab] = useState<Tab>('summary');
   const [rankSort, setRankSort] = useState<'dispatched' | 'stock' | 'ratio'>('dispatched');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // -- Filtros --
   const [dateFrom, setDateFrom] = useState('');
@@ -137,7 +139,22 @@ export const Analysis: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ModuleInfo number="04" title="Rendimiento de Productos" description="Ranking de despachos, variantes mas y menos demandadas, y analisis de rotacion por talla y color." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={ANALYSIS_TUTORIAL_STEPS} title="Análisis" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="04" title="Rendimiento de Productos" description="Ranking de despachos, variantes mas y menos demandadas, y analisis de rotacion por talla y color." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       <div className="border-b border-[var(--border)] pb-3">
         <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">05 // RENDIMIENTO DE PRODUCTOS</h2>
         <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Que variantes se mueven, cuales no, y como se distribuye la demanda.</p>

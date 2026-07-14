@@ -4,9 +4,11 @@ import { ModuleInfo } from '../components/ModuleInfo';
 import { Search, Plus, Trash2, Edit2, History, X, AlertTriangle } from 'lucide-react';
 import { Contact } from '../types';
 import { format } from 'date-fns';
+import { TutorialModal, CONTACTS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const Contacts: React.FC = () => {
   const { contacts, addContact, updateContact, deleteContact, transactions, products } = useAppContext();
+  const [showTutorial, setShowTutorial] = useState(false);
   const [historyContact, setHistoryContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
@@ -54,7 +56,22 @@ export const Contacts: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="11" title="Contactos" description="Directorio de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC y tipo de relación comercial." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={CONTACTS_TUTORIAL_STEPS} title="Contactos" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="11" title="Contactos" description="Directorio de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC y tipo de relación comercial." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">04 // DATOS_CONTACTOS</h2>

@@ -92,6 +92,8 @@ export type PurchaseOrder = {
 
 export type AdjustmentReason = 'DAMAGE' | 'LOSS' | 'COUNT' | 'RETURN' | 'OTHER';
 
+export type AdjustmentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export type InventoryAdjustment = {
   id: string;
   date: string;
@@ -102,6 +104,10 @@ export type InventoryAdjustment = {
   reason: AdjustmentReason;
   notes?: string;
   user: string;
+  status: AdjustmentStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
 };
 
 export type NotificationSubscriber = {

@@ -5,6 +5,7 @@ import {
   fetchOdooAll,
   type OdooProduct, type OdooVariant, type OdooQuant, type OdooStockLocation, type OdooStockMove, type OdooAttributeValue,
 } from '../lib/odooService';
+import { TutorialModal, ODOO_STOCK_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 // --- Types --------------------------------------------------------------------
 
@@ -221,6 +222,7 @@ export const OdooStock: React.FC = () => {
   const [attrMap,   setAttrMap]   = useState<Map<number, OdooAttributeValue>>(new Map());
 
   const [view, setView] = useState<ViewMode>('products');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // -- Filter state ----------------------------------------------------------
   const [sidebarOpen, setSidebarOpen]           = useState(true);
@@ -435,6 +437,7 @@ export const OdooStock: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={ODOO_STOCK_TUTORIAL_STEPS} title="Odoo Stock" />
       <ModuleInfo
         number="17"
         title="Odoo Stock"
@@ -470,6 +473,16 @@ export const OdooStock: React.FC = () => {
           >
             <RefreshCw size={10} className={status === 'loading' ? 'animate-spin' : ''} />
             Actualizar
+          </button>
+          <button
+            onClick={() => setShowTutorial(true)}
+            className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors shadow-[2px_2px_0_var(--border)]"
+            title="Ver tutorial"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+            </svg>
+            Tutorial
           </button>
         </div>
       </div>

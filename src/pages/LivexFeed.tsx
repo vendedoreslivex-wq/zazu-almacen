@@ -501,6 +501,7 @@ export const LivexFeed: React.FC = () => {
         open={showTutorial}
         onClose={() => setShowTutorial(false)}
         steps={LIVEX_TUTORIAL_STEPS}
+        title="Livex"
       />
 
       <div className="flex items-stretch gap-0">

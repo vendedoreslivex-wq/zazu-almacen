@@ -5,11 +5,13 @@ import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode, ChevronL
 import { QRModal } from '../components/QRModal';
 import { Location } from '../types';
 import { cn } from '../lib/utils';
+import { TutorialModal, LOCATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const Locations: React.FC = () => {
   const { locations, stockLevels, products, addLocation, updateLocation, deleteLocation, deleteStockLevel, activeBrand } = useAppContext();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [showTutorial, setShowTutorial] = useState(false);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLocation, setNewLocation] = useState<{name: string, type: 'ZONE' | 'RACK' | 'BIN' | 'EXTERNAL' | 'WAREHOUSE'}>({ name: '', type: 'ZONE' });
@@ -214,7 +216,22 @@ export const Locations: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="06" title="Ubicaciones" description="Gestión de la estructura física del almacén: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={LOCATIONS_TUTORIAL_STEPS} title="Ubicaciones" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="06" title="Ubicaciones" description="Gestión de la estructura física del almacén: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       {feedback && (
         <div className={cn("absolute top-0 right-0 z-50 p-4 border font-bold font-mono text-xs uppercase tracking-widest flex items-center gap-2 shadow-[4px_4px_0_rgba(0,0,0,0.2)]", feedback.type === 'success' ? "bg-green-500/15 border-green-700 text-green-600" : "bg-red-500/15 border-red-700 text-red-600")}>
           {feedback.message}

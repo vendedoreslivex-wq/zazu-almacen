@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { TutorialModal, REPORTS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 type ReportType = 'inventory' | 'movements' | 'valuation' | 'adjustments' | 'abc' | 'aging';
 
@@ -86,6 +87,7 @@ export const Reports: React.FC = () => {
   const [showEntregaModal, setShowEntregaModal] = useState(false);
   const [entregaDateFrom, setEntregaDateFrom] = useState('');
   const [entregaDateTo, setEntregaDateTo] = useState('');
+  const [showTutorial, setShowTutorial] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const totalStock = (productId: string) =>
@@ -1276,7 +1278,22 @@ export const Reports: React.FC = () => {
         </div>
       )}
 
-      <ModuleInfo number="10" title="Reportes" description="Generacion y exportacion de reportes operativos: inventario actual, movimientos por per-odo, valorizacion de stock y alertas de stock bajo m-nimo." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={REPORTS_TUTORIAL_STEPS} title="Reportes" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="10" title="Reportes" description="Generación y exportación de reportes operativos: inventario actual, movimientos por período, valorización de stock y alertas de stock bajo mínimo." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>

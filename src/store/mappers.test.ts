@@ -82,6 +82,7 @@ describe('mappers — snake_case (DB) to camelCase (TS)', () => {
     })).toEqual({
       id: 'A1', date: '2026-05-22', productId: 'p1', locationId: 'L1',
       previousQuantity: 10, newQuantity: 8, reason: 'DAMAGE', notes: undefined, user: 'BENJAMIN',
+      status: 'APPROVED', reviewedBy: undefined, reviewedAt: undefined, rejectionReason: undefined,
     });
   });
 

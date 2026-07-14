@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { UserWithPassword, Role, NotificationSubscriber } from '../types';
 import { canEdit, Permission } from '../lib/permissions';
+import { TutorialModal, USERS_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 const ROLE_LABELS: Record<Role, string> = {
   ADMIN_GENERAL: 'Admin General',
@@ -117,6 +118,7 @@ export const Users: React.FC = () => {
   } = useAppContext();
 
   const [activeTab, setActiveTab] = useState<Tab>('usuarios');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserWithPassword | null>(null);
@@ -191,7 +193,22 @@ export const Users: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-5 min-h-0 relative w-full max-w-full overflow-x-hidden">
-      <ModuleInfo number="13" title="Usuarios y Roles" description="Administracion de usuarios y control de accesos por modulo." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={USERS_TUTORIAL_STEPS} title="Usuarios" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="13" title="Usuarios y Roles" description="Administracion de usuarios y control de accesos por modulo." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">

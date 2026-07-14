@@ -5,6 +5,7 @@ import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronDown, ChevronUp, Filter, Download, RefreshCw } from 'lucide-react';
 import type { AuditAction, AuditLogEntry } from '../types';
+import { TutorialModal, OPERATION_HISTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 // ─── Friendly labels ───────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export const OperationHistory: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   if (currentUser.role !== 'ADMIN_GENERAL') {
     return (
@@ -180,7 +182,22 @@ export const OperationHistory: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="14" title="Historial General" description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock — qué se hizo, quién lo hizo y cuándo." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={OPERATION_HISTORY_TUTORIAL_STEPS} title="Historial General" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="14" title="Historial General" description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock — qué se hizo, quién lo hizo y cuándo." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
         <div>

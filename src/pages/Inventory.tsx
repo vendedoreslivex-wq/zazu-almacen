@@ -6,9 +6,11 @@ import { Product } from '../types';
 import Papa from 'papaparse';
 import { canEdit } from '../lib/permissions';
 import { QRModal } from '../components/QRModal';
+import { TutorialModal, INVENTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const Inventory: React.FC = () => {
   const { products, stockLevels, locations, transactions, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
+  const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [filterColor, setFilterColor] = useState('');
@@ -284,7 +286,22 @@ export const Inventory: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full relative">
-      <ModuleInfo number="05" title="Inventario" description="Directorio completo de productos organizados por nombre, color y talla. Registra, edita y elimina SKUs, consulta ubicaciones y exporta el inventario." />
+      <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={INVENTORY_TUTORIAL_STEPS} title="Inventario" />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo number="05" title="Inventario" description="Directorio completo de productos organizados por nombre, color y talla. Registra, edita y elimina SKUs, consulta ubicaciones y exporta el inventario." />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
       <datalist id="product-names">
         <option value="CAMISA WAFFLE" />
         <option value="CAMISERO JERSEY" />
