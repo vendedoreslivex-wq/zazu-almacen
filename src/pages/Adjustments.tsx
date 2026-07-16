@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
@@ -177,6 +177,26 @@ export const Adjustments: React.FC = () => {
   const [bulkDone, setBulkDone] = useState(false);
   const [bulkApplied, setBulkApplied] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const bulkImpact = useMemo(() => {
+    const valid = bulkRows.filter(r => !r.error);
+    if (bulkMode === 'reception') {
+      const totalUnits = valid.reduce((sum, r) => sum + r.qty, 0);
+      return { validCount: valid.length, totalUnits, netDiff: totalUnits, increases: valid.length, decreases: 0, byReason: {} as Record<AdjustmentReason, number> };
+    }
+    let netDiff = 0;
+    let increases = 0;
+    let decreases = 0;
+    const byReason: Record<AdjustmentReason, number> = { DAMAGE: 0, LOSS: 0, COUNT: 0, RETURN: 0, OTHER: 0 };
+    for (const r of valid) {
+      const diff = r.qty - r.stockActual;
+      netDiff += diff;
+      if (diff > 0) increases++;
+      else if (diff < 0) decreases++;
+      byReason[r.reason]++;
+    }
+    return { validCount: valid.length, totalUnits: netDiff, netDiff, increases, decreases, byReason };
+  }, [bulkRows, bulkMode]);
 
   const parseBulkRows = (rawRows: Record<string, unknown>[], mode: BulkMode) => {
     const qtyKey = mode === 'reception'
@@ -702,6 +722,52 @@ export const Adjustments: React.FC = () => {
                       Cambiar archivo
                     </button>
                   </div>
+
+                  {/* Impact summary */}
+                  {bulkImpact.validCount > 0 && (
+                    <div className="border-2 border-[var(--border)] bg-[var(--surface)] p-3 flex flex-col gap-2">
+                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-70">Resumen de impacto</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono text-[8px] opacity-50 uppercase">Filas a procesar</span>
+                          <span className="font-mono font-black text-lg">{bulkImpact.validCount}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono text-[8px] opacity-50 uppercase">
+                            {bulkMode === 'reception' ? 'Unidades a ingresar' : 'Impacto neto en stock'}
+                          </span>
+                          <span className={`font-mono font-black text-lg ${bulkImpact.netDiff > 0 ? 'text-green-700' : bulkImpact.netDiff < 0 ? 'text-red-600' : ''}`}>
+                            {bulkImpact.netDiff > 0 ? `+${bulkImpact.netDiff}` : bulkImpact.netDiff}
+                          </span>
+                        </div>
+                        {bulkMode === 'adjust' && (
+                          <>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-mono text-[8px] opacity-50 uppercase">Suben stock</span>
+                              <span className="font-mono font-black text-lg text-green-700">{bulkImpact.increases}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-mono text-[8px] opacity-50 uppercase">Bajan stock</span>
+                              <span className="font-mono font-black text-lg text-red-600">{bulkImpact.decreases}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {bulkMode === 'adjust' && (
+                        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]/20">
+                          {(Object.keys(REASON_LABEL) as AdjustmentReason[]).filter(r => bulkImpact.byReason[r] > 0).map(r => (
+                            <span key={r} className={`font-mono text-[9px] font-bold border px-2 py-0.5 ${REASON_COLOR[r]}`}>
+                              {REASON_LABEL[r]}: {bulkImpact.byReason[r]}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {bulkMode === 'adjust' && (
+                        <p className="font-mono text-[8px] opacity-50 italic">Estas solicitudes quedarán PENDIENTES hasta que ADMIN_GENERAL las apruebe una por una.</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-[10px] font-mono border-collapse">
                       <thead>

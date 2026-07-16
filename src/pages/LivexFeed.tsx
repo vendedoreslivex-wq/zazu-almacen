@@ -204,39 +204,75 @@ function groupBySupplier(rows: Row[]): SupplierGroup[] {
     .sort((a, b) => b.qty - a.qty);
 }
 
-const ProductCard: React.FC<{ row: Row }> = ({ row }) => {
+interface ProductGroup {
+  productName: string;
+  rows: Row[];
+  qty: number;
+}
+
+/** Agrupa las filas de un proveedor por nombre de producto (no por variante). */
+function groupByProduct(rows: Row[]): ProductGroup[] {
+  const map = new Map<string, Row[]>();
+  for (const row of rows) {
+    const key = productGroupKey(row);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(row);
+  }
+  return [...map.entries()]
+    .map(([productName, groupRows]) => ({
+      productName,
+      rows: groupRows,
+      qty: groupRows.reduce((sum, r) => sum + r.tx.quantity, 0),
+    }))
+    .sort((a, b) => b.qty - a.qty);
+}
+
+const VariantLine: React.FC<{ row: Row }> = ({ row }) => {
   const { tx, product, location } = row;
   return (
-    <div className="border border-[var(--border-soft)] bg-[var(--surface)] px-3.5 py-3 flex items-center gap-3">
-      <div className="w-8 h-8 rounded-sm bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
-        <Package size={14} className="text-green-600" />
-      </div>
+    <div className="flex items-center gap-2.5 px-2.5 py-1.5 flex-wrap sm:flex-nowrap">
+      {(product?.color || product?.size) ? (
+        <span className="font-mono text-[10px] font-bold uppercase shrink-0 sm:w-28 truncate" style={{ color: 'var(--ink)', opacity: 0.85 }}>
+          {[product?.color, product?.size].filter(Boolean).join(' · ')}
+        </span>
+      ) : (
+        <span className="font-mono text-[10px] font-medium shrink-0 sm:w-28 opacity-40">—</span>
+      )}
+      <span className="font-mono text-[9px] font-semibold flex items-center gap-1 shrink-0" style={{ color: 'var(--ink)', opacity: 0.7 }}>
+        <Hash size={9} className="shrink-0" />{tx.reference}
+      </span>
+      {location && (
+        <span className="font-mono text-[9px] font-semibold flex items-center gap-1 shrink-0 sm:w-28 truncate" style={{ color: 'var(--ink)', opacity: 0.7 }}>
+          <MapPin size={9} className="shrink-0" />{location.name}
+        </span>
+      )}
+      <span className="font-mono text-[9px] font-medium shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>{fmtDateTime(tx.date)}</span>
+      <span className="font-mono font-black text-[11px] text-green-600 shrink-0 ml-auto">+{tx.quantity}</span>
+    </div>
+  );
+};
 
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-mono text-[12px] font-black uppercase tracking-wide truncate" style={{ color: 'var(--ink)' }}>
-            {product?.name ?? tx.productId}
-          </span>
-          {(product?.color || product?.size) && (
-            <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>
-              {[product?.color, product?.size].filter(Boolean).join(' · ')}
-            </span>
-          )}
+const ProductGroupCard: React.FC<{ group: ProductGroup }> = ({ group }) => {
+  const isSingleVariant = group.rows.length === 1;
+  return (
+    <div className="border border-[var(--border-soft)] bg-[var(--surface)]">
+      <div className="flex items-center gap-3 px-3.5 py-2.5">
+        <div className="w-8 h-8 rounded-sm bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
+          <Package size={14} className="text-green-600" />
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="font-mono text-[10px] font-semibold flex items-center gap-1" style={{ color: 'var(--ink)', opacity: 0.8 }}>
-            <Hash size={10} className="shrink-0" />{tx.reference}
+        <span className="font-mono text-[12px] font-black uppercase tracking-wide truncate flex-1 min-w-0" style={{ color: 'var(--ink)' }}>
+          {group.productName}
+        </span>
+        {!isSingleVariant && (
+          <span className="font-mono text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>
+            {group.rows.length} variantes
           </span>
-          {location && (
-            <span className="font-mono text-[10px] font-semibold flex items-center gap-1" style={{ color: 'var(--ink)', opacity: 0.8 }}>
-              <MapPin size={10} className="shrink-0" />{location.name}
-            </span>
-          )}
-          <span className="font-mono text-[10px] font-medium" style={{ color: 'var(--ink)', opacity: 0.65 }}>{fmtDateTime(tx.date)}</span>
-        </div>
+        )}
+        <span className="font-mono font-black text-base text-green-600 shrink-0">+{group.qty}</span>
       </div>
-
-      <span className="font-mono font-black text-base text-green-600 shrink-0">+{tx.quantity}</span>
+      <div className="flex flex-col divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
+        {group.rows.map(row => <VariantLine key={row.tx.id} row={row} />)}
+      </div>
     </div>
   );
 };
@@ -359,7 +395,7 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  {group.rows.map(row => <ProductCard key={row.tx.id} row={row} />)}
+                  {groupByProduct(group.rows).map(pg => <ProductGroupCard key={pg.productName} group={pg} />)}
                 </div>
               </div>
             ))
