@@ -12,6 +12,7 @@ import { TutorialModal, ODOO_STOCK_TUTORIAL_STEPS } from '../components/Tutorial
 type ViewMode = 'products' | 'locations' | 'moves';
 type Status = 'idle' | 'loading' | 'ok' | 'error';
 type StockAlert = 'all' | 'over' | 'low' | 'critical';
+type StockPresence = 'all' | 'with' | 'without';
 
 type ResolvedAttr = { attrName: string; value: string; color: string | false };
 type VariantWithAttrs = OdooVariant & { attrs: ResolvedAttr[] };
@@ -28,6 +29,43 @@ function isSizeAttr(name: string)  { return /talla|size|talle|talla\s*tejido/i.t
 function cleanName(raw: string | undefined | false): string {
   if (!raw) return '';
   return raw.replace(/^\[[^\]]*\]\s*/, '').trim();
+}
+
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA UNICA', 'TALLA ÚNICA', '(TALLA UNICA)'];
+function sizeRank(value: string): number {
+  const idx = SIZE_ORDER.indexOf(value.trim().toUpperCase());
+  return idx === -1 ? SIZE_ORDER.length : idx;
+}
+
+/** Ordena las variantes de un producto por color y luego por talla (XS→3XL). */
+function sortVariants(vars: VariantWithAttrs[]): VariantWithAttrs[] {
+  return [...vars].sort((a, b) => {
+    const colorA = a.attrs.find(x => isColorAttr(x.attrName))?.value ?? '';
+    const colorB = b.attrs.find(x => isColorAttr(x.attrName))?.value ?? '';
+    const colorCmp = colorA.localeCompare(colorB);
+    if (colorCmp !== 0) return colorCmp;
+    const sizeA = a.attrs.find(x => isSizeAttr(x.attrName))?.value ?? '';
+    const sizeB = b.attrs.find(x => isSizeAttr(x.attrName))?.value ?? '';
+    return sizeRank(sizeA) - sizeRank(sizeB);
+  });
+}
+
+interface ColorGroup {
+  colorLabel: string;
+  colorSwatch: string | false;
+  variants: VariantWithAttrs[];
+}
+
+/** Agrupa las variantes (ya ordenadas) por color, para mostrar sus tallas juntas en una fila. */
+function groupVariantsByColor(vars: VariantWithAttrs[]): ColorGroup[] {
+  const map = new Map<string, ColorGroup>();
+  for (const v of vars) {
+    const colorAttr = v.attrs.find(a => isColorAttr(a.attrName));
+    const key = colorAttr?.value ?? 'Sin color';
+    if (!map.has(key)) map.set(key, { colorLabel: key, colorSwatch: colorAttr?.color ?? false, variants: [] });
+    map.get(key)!.variants.push(v);
+  }
+  return [...map.values()];
 }
 function badge(color: string, text: string) {
   const map: Record<string, string> = {
@@ -46,11 +84,11 @@ function StatCard({ label, value, sub, icon: Icon, accent }: { label: string; va
   return (
     <div className="border border-[var(--border)] bg-[var(--bg-card)] p-4 flex flex-col gap-2 shadow-[2px_2px_0_var(--border)]">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">{label}</span>
+        <span className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.65 }}>{label}</span>
         <Icon size={14} className={accent} />
       </div>
       <span className="font-mono font-black text-2xl text-[var(--ink)]">{value}</span>
-      {sub && <span className="font-mono text-[9px] opacity-50 uppercase tracking-wider">{sub}</span>}
+      {sub && <span className="font-mono text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink)', opacity: 0.55 }}>{sub}</span>}
     </div>
   );
 }
@@ -60,13 +98,13 @@ function StatCard({ label, value, sub, icon: Icon, accent }: { label: string; va
 const FilterSection: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-[var(--border)]/10 last:border-0">
+    <div className="border-b border-[var(--border)] last:border-0">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--ink)]/5 transition-colors"
       >
-        <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/60">{title}</span>
-        <ChevronDown size={12} className={`opacity-40 transition-transform ${open ? '' : '-rotate-90'}`} />
+        <span className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.7 }}>{title}</span>
+        <ChevronDown size={12} className={`transition-transform ${open ? '' : '-rotate-90'}`} style={{ color: 'var(--ink)', opacity: 0.5 }} />
       </button>
       {open && <div className="px-4 pb-3">{children}</div>}
     </div>
@@ -93,107 +131,117 @@ const ProductItem: React.FC<{ row: ProductRow }> = ({ row }) => {
   const available = totalQty - reserved;
 
   return (
-    <div className="border-b border-[var(--border)]/10 last:border-0">
+    <div className="border-b border-[var(--border)] last:border-0">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface)] transition-colors text-left"
+        className="w-full flex flex-col gap-2 px-4 py-3 hover:bg-[var(--surface)] transition-colors text-left"
       >
-        <span className="text-[var(--ink)]/40">{open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono font-bold text-[11px] text-[var(--ink)] truncate">{cleanName(row.name)}</span>
-            {row.default_code && <span className="font-mono text-[9px] opacity-50">[{row.default_code}]</span>}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="font-mono text-[9px] opacity-50 uppercase">{row.categ_id[1]}</span>
-            {row.variants.length > 0 && <span className={badge('blue', `${row.variants.length} var.`)} />}
-            {row.variants.length > 0 && (() => {
-              const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
-              const critical = row.variants.filter(v => v.qty_available > 0 && v.qty_available < CRITICAL).length;
-              const low      = row.variants.filter(v => v.qty_available >= LOW_MIN && v.qty_available <= LOW_MAX).length;
-              const over     = row.variants.filter(v => v.qty_available > OVER).length;
-              return (
-                <span className="flex items-center gap-1">
-                  {critical > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-red-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{critical}</span>}
-                  {low      > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-yellow-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />{low}</span>}
-                  {over     > 0 && <span className="flex items-center gap-0.5 font-mono text-[8px] text-green-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />{over}</span>}
-                </span>
-              );
-            })()}
-          </div>
-        </div>
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="text-right hidden sm:block">
-            <div className="font-mono font-black text-sm text-[var(--ink)]">{fmtQty(totalQty)}</div>
-            <div className="font-mono text-[9px] opacity-40 uppercase">a la mano</div>
-          </div>
-          <div className="text-right hidden md:block">
-            <div className={`font-mono font-bold text-sm ${available > 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtQty(available)}</div>
-            <div className="font-mono text-[9px] opacity-40 uppercase">disponible</div>
-          </div>
-          {reserved > 0 && (
-            <div className="text-right hidden lg:block">
-              <div className="font-mono font-bold text-sm text-yellow-700">{fmtQty(reserved)}</div>
-              <div className="font-mono text-[9px] opacity-40 uppercase">reservado</div>
-            </div>
+        {/* Row 1: identity */}
+        <div className="flex items-center gap-2.5">
+          <span style={{ color: 'var(--ink)', opacity: 0.5 }} className="shrink-0">{open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</span>
+          <span className="font-mono font-bold text-[12px] truncate" style={{ color: 'var(--ink)' }}>{cleanName(row.name)}</span>
+          {row.default_code && (
+            <span className="font-mono text-[9px] font-semibold shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>[{row.default_code}]</span>
           )}
+          <span className="h-px flex-1 bg-[var(--border-soft)] hidden sm:block" />
           <span className={badge(
             totalQty === 0 ? 'red' : available > 0 ? 'green' : 'yellow',
             totalQty === 0 ? 'sin stock' : available > 0 ? 'disponible' : 'reservado'
           )} />
         </div>
+
+        {/* Row 2: category + variant alert summary + metrics */}
+        <div className="flex items-center gap-3 flex-wrap pl-[21px]">
+          <span className="font-mono text-[9px] font-semibold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>{row.categ_id[1]}</span>
+          {row.variants.length > 0 && <span className={badge('blue', `${row.variants.length} var.`)} />}
+          {row.variants.length > 0 && (() => {
+            const OVER = 200, LOW_MAX = 80, LOW_MIN = 50, CRITICAL = 50;
+            const critical = row.variants.filter(v => v.qty_available > 0 && v.qty_available < CRITICAL).length;
+            const low      = row.variants.filter(v => v.qty_available >= LOW_MIN && v.qty_available <= LOW_MAX).length;
+            const over     = row.variants.filter(v => v.qty_available > OVER).length;
+            return (
+              <span className="flex items-center gap-2 shrink-0">
+                {critical > 0 && <span className="flex items-center gap-1 font-mono text-[9px] text-red-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{critical}</span>}
+                {low      > 0 && <span className="flex items-center gap-1 font-mono text-[9px] text-yellow-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />{low}</span>}
+                {over     > 0 && <span className="flex items-center gap-1 font-mono text-[9px] text-green-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />{over}</span>}
+              </span>
+            );
+          })()}
+
+          <div className="flex items-center gap-4 ml-auto shrink-0">
+            <div className="text-right hidden sm:block">
+              <div className="font-mono font-black text-sm" style={{ color: 'var(--ink)' }}>{fmtQty(totalQty)}</div>
+              <div className="font-mono text-[8px] font-bold uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>a la mano</div>
+            </div>
+            <div className="text-right hidden md:block">
+              <div className={`font-mono font-bold text-sm ${available > 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtQty(available)}</div>
+              <div className="font-mono text-[8px] font-bold uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>disponible</div>
+            </div>
+            {reserved > 0 && (
+              <div className="text-right hidden lg:block">
+                <div className="font-mono font-bold text-sm text-yellow-700">{fmtQty(reserved)}</div>
+                <div className="font-mono text-[8px] font-bold uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>reservado</div>
+              </div>
+            )}
+          </div>
+        </div>
       </button>
 
       {open && (
-        <div className="bg-[var(--ink)]/3 border-t border-[var(--border)]/10 px-4 pb-3 pt-2">
+        <div className="bg-[var(--surface-alt)] border-t border-[var(--border)] px-4 pb-4 pt-3">
           {row.variants.length > 0 ? (
-            <div>
-              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-50 mb-2">Variantes ({row.variants.length})</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {row.variants.map(v => {
-                  const colorAttr  = v.attrs.find(a => isColorAttr(a.attrName));
-                  const sizeAttr   = v.attrs.find(a => isSizeAttr(a.attrName));
-                  const otherAttrs = v.attrs.filter(a => a !== colorAttr && a !== sizeAttr);
-                  return (
-                    <div key={v.id} className={`border bg-[var(--surface)] px-3 py-2 flex items-center justify-between gap-2 ${v.qty_available > 0 ? 'border-[var(--border)]/20' : 'border-[var(--border)]/10 opacity-50'}`}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                          <VariantAlertDot qty={v.qty_available} />
-                          {colorAttr && (
-                            <div className="flex items-center gap-1">
-                              {colorAttr.color && <span className="w-3 h-3 rounded-full border border-[var(--border)]/20 shrink-0" style={{ backgroundColor: colorAttr.color }} />}
-                              <span className="font-mono text-[10px] font-bold text-[var(--ink)]">{colorAttr.value}</span>
-                            </div>
-                          )}
-                          {colorAttr && sizeAttr && <span className="font-mono text-[9px] opacity-30">/</span>}
-                          {sizeAttr && (
-                            <span className="font-mono text-[10px] font-bold text-[var(--ink)] border border-[var(--border)]/30 px-1.5 py-0.5 leading-none">{sizeAttr.value}</span>
-                          )}
-                          {otherAttrs.map(a => <span key={a.attrName} className="font-mono text-[9px] opacity-60">{a.value}</span>)}
-                          {v.attrs.length === 0 && <span className="font-mono text-[9px] opacity-40 italic">sin atributos</span>}
-                        </div>
-                        {v.default_code && <div className="font-mono text-[9px] opacity-30">{v.default_code}</div>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className={`font-mono font-black text-sm ${v.qty_available > 0 ? 'text-green-700' : 'text-red-500'}`}>{fmtQty(v.qty_available)}</div>
-                        <div className="font-mono text-[9px] opacity-40">uds</div>
-                      </div>
+            <div className="flex flex-col gap-3">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Variantes ({row.variants.length})</div>
+              {groupVariantsByColor(row.variants).map(cg => {
+                const hasSizes = cg.variants.some(v => v.attrs.some(a => isSizeAttr(a.attrName)));
+                return (
+                  <div key={cg.colorLabel} className="border border-[var(--border)] bg-[var(--bg-card)]">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-soft)]">
+                      {cg.colorSwatch && <span className="w-3 h-3 rounded-full border border-[var(--border)] shrink-0" style={{ backgroundColor: cg.colorSwatch }} />}
+                      <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--ink)' }}>{cg.colorLabel}</span>
+                      <span className="h-px flex-1 bg-[var(--border-soft)]" />
+                      <span className="font-mono text-[9px] font-semibold" style={{ color: 'var(--ink)', opacity: 0.5 }}>{cg.variants.length} talla{cg.variants.length !== 1 ? 's' : ''}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className={hasSizes ? 'flex flex-wrap gap-2 p-2.5' : 'flex flex-col gap-2 p-2.5'}>
+                      {cg.variants.map(v => {
+                        const sizeAttr   = v.attrs.find(a => isSizeAttr(a.attrName));
+                        const colorAttr  = v.attrs.find(a => isColorAttr(a.attrName));
+                        const otherAttrs = v.attrs.filter(a => a !== colorAttr && a !== sizeAttr);
+                        return (
+                          <div key={v.id} className={`border px-2.5 py-2 flex items-center gap-2 ${v.qty_available > 0 ? 'border-[var(--border-soft)] bg-[var(--surface)]' : 'border-[var(--border-soft)] bg-[var(--surface)] opacity-55'} ${hasSizes ? 'shrink-0' : ''}`}>
+                            <VariantAlertDot qty={v.qty_available} />
+                            {sizeAttr ? (
+                              <span className="font-mono text-[10px] font-bold min-w-[24px] text-center" style={{ color: 'var(--ink)' }}>{sizeAttr.value}</span>
+                            ) : (
+                              otherAttrs.map(a => <span key={a.attrName} className="font-mono text-[9px] font-semibold" style={{ color: 'var(--ink)', opacity: 0.7 }}>{a.value}</span>)
+                            )}
+                            <span className={`font-mono font-black text-[11px] ${v.qty_available > 0 ? 'text-green-700' : 'text-red-500'}`}>{fmtQty(v.qty_available)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {cg.variants.some(v => v.default_code) && (
+                      <div className="px-2.5 pb-2 flex flex-wrap gap-x-3 gap-y-0.5">
+                        {cg.variants.filter(v => v.default_code).map(v => (
+                          <span key={v.id} className="font-mono text-[8px]" style={{ color: 'var(--ink)', opacity: 0.4 }}>{v.default_code}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div>
-              <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-50 mb-2">Ubicaciones en stock</div>
+              <div className="font-mono text-[9px] font-bold uppercase tracking-widest mb-2.5" style={{ color: 'var(--ink)', opacity: 0.6 }}>Ubicaciones en stock</div>
               {row.quants.length === 0 ? (
-                <span className="font-mono text-[9px] opacity-40">Sin registros de stock</span>
+                <span className="font-mono text-[9px]" style={{ color: 'var(--ink)', opacity: 0.45 }}>Sin registros de stock</span>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {row.quants.map(q => (
-                    <div key={q.id} className="border border-[var(--border)]/20 bg-[var(--surface)] px-2 py-1.5 flex items-center gap-2">
-                      <MapPin size={10} className="opacity-40 shrink-0" />
-                      <span className="font-mono text-[9px] text-[var(--ink)]">{q.location_id[1]}</span>
+                    <div key={q.id} className="border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5 flex items-center gap-2">
+                      <MapPin size={10} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.5 }} />
+                      <span className="font-mono text-[10px] font-semibold" style={{ color: 'var(--ink)' }}>{q.location_id[1]}</span>
                       <span className="font-mono font-bold text-[10px] text-green-700">{fmtQty(q.quantity)}</span>
                     </div>
                   ))}
@@ -227,6 +275,7 @@ export const OdooStock: React.FC = () => {
   // -- Filter state ----------------------------------------------------------
   const [sidebarOpen, setSidebarOpen]           = useState(true);
   const [alertFilter, setAlertFilter]           = useState<StockAlert>('all');
+  const [stockPresence, setStockPresence]       = useState<StockPresence>('all');
   const [companyFilter, setCompanyFilter]       = useState<Set<number>>(new Set());
   const [productSearch, setProductSearch]       = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -264,7 +313,7 @@ export const OdooStock: React.FC = () => {
   const productRows = useMemo<ProductRow[]>(() => {
     return products.map(p => ({
       ...p,
-      variants: variants
+      variants: sortVariants(variants
         .filter(v => v.product_tmpl_id[0] === p.id)
         .map(v => ({
           ...v,
@@ -272,7 +321,7 @@ export const OdooStock: React.FC = () => {
             .map(id => attrMap.get(id))
             .filter((av): av is OdooAttributeValue => !!av)
             .map(av => ({ attrName: av.attribute_id[1], value: av.name, color: av.html_color })),
-        })),
+        }))),
       quants: quants.filter(q => q.product_tmpl_id[0] === p.id),
     }));
   }, [products, variants, quants, attrMap]);
@@ -348,6 +397,13 @@ export const OdooStock: React.FC = () => {
         }
         // Product name checkboxes
         if (selectedProducts.size > 0 && !selectedProducts.has(cleanName(r.name))) return null;
+        // Con stock / Sin stock (misma cuenta que se muestra en la tarjeta: disponible = a mano - reservado)
+        if (stockPresence !== 'all') {
+          const reserved = r.quants.reduce((s, qn) => s + qn.reserved_quantity, 0);
+          const available = r.qty_available - reserved;
+          if (stockPresence === 'with'    && available <= 0) return null;
+          if (stockPresence === 'without' && available > 0)  return null;
+        }
         // Search
         if (q) {
           const name = cleanName(r.name);
@@ -386,7 +442,7 @@ export const OdooStock: React.FC = () => {
         return { ...r, variants: filteredVariants };
       })
       .filter((r): r is ProductRow => r !== null);
-  }, [productRows, companyFilter, alertFilter, selectedProducts, selectedColors, selectedSizes, search]);
+  }, [productRows, companyFilter, alertFilter, stockPresence, selectedProducts, selectedColors, selectedSizes, search]);
 
   const stats = useMemo(() => {
     const totalSKUs  = products.length;
@@ -415,6 +471,7 @@ export const OdooStock: React.FC = () => {
 
   const activeFilterCount =
     (alertFilter !== 'all' ? 1 : 0) +
+    (stockPresence !== 'all' ? 1 : 0) +
     companyFilter.size +
     selectedProducts.size +
     selectedColors.size +
@@ -423,6 +480,7 @@ export const OdooStock: React.FC = () => {
 
   const clearAll = () => {
     setAlertFilter('all');
+    setStockPresence('all');
     setCompanyFilter(new Set());
     setSelectedProducts(new Set());
     setSelectedColors(new Set());
@@ -448,11 +506,11 @@ export const OdooStock: React.FC = () => {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="border-b border-[var(--border)] pb-2 flex-1 min-w-0">
           <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">17 // ODOO_STOCK_LIVE</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Conexión directa a zazuexpress2.odoo.com</p>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wide mt-1" style={{ color: 'var(--ink)', opacity: 0.7 }}>Conexión directa a zazuexpress2.odoo.com</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {lastFetch && (
-            <div className="flex items-center gap-1 font-mono text-[9px] opacity-50 uppercase">
+            <div className="flex items-center gap-1 font-mono text-[9px] font-semibold uppercase" style={{ color: 'var(--ink)', opacity: 0.6 }}>
               <Clock size={10} />
               {fmtDate(lastFetch.toISOString())}
             </div>
@@ -463,7 +521,7 @@ export const OdooStock: React.FC = () => {
             ) : status === 'error' ? (
               <><WifiOff size={11} className="text-red-600" /><span className="text-red-700">Error</span></>
             ) : (
-              <><RefreshCw size={11} className="animate-spin opacity-50" /><span className="opacity-50">Cargando...</span></>
+              <><RefreshCw size={11} className="animate-spin" style={{ color: 'var(--ink)', opacity: 0.6 }} /><span style={{ color: 'var(--ink)', opacity: 0.6 }}>Cargando...</span></>
             )}
           </div>
           <button
@@ -707,6 +765,28 @@ export const OdooStock: React.FC = () => {
                     )}
                   </button>
 
+                  {/* Con stock / Sin stock */}
+                  <div className="flex items-center border border-[var(--border)] shrink-0 shadow-[2px_2px_0_var(--border)]">
+                    <button
+                      onClick={() => setStockPresence(p => p === 'with' ? 'all' : 'with')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                        stockPresence === 'with' ? 'bg-green-600 text-white' : 'hover:bg-[var(--ink)]/5'
+                      }`}
+                      style={stockPresence === 'with' ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
+                    >
+                      Con stock
+                    </button>
+                    <button
+                      onClick={() => setStockPresence(p => p === 'without' ? 'all' : 'without')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest border-l border-[var(--border)] transition-colors ${
+                        stockPresence === 'without' ? 'bg-red-600 text-white' : 'hover:bg-[var(--ink)]/5'
+                      }`}
+                      style={stockPresence === 'without' ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
+                    >
+                      Sin stock
+                    </button>
+                  </div>
+
                   {/* Search bar */}
                   <div className="flex items-center border border-[var(--border)]/30 bg-[var(--surface)] px-2 gap-1.5 flex-1 min-w-[160px]">
                     <Search size={11} className="opacity-40 shrink-0" />
@@ -719,7 +799,7 @@ export const OdooStock: React.FC = () => {
                     {search && <button onClick={() => setSearch('')} className="opacity-40 hover:opacity-100"><X size={10} /></button>}
                   </div>
 
-                  <span className="font-mono text-[9px] opacity-40 ml-auto shrink-0">
+                  <span className="font-mono text-[9px] font-semibold ml-auto shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>
                     {filteredRows.length} resultado{filteredRows.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -731,6 +811,12 @@ export const OdooStock: React.FC = () => {
                       <span className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 bg-[var(--ink)]/10 border border-[var(--border)]/20">
                         {alertFilter === 'over' ? 'Sobre stock' : alertFilter === 'low' ? 'Por acabar' : 'Stock crítico'}
                         <button onClick={() => setAlertFilter('all')} className="opacity-50 hover:opacity-100"><X size={8} /></button>
+                      </span>
+                    )}
+                    {stockPresence !== 'all' && (
+                      <span className={`flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-2 py-0.5 border ${stockPresence === 'with' ? 'bg-green-500/10 border-green-500/30 text-green-700' : 'bg-red-500/10 border-red-500/30 text-red-700'}`}>
+                        {stockPresence === 'with' ? 'Con stock' : 'Sin stock'}
+                        <button onClick={() => setStockPresence('all')} className="opacity-50 hover:opacity-100"><X size={8} /></button>
                       </span>
                     )}
                     {[...companyFilter].map(id => {
@@ -778,7 +864,7 @@ export const OdooStock: React.FC = () => {
                     <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Estado</div>
                   </div>
                   {filteredRows.length === 0 ? (
-                    <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin resultados</div>
+                    <div className="px-4 py-8 text-center font-mono text-[10px] uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>Sin resultados</div>
                   ) : (
                     filteredRows.map(row => <ProductItem key={row.id} row={row} />)
                   )}
@@ -796,13 +882,13 @@ export const OdooStock: React.FC = () => {
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-20 text-right">Unidades</div>
               </div>
               {locationRows.length === 0 ? (
-                <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin ubicaciones con stock</div>
+                <div className="px-4 py-8 text-center font-mono text-[10px] uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>Sin ubicaciones con stock</div>
               ) : locationRows.map(loc => (
-                <div key={loc.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]/10 last:border-0 hover:bg-[var(--surface)] transition-colors">
-                  <MapPin size={13} className="opacity-40 shrink-0" />
+                <div key={loc.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)] transition-colors">
+                  <MapPin size={13} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }} />
                   <div className="flex-1 min-w-0">
                     <div className="font-mono font-bold text-[11px] text-[var(--ink)] truncate">{loc.complete_name}</div>
-                    <div className="font-mono text-[9px] opacity-40 uppercase">{loc.usage}</div>
+                    <div className="font-mono text-[9px] font-semibold uppercase" style={{ color: 'var(--ink)', opacity: 0.55 }}>{loc.usage}</div>
                   </div>
                   <div className="font-mono font-bold text-[11px] text-[var(--ink)] w-16 text-right">{loc.skus}</div>
                   <div className="font-mono font-black text-sm text-green-700 w-20 text-right">{fmtQty(loc.totalQty)}</div>
@@ -821,20 +907,20 @@ export const OdooStock: React.FC = () => {
                 <div className="font-mono text-[9px] font-bold uppercase tracking-widest w-28 text-right hidden sm:block">Fecha</div>
               </div>
               {moves.length === 0 ? (
-                <div className="px-4 py-8 text-center font-mono text-[10px] opacity-40 uppercase">Sin movimientos recientes</div>
+                <div className="px-4 py-8 text-center font-mono text-[10px] uppercase" style={{ color: 'var(--ink)', opacity: 0.5 }}>Sin movimientos recientes</div>
               ) : moves.map(m => (
-                <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border)]/10 last:border-0 hover:bg-[var(--surface)] transition-colors">
+                <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)] transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="font-mono font-bold text-[10px] text-[var(--ink)] truncate">{m.product_id[1]}</div>
-                    {m.origin && <div className="font-mono text-[9px] opacity-40 truncate">{m.origin}</div>}
+                    {m.origin && <div className="font-mono text-[9px] font-semibold truncate" style={{ color: 'var(--ink)', opacity: 0.5 }}>{m.origin}</div>}
                   </div>
-                  <div className="flex-1 hidden md:flex items-center gap-1 font-mono text-[9px] opacity-60 truncate">
+                  <div className="flex-1 hidden md:flex items-center gap-1 font-mono text-[9px] font-semibold truncate" style={{ color: 'var(--ink)', opacity: 0.7 }}>
                     <span className="truncate">{m.location_id[1]}</span>
-                    <span className="opacity-40 shrink-0">→</span>
+                    <span className="shrink-0" style={{ opacity: 0.5 }}>→</span>
                     <span className="truncate">{m.location_dest_id[1]}</span>
                   </div>
                   <div className="font-mono font-black text-sm text-[var(--ink)] w-16 text-right">{fmtQty(m.quantity_done ?? m.product_qty)}</div>
-                  <div className="font-mono text-[9px] opacity-50 w-28 text-right hidden sm:block">{fmtDate(m.date)}</div>
+                  <div className="font-mono text-[9px] font-semibold w-28 text-right hidden sm:block" style={{ color: 'var(--ink)', opacity: 0.6 }}>{fmtDate(m.date)}</div>
                 </div>
               ))}
             </div>
